@@ -57,7 +57,7 @@ export function WorkspaceClient({
     const handleAdjustStockLot = useCallback(
         (data: Record<string, string>) => {
             void adjustStockLotAction({
-                stockLotId: data.stockLotId,
+                stockLotId: data.stockLotId ?? '',
                 input: {
                     quantity_delta: Number(data.quantity),
                     reason: data.reason || 'Manual adjustment',
@@ -71,9 +71,9 @@ export function WorkspaceClient({
     const handleRelocateStockLot = useCallback(
         (data: Record<string, string>) => {
             void relocateStockLotAction({
-                stockLotId: data.stockLotId,
+                stockLotId: data.stockLotId ?? '',
                 input: {
-                    destination_shelf_id: data.shelfId,
+                    destination_shelf_id: data.shelfId ?? '',
                     reason: data.reason || 'Manual relocation',
                     note: data.notes || null,
                 },

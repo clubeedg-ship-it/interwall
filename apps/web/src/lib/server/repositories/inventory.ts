@@ -17,10 +17,12 @@ type QueryResult<T> = Promise<{
 
 type SelectQueryBuilder<Row> = {
     eq(column: string, value: string): SelectQueryBuilder<Row>;
+    in(column: string, values: string[]): SelectQueryBuilder<Row>;
     order(
         column: string,
         options?: { ascending?: boolean },
     ): QueryResult<Row[] | null>;
+    single(): QueryResult<Row | null>;
     maybeSingle(): QueryResult<Row | null>;
 };
 

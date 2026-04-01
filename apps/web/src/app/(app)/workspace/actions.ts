@@ -211,7 +211,8 @@ export async function getShelfDetailAction(input: {
             .from('products')
             .select('*')
             .eq('tenant_id', tenantId)
-            .in('id', productIds);
+            .in('id', productIds)
+            .order('name', { ascending: true });
 
         const products: ProductRow[] =
             (productsResult as { data: ProductRow[] | null }).data ?? [];

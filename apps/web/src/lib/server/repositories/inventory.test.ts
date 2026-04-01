@@ -92,6 +92,19 @@ function createInventoryClient(fixtures: {
                                 error: null,
                             });
                         },
+                        in(column: string, values: unknown[]) {
+                            filters.push({
+                                column,
+                                value: values,
+                            });
+                            return builder;
+                        },
+                        single() {
+                            return Promise.resolve({
+                                data: runSelect()[0] ?? null,
+                                error: null,
+                            });
+                        },
                         maybeSingle() {
                             return Promise.resolve({
                                 data: runSelect()[0] ?? null,
@@ -103,10 +116,12 @@ function createInventoryClient(fixtures: {
                     const runSelect = () => {
                         const filtered = rows[table].filter((row) =>
                             filters.every(({ column, value }) =>
-                                compareValues(
-                                    row[column as keyof RowMap[Table]],
-                                    value,
-                                ),
+                                Array.isArray(value)
+                                    ? value.includes(row[column as keyof RowMap[Table]])
+                                    : compareValues(
+                                          row[column as keyof RowMap[Table]],
+                                          value,
+                                      ),
                             ),
                         );
 
