@@ -130,7 +130,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tenant-Safe Foundation | 0/7 | Not started | - |
+| 1. Tenant-Safe Foundation | 2/7 | In Progress | - |
 | 2. Inventory Core Model | 0/0 | Not started | - |
 | 3. Wall Experience | 0/0 | Not started | - |
 | 4. Orders & FIFO Ledger | 0/0 | Not started | - |

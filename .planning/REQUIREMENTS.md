@@ -8,8 +8,8 @@
 ### Tenancy & Access
 
 - [x] **TEN-01**: User can belong to one or more organizations and only access data for the active tenant
-- [ ] **TEN-02**: Admin can manage memberships and roles for a tenant
-- [ ] **TEN-03**: Tenant-scoped data access is enforced through row-level security and membership-aware policies
+- [x] **TEN-02**: Admin can manage memberships and roles for a tenant
+- [x] **TEN-03**: Tenant-scoped data access is enforced through row-level security and membership-aware policies
 
 ### Inventory Model
 
@@ -72,8 +72,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TEN-01 | Phase 1 | Complete |
-| TEN-02 | Phase 1 | Pending |
-| TEN-03 | Phase 1 | Pending |
+| TEN-02 | Phase 1 | Complete |
+| TEN-03 | Phase 1 | Complete |
 | INV-01 | Phase 2 | Pending |
 | INV-02 | Phase 2 | Pending |
 | INV-03 | Phase 3 | Pending |
