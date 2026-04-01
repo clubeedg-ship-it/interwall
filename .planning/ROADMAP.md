@@ -13,7 +13,7 @@ This roadmap rebuilds the Omiximo prototype into `interwall`, a unified multi-te
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Tenant-Safe Foundation** - Establish the new stack, authentication, tenant model, and row-level security. (completed 2026-04-01)
-- [ ] **Phase 2: Inventory Core Model** - Build the core product, warehouse, zone, shelf, and stock data model.
+- [x] **Phase 2: Inventory Core Model** - Build the core product, warehouse, zone, shelf, and stock data model. (completed 2026-04-01)
 - [ ] **Phase 3: Wall Experience** - Recreate the warehouse UI and scanning-oriented workflows in the new frontend.
 - [ ] **Phase 4: Orders & FIFO Ledger** - Implement durable purchase/sales order flows and FIFO-backed stock movement.
 - [ ] **Phase 5: Kits & Costing** - Add bill-of-materials logic and profit-aware kit consumption.
@@ -55,7 +55,7 @@ Plans:
 Plans:
 - [x] `02-01-PLAN.md` — Define the shared inventory contracts for products, warehouse topology, and stock operations.
 - [x] `02-02-PLAN.md` — Create the tenant-safe Supabase schema, lineage guards, and RLS policies for the inventory core model.
-- [ ] `02-03-PLAN.md` — Implement tenant-scoped inventory repositories and the trusted stock mutation backend surface.
+- [x] `02-03-PLAN.md` — Implement tenant-scoped inventory repositories and the trusted stock mutation backend surface.
 
 ### Phase 3: Wall Experience
 **Goal**: The new frontend reproduces the recognizable Omiximo wall UI and barcode-friendly workflows on the modern stack.
@@ -135,7 +135,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tenant-Safe Foundation | 7/7 | Complete    | 2026-04-01 |
-| 2. Inventory Core Model | 2/3 | In Progress | - |
+| 2. Inventory Core Model | 3/3 | Complete | 2026-04-01 |
 | 3. Wall Experience | 0/0 | Not started | - |
 | 4. Orders & FIFO Ledger | 0/0 | Not started | - |
 | 5. Kits & Costing | 0/0 | Not started | - |
