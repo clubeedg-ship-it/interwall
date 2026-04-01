@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-inventory-core-model-01-PLAN.md
-last_updated: "2026-04-01T16:06:20.491Z"
-last_activity: 2026-04-01 -- Completed Phase 02 Plan 01
+stopped_at: Completed 02-inventory-core-model-02-PLAN.md
+last_updated: "2026-04-01T16:17:30.640Z"
+last_activity: 2026-04-01 -- Completed Phase 02 Plan 02
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 02 (inventory-core-model) — EXECUTING
-Plan: 2 of 3
-Status: Ready for Phase 02 Plan 02
-Last activity: 2026-04-01 -- Completed Phase 02 Plan 01
+Plan: 3 of 3
+Status: Ready for Phase 02 Plan 03
+Last activity: 2026-04-01 -- Completed Phase 02 Plan 02
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -84,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 01-tenant-safe-foundation]: The members settings page reuses the guarded organization-selection action for switching active tenants.
 - [Phase 02]: Keep inventory row types in a dedicated shared module and re-export them through both database.ts and the package root.
 - [Phase 02]: Separate immutable stock acquisition metadata from adjustment and relocation payloads so FIFO work can layer on later without contract churn.
+- [Phase 02-inventory-core-model]: The inventory migration includes warehouse, zone, and shelf fields already present in the shared contracts so downstream phases do not need a contract-realignment migration.
+- [Phase 02-inventory-core-model]: Tenant membership stays in RLS while parent-child correctness stays in trigger functions, keeping policies focused on access control instead of business semantics.
 
 ### Pending Todos
 
@@ -95,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T16:06:20.491Z
-Stopped at: Completed 02-inventory-core-model-01-PLAN.md
-Resume file: .planning/phases/02-inventory-core-model/02-02-PLAN.md
+Last session: 2026-04-01T16:17:30.640Z
+Stopped at: Completed 02-inventory-core-model-02-PLAN.md
+Resume file: .planning/phases/02-inventory-core-model/02-03-PLAN.md
