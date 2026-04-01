@@ -71,7 +71,7 @@ Plans:
 - [x] 03-01-PLAN.md — Establish the wall-first shell, route composition, and typed wall view-model contracts
 - [x] 03-02-PLAN.md — Implement the wall grid, reorder-state rendering, and shelf detail surfaces
 - [x] 03-03-PLAN.md — Add scanner-first lookup and stock action workflows
-- [ ] 03-04-PLAN.md — Gap closure: wire server actions and shelf detail into the wall experience
+- [x] 03-04-PLAN.md — Gap closure: wire server actions and shelf detail into the wall experience
 **UI hint**: yes
 
 ### Phase 4: Orders & FIFO Ledger
