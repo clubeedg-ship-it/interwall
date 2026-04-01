@@ -6,7 +6,7 @@
     "build": "next build",
     "typecheck": "tsc --project tsconfig.json --pretty false --noEmit",
     "test:app": "vitest --config vitest.config.ts --project app --passWithNoTests",
-    "test:server": "vitest --config vitest.config.ts --project server --passWithNoTests"
+    "test:server": "vitest --config vitest.config.ts --passWithNoTests --environment node"
   },
   "dependencies": {
     "@interwall/shared": "0.0.0",
