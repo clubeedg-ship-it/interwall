@@ -16,13 +16,13 @@
 - [x] **INV-01**: User can create and manage products with SKU/EAN, barcode, reorder settings, and stock metadata
 - [x] **INV-02**: User can manage warehouses, zones, and shelves with persistent database-backed configuration
 - [x] **INV-03**: User can view shelf status with color-coded reorder indicators based on stock versus reorder thresholds
-- [ ] **INV-04**: System values stock and consumes inventory using FIFO rules
+- [x] **INV-04**: System values stock and consumes inventory using FIFO rules
 
 ### Orders
 
-- [ ] **ORD-01**: User can create and manage purchase orders with line items and receiving workflows
-- [ ] **ORD-02**: User can create and manage sales orders with line items, statuses, and manual editing
-- [ ] **ORD-03**: Purchase orders increase stock and sales orders decrease stock through durable transaction records
+- [x] **ORD-01**: User can create and manage purchase orders with line items and receiving workflows
+- [x] **ORD-02**: User can create and manage sales orders with line items, statuses, and manual editing
+- [x] **ORD-03**: Purchase orders increase stock and sales orders decrease stock through durable transaction records
 
 ### Kits & BOM
 
@@ -77,10 +77,10 @@
 | INV-01 | Phase 2 | Complete |
 | INV-02 | Phase 2 | Complete |
 | INV-03 | Phase 3 | Complete |
-| INV-04 | Phase 4 | Pending |
-| ORD-01 | Phase 4 | Pending |
-| ORD-02 | Phase 4 | Pending |
-| ORD-03 | Phase 4 | Pending |
+| INV-04 | Phase 4 | Complete |
+| ORD-01 | Phase 4 | Complete |
+| ORD-02 | Phase 4 | Complete |
+| ORD-03 | Phase 4 | Complete |
 | KIT-01 | Phase 5 | Pending |
 | KIT-02 | Phase 5 | Pending |
 | KIT-03 | Phase 5 | Pending |

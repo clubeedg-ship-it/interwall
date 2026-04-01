@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-wall-experience-04-PLAN.md
-last_updated: "2026-04-01T20:33:30.371Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-04-01T21:51:01.477Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 19
+  completed_plans: 15
   percent: 100
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Businesses can manage inventory, orders, kits, email-driven automation, and profitability in one durable multi-tenant system without the sync failures and architectural fragmentation of the prototype.
-**Current focus:** Phase 03 — wall-experience
+**Current focus:** Phase 04 — orders-fifo-ledger
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (orders-fifo-ledger) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | Phase 03-wall-experience P02 | 7 | 2 tasks | 9 files |
 | Phase 03-wall-experience P03 | 7 | 2 tasks | 10 files |
 | Phase 03-wall-experience P04 | 5 | 2 tasks | 7 files |
+| Phase 04 P01 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,9 @@ Recent decisions affecting current work:
 - [Phase 03-wall-experience]: WorkspaceClient bridges server/client boundary using useCallback wrappers around server actions
 - [Phase 03-wall-experience]: Shelf detail panel replaces scanner column when active, preserving wall canvas in left column
 - [Phase 03-wall-experience]: classifyHealth exported from wall-data.ts for reuse in getShelfDetailAction
+- [Phase 04]: Kept all order, ledger, and mutation payload contracts in packages/shared/src/inventory.ts so schema, functions, and UI share one canonical Phase 4 surface.
+- [Phase 04]: Separated UI-facing order workspace projections into packages/shared/src/inventory-orders.ts and re-exported them from the shared package root.
+- [Phase 04]: Implemented FIFO as a pure helper that sorts a copied lot array by received_at and returns deterministic consumed slices, total cost, and remaining demand.
 
 ### Pending Todos
 
@@ -115,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T20:23:46.060Z
-Stopped at: Completed 03-wall-experience-04-PLAN.md
+Last session: 2026-04-01T21:51:01.474Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
