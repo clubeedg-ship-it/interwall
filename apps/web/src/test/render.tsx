@@ -1,6 +1,7 @@
 import type { PropsWithChildren, ReactElement } from 'react';
 
 import { render, type RenderOptions, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 type AppRenderOptions = Omit<RenderOptions, 'wrapper'>;
 
@@ -9,10 +10,14 @@ function AppTestProviders({ children }: PropsWithChildren) {
 }
 
 export function renderApp(ui: ReactElement, options?: AppRenderOptions) {
-    return render(ui, {
+    const result = render(ui, {
         wrapper: AppTestProviders,
-        ...options
+        ...options,
     });
+    return {
+        ...result,
+        user: userEvent.setup(),
+    };
 }
 
 export { screen };
