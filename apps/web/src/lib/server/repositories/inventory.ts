@@ -340,6 +340,36 @@ export async function getWarehouseTree(
     }));
 }
 
+export async function getProductByBarcodeOrSku(
+    client: InventoryRepositoryClient,
+    input: { tenantId: string; code: string },
+): Promise<ProductRow | null> {
+    const barcodeResult = await client
+        .from('products')
+        .select('*')
+        .eq('tenant_id', input.tenantId)
+        .eq('barcode', input.code)
+        .maybeSingle();
+
+    const barcodeMatch = requireRow(
+        'Unable to look up product by barcode',
+        barcodeResult,
+    );
+
+    if (barcodeMatch) {
+        return barcodeMatch;
+    }
+
+    const skuResult = await client
+        .from('products')
+        .select('*')
+        .eq('tenant_id', input.tenantId)
+        .eq('sku', input.code)
+        .maybeSingle();
+
+    return requireRow('Unable to look up product by SKU', skuResult);
+}
+
 export async function listStockLotsByShelf(
     client: InventoryRepositoryClient,
     input: { tenantId: string; shelfId: string },

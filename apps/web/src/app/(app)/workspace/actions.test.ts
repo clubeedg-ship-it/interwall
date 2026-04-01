@@ -128,7 +128,7 @@ describe('scanBarcodeAction', () => {
             expect(result.product.id).toBe('product-1');
             expect(result.product.name).toBe('Anchor Bracket');
             expect(result.lots).toHaveLength(1);
-            expect(result.lots[0].id).toBe('lot-1');
+            expect(result.lots[0]!.id).toBe('lot-1');
         }
     });
 
