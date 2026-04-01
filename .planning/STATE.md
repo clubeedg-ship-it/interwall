@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-04-01T21:51:01.477Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-04-01T21:57:49.749Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 04 (orders-fifo-ledger) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -64,6 +64,7 @@ Progress: [██████████] 100%
 | Phase 03-wall-experience P03 | 7 | 2 tasks | 10 files |
 | Phase 03-wall-experience P04 | 5 | 2 tasks | 7 files |
 | Phase 04 P01 | 4 | 2 tasks | 5 files |
+| Phase 04 P02 | 4 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Kept all order, ledger, and mutation payload contracts in packages/shared/src/inventory.ts so schema, functions, and UI share one canonical Phase 4 surface.
 - [Phase 04]: Separated UI-facing order workspace projections into packages/shared/src/inventory-orders.ts and re-exported them from the shared package root.
 - [Phase 04]: Implemented FIFO as a pure helper that sorts a copied lot array by received_at and returns deterministic consumed slices, total cost, and remaining demand.
+- [Phase 04]: Keep order and ledger tables read-only to tenant members and route all stock-affecting writes through security-definer SQL helpers.
+- [Phase 04]: Enforce tenant and parent-record lineage in triggers so RLS remains focused on visibility instead of business correctness.
 
 ### Pending Todos
 
@@ -119,6 +122,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T21:51:01.474Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-04-01T21:57:49.747Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

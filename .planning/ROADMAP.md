@@ -86,7 +86,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [ ] `04-01-PLAN.md` — Define shared order, ledger, and FIFO contracts plus the pure FIFO helper.
-- [ ] `04-02-PLAN.md` — Add the orders, line-item, and immutable ledger schema with server-only write paths, atomic workflow RPCs, and RLS.
+- [x] `04-02-PLAN.md` — Add the orders, line-item, and immutable ledger schema with server-only write paths, atomic workflow RPCs, and RLS.
 - [ ] `04-03-PLAN.md` — Implement tenant-scoped order repositories plus the trusted receiving and shipping backend workflows over the SQL RPC boundary.
 - [ ] `04-04-PLAN.md` — Build the Orders workspace shell integration, routes, list-detail layout, and draft order editing flows.
 - [ ] `04-05-PLAN.md` — Add receive and ship task surfaces, FIFO preview, and the read-only ledger UI.
@@ -148,7 +148,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Tenant-Safe Foundation | 7/7 | Complete    | 2026-04-01 |
 | 2. Inventory Core Model | 3/3 | Complete | 2026-04-01 |
 | 3. Wall Experience | 3/4 | In progress | - |
-| 4. Orders & FIFO Ledger | 0/5 | Not started | - |
+| 4. Orders & FIFO Ledger | 2/5 | In progress | - |
 | 5. Kits & Costing | 0/0 | Not started | - |
 | 6. Email Automation | 0/0 | Not started | - |
 | 7. Reorder, Reporting & Admin | 0/0 | Not started | - |
