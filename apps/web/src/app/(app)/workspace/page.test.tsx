@@ -13,6 +13,7 @@ const {
     mockCreateServerSupabaseClient,
     mockListMembershipsForUser,
     mockCookieStore,
+    mockGetWallExperienceData,
 } = vi.hoisted(() => ({
     mockRequireUserSession: vi.fn(),
     mockCreateServerSupabaseClient: vi.fn(),
@@ -20,6 +21,7 @@ const {
     mockCookieStore: {
         get: vi.fn(),
     },
+    mockGetWallExperienceData: vi.fn(),
 }));
 
 vi.mock('@/lib/server/auth', () => ({
@@ -34,6 +36,10 @@ vi.mock('@/lib/server/repositories/memberships', () => ({
     listMembershipsForUser: mockListMembershipsForUser,
 }));
 
+vi.mock('@/lib/server/wall-data', () => ({
+    getWallExperienceData: mockGetWallExperienceData,
+}));
+
 vi.mock('next/headers', () => ({
     cookies: vi.fn(() => mockCookieStore),
 }));
@@ -43,6 +49,7 @@ describe('WorkspacePage', () => {
         mockRequireUserSession.mockReset();
         mockCreateServerSupabaseClient.mockReset();
         mockListMembershipsForUser.mockReset();
+        mockGetWallExperienceData.mockReset();
         mockCookieStore.get.mockReset();
 
         mockRequireUserSession.mockResolvedValue({
@@ -50,6 +57,34 @@ describe('WorkspacePage', () => {
             email: 'owner@example.com',
         });
         mockCreateServerSupabaseClient.mockReturnValue({});
+        mockGetWallExperienceData.mockResolvedValue({
+            warehouseName: 'Alpha Industries main warehouse',
+            zones: [
+                {
+                    id: 'zone-receiving',
+                    label: 'Receiving',
+                    displayCode: 'RCV',
+                    shelfCount: 1,
+                    shelves: [
+                        {
+                            id: 'shelf-rcv-01',
+                            label: 'Inbound 01',
+                            displayCode: 'RCV-01',
+                            health: 'healthy',
+                            productName: 'Anchor Bracket',
+                            quantityOnHand: 18,
+                            capacityUnits: 24,
+                            reorderCount: 0,
+                            lotCount: 2,
+                            notes: null,
+                        },
+                    ],
+                },
+            ],
+            selectedZoneId: null,
+            selectedShelfId: null,
+            detail: null,
+        });
     });
 
     it('renders the wall-first workspace shell after the authenticated user selects an active tenant', async () => {
