@@ -32,7 +32,7 @@ type InventoryTableMap = {
     products: ProductRow;
     warehouses: WarehouseRow;
     inventory_zones: InventoryZoneRow;
-    inventory_shelves: ShelfRow;
+    shelves: ShelfRow;
     stock_lots: StockLotRow;
 };
 
@@ -41,8 +41,8 @@ export type InventoryRepositoryClient = {
         select(columns?: string): SelectQueryBuilder<InventoryTableMap[Table]>;
         upsert(
             values:
-                | Partial<InventoryTableMap[Table]>
-                | Array<Partial<InventoryTableMap[Table]>>,
+                | (Partial<InventoryTableMap[Table]> & Record<string, unknown>)
+                | Array<Partial<InventoryTableMap[Table]> & Record<string, unknown>>,
             options?: { onConflict?: string },
         ): UpsertBuilder<InventoryTableMap[Table]>;
     };
@@ -175,6 +175,7 @@ export async function upsertWarehouse(
                 {
                     id: input.warehouseId,
                     tenant_id: input.tenantId,
+                    code: input.warehouse.display_code,
                     ...input.warehouse,
                 },
             ],
@@ -233,7 +234,7 @@ export async function upsertShelf(
     },
 ): Promise<ShelfRow> {
     const result = await client
-        .from('inventory_shelves')
+        .from('shelves')
         .upsert(
             [
                 {
@@ -321,7 +322,7 @@ export async function getWarehouseTree(
         requireRows(
             'Unable to list shelves for the active tenant',
             await client
-                .from('inventory_shelves')
+                .from('shelves')
                 .select('*')
                 .eq('tenant_id', input.tenantId)
                 .order('sort_order', { ascending: true }),

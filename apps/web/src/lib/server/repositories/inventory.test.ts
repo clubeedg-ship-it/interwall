@@ -21,14 +21,14 @@ type TableName =
     | 'products'
     | 'warehouses'
     | 'inventory_zones'
-    | 'inventory_shelves'
+    | 'shelves'
     | 'stock_lots';
 
 type RowMap = {
     products: ProductRow;
     warehouses: WarehouseRow;
     inventory_zones: InventoryZoneRow;
-    inventory_shelves: ShelfRow;
+    shelves: ShelfRow;
     stock_lots: StockLotRow;
 };
 
@@ -53,7 +53,7 @@ function createInventoryClient(fixtures: {
     products?: ProductRow[];
     warehouses?: WarehouseRow[];
     inventory_zones?: InventoryZoneRow[];
-    inventory_shelves?: ShelfRow[];
+    shelves?: ShelfRow[];
     stock_lots?: StockLotRow[];
 }) {
     const rows: {
@@ -62,7 +62,7 @@ function createInventoryClient(fixtures: {
         products: fixtures.products ?? [],
         warehouses: fixtures.warehouses ?? [],
         inventory_zones: fixtures.inventory_zones ?? [],
-        inventory_shelves: fixtures.inventory_shelves ?? [],
+        shelves: fixtures.shelves ?? [],
         stock_lots: fixtures.stock_lots ?? [],
     };
 
@@ -314,7 +314,7 @@ describe('inventory repositories', () => {
                 onConflict: 'id',
             },
             {
-                table: 'inventory_shelves',
+                table: 'shelves',
                 values: [
                     expect.objectContaining({
                         id: 'shelf-1',

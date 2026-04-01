@@ -8,6 +8,7 @@ For the interwall rebuild, `supabase/functions` is the first-class home for back
 - active-tenant validation
 - tenant membership and role checks
 - privileged membership administration
+- trusted inventory stock mutation semantics (`inventory-stock`)
 - other server-only tenant and auth flows added in later phases
 
 `apps/web` is not the home for this logic. The web app should stay focused on UI, session orchestration, and thin request handoff into the backend surface defined here.
@@ -17,6 +18,11 @@ For the interwall rebuild, `supabase/functions` is the first-class home for back
 - `_shared/auth.ts`: creates request-scoped Supabase clients and resolves the authenticated backend user
 - `_shared/tenant-context.ts`: enforces active tenant, membership, and admin requirements
 - `_shared/errors.ts`: provides consistent JSON error responses for functions
+
+## Current Functions
+
+- `tenant-memberships`: lists and administers tenant memberships behind membership-aware guards
+- `inventory-stock`: owns create, update, adjust, and relocate stock-lot mutations after validating the caller and active tenant
 
 ## Edge Function Contract
 
