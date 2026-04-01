@@ -29,3 +29,16 @@ export type {
     WarehouseUpsertInput,
     WarehouseRow,
 } from './inventory';
+export type {
+    WallInventoryViewModel,
+    WallScannerMatch,
+    WallScannerMatchType,
+    WallScannerState,
+    WallScannerStatus,
+    WallShelfDetailState,
+    WallShelfHealth,
+    WallShelfLotState,
+    WallShelfState,
+    WallStockActionDraft,
+    WallZoneState,
+} from './inventory-wall';

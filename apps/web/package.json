@@ -5,8 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "typecheck": "tsc --project tsconfig.json --pretty false --noEmit",
-    "test:app": "vitest --config vitest.config.ts --project app --passWithNoTests",
-    "test:server": "vitest --config vitest.config.ts --passWithNoTests --environment node"
+    "test:app": "vitest --config vitest.app.config.ts --passWithNoTests",
+    "test:server": "vitest --config vitest.server.config.ts --passWithNoTests"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.0",
