@@ -12,6 +12,7 @@ import type {
 } from '@interwall/shared';
 
 import {
+    getProductByBarcodeOrSku,
     listProducts,
     listStockLotsByShelf,
     upsertWarehouseTree,
@@ -393,6 +394,166 @@ describe('inventory repositories', () => {
                 tenant_id: tenantId,
             }),
         ]);
+    });
+
+    it('getProductByBarcodeOrSku finds a product by exact barcode match first', async () => {
+        const client = createInventoryClient({
+            products: [
+                {
+                    id: 'product-bc',
+                    tenant_id: tenantId,
+                    sku: 'SKU-300',
+                    barcode: '9876543210',
+                    name: 'Barcode Match',
+                    description: null,
+                    unit_of_measure: 'ea',
+                    reorder_point: 5,
+                    safety_stock: 1,
+                    lead_time_days: 3,
+                    reorder_enabled: true,
+                    preferred_storage_note: null,
+                    default_cost_basis: null,
+                    tracking_mode: 'lot',
+                    status: 'active',
+                    archived_at: null,
+                    created_at: '2026-04-01T00:00:00.000Z',
+                    updated_at: '2026-04-01T00:00:00.000Z',
+                },
+                {
+                    id: 'product-sku',
+                    tenant_id: tenantId,
+                    sku: '9876543210',
+                    barcode: null,
+                    name: 'SKU Match',
+                    description: null,
+                    unit_of_measure: 'ea',
+                    reorder_point: 5,
+                    safety_stock: 1,
+                    lead_time_days: 3,
+                    reorder_enabled: true,
+                    preferred_storage_note: null,
+                    default_cost_basis: null,
+                    tracking_mode: 'none',
+                    status: 'active',
+                    archived_at: null,
+                    created_at: '2026-04-01T00:00:00.000Z',
+                    updated_at: '2026-04-01T00:00:00.000Z',
+                },
+            ],
+        });
+
+        const result = await getProductByBarcodeOrSku(client, {
+            tenantId,
+            code: '9876543210',
+        });
+
+        expect(result).toEqual(
+            expect.objectContaining({ id: 'product-bc', name: 'Barcode Match' }),
+        );
+    });
+
+    it('getProductByBarcodeOrSku falls back to SKU when no barcode match exists', async () => {
+        const client = createInventoryClient({
+            products: [
+                {
+                    id: 'product-sku-only',
+                    tenant_id: tenantId,
+                    sku: 'UNIQUE-SKU',
+                    barcode: null,
+                    name: 'SKU Only Product',
+                    description: null,
+                    unit_of_measure: 'ea',
+                    reorder_point: 5,
+                    safety_stock: 1,
+                    lead_time_days: 3,
+                    reorder_enabled: true,
+                    preferred_storage_note: null,
+                    default_cost_basis: null,
+                    tracking_mode: 'none',
+                    status: 'active',
+                    archived_at: null,
+                    created_at: '2026-04-01T00:00:00.000Z',
+                    updated_at: '2026-04-01T00:00:00.000Z',
+                },
+            ],
+        });
+
+        const result = await getProductByBarcodeOrSku(client, {
+            tenantId,
+            code: 'UNIQUE-SKU',
+        });
+
+        expect(result).toEqual(
+            expect.objectContaining({ id: 'product-sku-only', name: 'SKU Only Product' }),
+        );
+    });
+
+    it('getProductByBarcodeOrSku returns null when no match is found', async () => {
+        const client = createInventoryClient({
+            products: [
+                {
+                    id: 'product-nope',
+                    tenant_id: tenantId,
+                    sku: 'OTHER-SKU',
+                    barcode: 'OTHER-BC',
+                    name: 'Not a Match',
+                    description: null,
+                    unit_of_measure: 'ea',
+                    reorder_point: 5,
+                    safety_stock: 1,
+                    lead_time_days: 3,
+                    reorder_enabled: true,
+                    preferred_storage_note: null,
+                    default_cost_basis: null,
+                    tracking_mode: 'none',
+                    status: 'active',
+                    archived_at: null,
+                    created_at: '2026-04-01T00:00:00.000Z',
+                    updated_at: '2026-04-01T00:00:00.000Z',
+                },
+            ],
+        });
+
+        const result = await getProductByBarcodeOrSku(client, {
+            tenantId,
+            code: 'NO-MATCH',
+        });
+
+        expect(result).toBeNull();
+    });
+
+    it('getProductByBarcodeOrSku isolates results to the active tenant', async () => {
+        const client = createInventoryClient({
+            products: [
+                {
+                    id: 'product-other-tenant',
+                    tenant_id: 'tenant-2',
+                    sku: 'CROSS-TENANT',
+                    barcode: 'CROSS-TENANT',
+                    name: 'Other Tenant Product',
+                    description: null,
+                    unit_of_measure: 'ea',
+                    reorder_point: 5,
+                    safety_stock: 1,
+                    lead_time_days: 3,
+                    reorder_enabled: true,
+                    preferred_storage_note: null,
+                    default_cost_basis: null,
+                    tracking_mode: 'none',
+                    status: 'active',
+                    archived_at: null,
+                    created_at: '2026-04-01T00:00:00.000Z',
+                    updated_at: '2026-04-01T00:00:00.000Z',
+                },
+            ],
+        });
+
+        const result = await getProductByBarcodeOrSku(client, {
+            tenantId,
+            code: 'CROSS-TENANT',
+        });
+
+        expect(result).toBeNull();
     });
 
     it('repository helpers accept typed shared inventory payloads', async () => {
