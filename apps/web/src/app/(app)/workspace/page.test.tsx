@@ -14,6 +14,7 @@ const {
     mockListMembershipsForUser,
     mockCookieStore,
     mockGetWallExperienceData,
+    mockWorkspaceClient,
 } = vi.hoisted(() => ({
     mockRequireUserSession: vi.fn(),
     mockCreateServerSupabaseClient: vi.fn(),
@@ -22,6 +23,7 @@ const {
         get: vi.fn(),
     },
     mockGetWallExperienceData: vi.fn(),
+    mockWorkspaceClient: vi.fn(),
 }));
 
 vi.mock('@/lib/server/auth', () => ({
@@ -44,6 +46,10 @@ vi.mock('next/headers', () => ({
     cookies: vi.fn(() => mockCookieStore),
 }));
 
+vi.mock('./workspace-client', () => ({
+    WorkspaceClient: mockWorkspaceClient,
+}));
+
 describe('WorkspacePage', () => {
     beforeEach(() => {
         mockRequireUserSession.mockReset();
@@ -51,12 +57,20 @@ describe('WorkspacePage', () => {
         mockListMembershipsForUser.mockReset();
         mockGetWallExperienceData.mockReset();
         mockCookieStore.get.mockReset();
+        mockWorkspaceClient.mockReset();
 
         mockRequireUserSession.mockResolvedValue({
             id: 'user-1',
             email: 'owner@example.com',
         });
         mockCreateServerSupabaseClient.mockReturnValue({});
+        mockWorkspaceClient.mockImplementation(
+            ({ wall, scanner }: { wall: unknown; scanner: unknown }) => (
+                <div data-testid="workspace-client" data-wall={JSON.stringify(wall)} data-scanner={JSON.stringify(scanner)}>
+                    WorkspaceClient
+                </div>
+            ),
+        );
         mockGetWallExperienceData.mockResolvedValue({
             warehouseName: 'Alpha Industries main warehouse',
             zones: [
@@ -87,7 +101,7 @@ describe('WorkspacePage', () => {
         });
     });
 
-    it('renders the wall-first workspace shell after the authenticated user selects an active tenant', async () => {
+    it('renders WorkspaceClient instead of raw WallExperienceScreen', async () => {
         mockListMembershipsForUser.mockResolvedValue([
             {
                 tenantId: 'tenant-a',
@@ -105,21 +119,15 @@ describe('WorkspacePage', () => {
 
         renderApp(page);
 
-        expect(
-            screen.getAllByRole('navigation', { name: /workspace sections/i }).length,
-        ).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByRole('link', { name: /wall/i }).length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByRole('link', { name: /scan/i }).length).toBeGreaterThanOrEqual(1);
-        expect(
-            screen.getByRole('region', { name: /wall canvas section/i }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('complementary', { name: /scanner command surface/i }),
-        ).toBeInTheDocument();
-        expect(screen.getAllByText('Alpha Industries').length).toBeGreaterThanOrEqual(1);
-        expect(
-            screen.queryByText(/tenant-safe inventory surfaces are ready/i),
-        ).not.toBeInTheDocument();
+        expect(screen.getByTestId('workspace-client')).toBeInTheDocument();
+        expect(screen.getByText('WorkspaceClient')).toBeInTheDocument();
+        expect(mockWorkspaceClient).toHaveBeenCalledWith(
+            expect.objectContaining({
+                wall: expect.objectContaining({ warehouseName: 'Alpha Industries main warehouse' }),
+                scanner: expect.objectContaining({ status: 'ready' }),
+            }),
+            expect.anything(),
+        );
     });
 
     it('redirects back to organization selection when no active tenant has been chosen', async () => {

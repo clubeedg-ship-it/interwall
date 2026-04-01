@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import type { WallScannerState } from '@interwall/shared';
 import { WallShell } from '@interwall/ui';
 
-import { WallExperienceScreen } from '@/components/wall/wall-experience-screen';
+import { WorkspaceClient } from './workspace-client';
 import { requireUserSession } from '@/lib/server/auth';
 import type { InventoryRepositoryClient } from '@/lib/server/repositories/inventory';
 import {
@@ -48,7 +48,7 @@ export default async function WorkspacePage(): Promise<JSX.Element> {
 
     return (
         <WallShell tenantName={activeTenant.membership.tenantName}>
-            <WallExperienceScreen scanner={scanner} wall={wall} />
+            <WorkspaceClient scanner={scanner} wall={wall} />
         </WallShell>
     );
 }

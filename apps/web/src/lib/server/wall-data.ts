@@ -92,7 +92,7 @@ function resolvePrimaryProduct(
     return bestProductId ? (productsMap.get(bestProductId) ?? null) : null;
 }
 
-function classifyHealth(
+export function classifyHealth(
     totalOnHand: number,
     criticalThreshold: number,
     safetyStock: number,
