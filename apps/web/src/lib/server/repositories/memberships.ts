@@ -9,7 +9,7 @@ type MembershipRowWithTenant = TenantMembershipRow & {
     tenant: TenantRow | null;
 };
 
-type QueryResult<T> = Promise<{
+type QueryResult<T> = PromiseLike<{
     data: T;
     error: { message: string } | null;
 }>;
