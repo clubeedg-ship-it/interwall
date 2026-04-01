@@ -12,3 +12,12 @@ export type {
     AppRole,
     MembershipSummary,
 } from './tenancy';
+export type {
+    InventoryZoneRow,
+    ProductRow,
+    ProductStatus,
+    ShelfRow,
+    StockLotRow,
+    TrackingMode,
+    WarehouseRow,
+} from './inventory';

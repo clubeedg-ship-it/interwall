@@ -1,4 +1,13 @@
 import type { AppRole } from './tenancy';
+export type {
+    InventoryZoneRow,
+    ProductRow,
+    ProductStatus,
+    ShelfRow,
+    StockLotRow,
+    TrackingMode,
+    WarehouseRow,
+} from './inventory';
 
 export type TenantMembershipStatus = 'active' | 'invited' | 'inactive';
 
