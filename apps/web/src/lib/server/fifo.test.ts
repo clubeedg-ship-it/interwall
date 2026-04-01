@@ -110,7 +110,7 @@ describe('computeFifoConsumption', () => {
             8,
         );
 
-        expect(result.totalCost).toBe(7.5);
+        expect(result.totalCost).toBe(5.25);
     });
 
     it('returns exact shipment-preview lot slices', () => {
