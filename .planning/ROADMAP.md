@@ -34,10 +34,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The codebase has a clear `apps/web` frontend, `packages/*` shared layer, and `supabase/` backend structure for the rebuild.
 **Plans**: 7 plans
 Plans:
-- [ ] `01-01-PLAN.md` — Bootstrap the monorepo workspace and package manifests.
+- [x] `01-01-PLAN.md` — Bootstrap the monorepo workspace and package manifests.
 - [ ] `01-02-PLAN.md` — Create the web app shell, shared tenancy contracts, and shared UI baseline.
-- [ ] `01-03-PLAN.md` — Add the `@interwall/web` app test harness and Vitest/jsdom setup.
-- [ ] `01-07-PLAN.md` — Establish the explicit `supabase/functions` backend boundary for privileged tenant/auth logic.
+- [x] `01-03-PLAN.md` — Add the `@interwall/web` app test harness and Vitest/jsdom setup.
+- [x] `01-07-PLAN.md` — Establish the explicit `supabase/functions` backend boundary for privileged tenant/auth logic.
 - [ ] `01-04-PLAN.md` — Create the Supabase tenancy schema, RLS policies, and active-tenant server helpers.
 - [ ] `01-05-PLAN.md` — Implement sign-in, middleware gating, organization selection, and workspace landing.
 - [ ] `01-06-PLAN.md` — Implement membership administration UI and admin-only actions.
@@ -130,7 +130,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tenant-Safe Foundation | 2/7 | In Progress | - |
+| 1. Tenant-Safe Foundation | 3/7 | In Progress | - |
 | 2. Inventory Core Model | 0/0 | Not started | - |
 | 3. Wall Experience | 0/0 | Not started | - |
 | 4. Orders & FIFO Ledger | 0/0 | Not started | - |
