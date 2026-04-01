@@ -7,6 +7,7 @@ import type {
     StockLotRow,
     WallInventoryViewModel,
     WallScannerState,
+    WallShelfDetailState,
 } from '@interwall/shared';
 
 import type {
@@ -19,6 +20,7 @@ import {
     ScannerCommandSurface,
     type ScannerCommandSurfaceProps,
 } from './scanner-command-surface';
+import { ShelfDetailPanel } from './shelf-detail-panel';
 import {
     StockActionDialog,
     type StockActionMode,
@@ -35,6 +37,7 @@ export interface WallExperienceScreenProps {
     onCreateStockLot?: (data: Record<string, string>) => void;
     onAdjustStockLot?: (data: Record<string, string>) => void;
     onRelocateStockLot?: (data: Record<string, string>) => void;
+    onGetShelfDetail?: (shelfId: string) => Promise<WallShelfDetailState>;
 }
 
 export function WallExperienceScreen({
@@ -44,6 +47,7 @@ export function WallExperienceScreen({
     onCreateStockLot,
     onAdjustStockLot,
     onRelocateStockLot,
+    onGetShelfDetail,
 }: WallExperienceScreenProps): JSX.Element {
     const [scanMatch, setScanMatch] = useState<{
         product: ProductRow;
@@ -59,6 +63,9 @@ export function WallExperienceScreen({
         open: false,
         draft: null,
     });
+
+    const [selectedShelfId, setSelectedShelfId] = useState<string | null>(null);
+    const [shelfDetail, setShelfDetail] = useState<WallShelfDetailState | null>(null);
 
     const handleScan = useCallback(
         async (code: string) => {
@@ -148,6 +155,22 @@ export function WallExperienceScreen({
         });
     }, []);
 
+    const handleSelectShelf = useCallback(
+        async (shelfId: string) => {
+            setSelectedShelfId(shelfId);
+            if (onGetShelfDetail) {
+                const detail = await onGetShelfDetail(shelfId);
+                setShelfDetail(detail);
+            }
+        },
+        [onGetShelfDetail],
+    );
+
+    const handleCloseShelfDetail = useCallback(() => {
+        setSelectedShelfId(null);
+        setShelfDetail(null);
+    }, []);
+
     const handleDialogClose = useCallback(() => {
         setStockDialog((prev) => ({ ...prev, open: false }));
     }, []);
@@ -167,28 +190,47 @@ export function WallExperienceScreen({
         [stockDialog.mode, onCreateStockLot, onAdjustStockLot, onRelocateStockLot],
     );
 
-    const wallCanvasProps: WallCanvasSectionProps = { wall };
+    const wallCanvasProps: WallCanvasSectionProps = {
+        wall,
+        onSelectShelf: handleSelectShelf,
+    };
     const scannerSurfaceProps: ScannerCommandSurfaceProps = {
         scanner,
         onScan: handleScan,
     };
 
-    const shelfId = wall.detail?.shelfId ?? null;
+    const renderRightColumn = (): JSX.Element => {
+        if (shelfDetail) {
+            return (
+                <ShelfDetailPanel
+                    detail={shelfDetail}
+                    onClose={handleCloseShelfDetail}
+                    onCreateStockLot={() => handleShelfCreate(shelfDetail.shelfId)}
+                    onAdjustLot={handleShelfAdjust}
+                    onRelocateLot={handleShelfRelocate}
+                />
+            );
+        }
+
+        if (scanMatch) {
+            return (
+                <ScanMatchSheet
+                    product={scanMatch.product}
+                    lots={scanMatch.lots}
+                    onClose={handleCloseMatch}
+                    onCreateStockLot={handleMatchCreateStockLot}
+                />
+            );
+        }
+
+        return <ScannerCommandSurface {...scannerSurfaceProps} />;
+    };
 
     return (
         <>
             <div className="flex w-full flex-col gap-6 xl:flex-row">
                 <WallCanvasSection {...wallCanvasProps} />
-                {scanMatch ? (
-                    <ScanMatchSheet
-                        product={scanMatch.product}
-                        lots={scanMatch.lots}
-                        onClose={handleCloseMatch}
-                        onCreateStockLot={handleMatchCreateStockLot}
-                    />
-                ) : (
-                    <ScannerCommandSurface {...scannerSurfaceProps} />
-                )}
+                {renderRightColumn()}
             </div>
             <StockActionDialog
                 mode={stockDialog.mode}
