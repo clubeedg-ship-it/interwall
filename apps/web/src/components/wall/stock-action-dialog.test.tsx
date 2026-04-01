@@ -37,7 +37,9 @@ describe('StockActionDialog', () => {
     it('renders the create stock lot heading when mode is create', () => {
         renderApp(<StockActionDialog {...createProps()} />);
 
-        expect(screen.getByText(/create stock lot/i)).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', { name: /create stock lot/i }),
+        ).toBeInTheDocument();
     });
 
     it('renders the adjust lot heading when mode is adjust', () => {
@@ -47,7 +49,9 @@ describe('StockActionDialog', () => {
             />,
         );
 
-        expect(screen.getByText(/adjust lot/i)).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', { name: /adjust lot/i }),
+        ).toBeInTheDocument();
     });
 
     it('renders the relocate lot heading when mode is relocate', () => {
@@ -57,7 +61,9 @@ describe('StockActionDialog', () => {
             />,
         );
 
-        expect(screen.getByText(/relocate lot/i)).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', { name: /relocate lot/i }),
+        ).toBeInTheDocument();
     });
 
     it('prefills the barcode field from the draft', () => {

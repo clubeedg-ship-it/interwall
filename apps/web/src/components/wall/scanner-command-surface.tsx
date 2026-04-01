@@ -1,12 +1,17 @@
+'use client';
+
+import { useRef, useState } from 'react';
+
 import type { WallScannerState } from '@interwall/shared';
 
 export interface ScannerCommandSurfaceProps {
     scanner: WallScannerState;
+    onScan?: (code: string) => void;
 }
 
 function renderStatusLabel(status: WallScannerState['status']): string {
     if (status === 'matched') {
-        return 'Match ready';
+        return 'Match found';
     }
 
     if (status === 'create') {
@@ -18,7 +23,23 @@ function renderStatusLabel(status: WallScannerState['status']): string {
 
 export function ScannerCommandSurface({
     scanner,
+    onScan,
 }: ScannerCommandSurfaceProps): JSX.Element {
+    const [inputValue, setInputValue] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    function handleSubmit(event: React.FormEvent) {
+        event.preventDefault();
+        const trimmed = inputValue.trim();
+
+        if (trimmed && onScan) {
+            onScan(trimmed);
+        }
+
+        setInputValue('');
+        inputRef.current?.focus();
+    }
+
     return (
         <aside
             aria-label="Scanner command surface"
@@ -37,14 +58,31 @@ export function ScannerCommandSurface({
                     {renderStatusLabel(scanner.status)}
                 </span>
             </div>
-            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-muted)]">
-                    Captured barcode
-                </p>
-                <p className="mt-3 text-3xl font-semibold tracking-[0.08em] text-white">
-                    {scanner.query || 'Ready for next scan'}
-                </p>
-            </div>
+            <form onSubmit={handleSubmit} className="mt-6">
+                <label htmlFor="scan-input" className="sr-only">
+                    Scan barcode
+                </label>
+                <input
+                    ref={inputRef}
+                    id="scan-input"
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder="Ready for next scan"
+                    autoComplete="off"
+                    className="h-[72px] w-full rounded-[1.5rem] border border-white/10 bg-black/20 px-6 text-3xl font-semibold tracking-[0.08em] text-white placeholder:text-white/30 focus:border-[#14b8a6] focus:outline-none focus:ring-1 focus:ring-[#14b8a6]"
+                />
+            </form>
+            {scanner.query && (
+                <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-muted)]">
+                        Last scan
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold tracking-[0.08em] text-white">
+                        {scanner.query}
+                    </p>
+                </div>
+            )}
             <div className="mt-6 space-y-3">
                 {scanner.matches.map((match) => (
                     <article

@@ -16,6 +16,9 @@ const HEALTH_BADGE_STYLES: Record<WallShelfHealth, string> = {
 export interface ShelfDetailPanelProps {
     detail: WallShelfDetailState;
     onClose: () => void;
+    onCreateStockLot?: () => void;
+    onAdjustLot?: () => void;
+    onRelocateLot?: () => void;
 }
 
 function formatDate(iso: string): string {
@@ -68,6 +71,9 @@ function LotRow({ lot }: { lot: WallShelfLotState }): JSX.Element {
 export function ShelfDetailPanel({
     detail,
     onClose,
+    onCreateStockLot,
+    onAdjustLot,
+    onRelocateLot,
 }: ShelfDetailPanelProps): JSX.Element {
     return (
         <aside
@@ -160,6 +166,7 @@ export function ShelfDetailPanel({
             <div className="mt-6 flex flex-col gap-2">
                 <button
                     type="button"
+                    onClick={onCreateStockLot}
                     className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#14b8a6] bg-[#14b8a6]/15 px-4 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#14b8a6]/25"
                 >
                     Create stock lot
@@ -167,12 +174,14 @@ export function ShelfDetailPanel({
                 <div className="flex gap-2">
                     <button
                         type="button"
+                        onClick={onAdjustLot}
                         className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-medium text-white/80 transition-colors duration-150 hover:bg-white/10"
                     >
                         Adjust lot
                     </button>
                     <button
                         type="button"
+                        onClick={onRelocateLot}
                         className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-medium text-white/80 transition-colors duration-150 hover:bg-white/10"
                     >
                         Relocate lot
