@@ -52,7 +52,7 @@ describe('WorkspacePage', () => {
         mockCreateServerSupabaseClient.mockReturnValue({});
     });
 
-    it('renders only after the authenticated user has an explicitly selected active tenant', async () => {
+    it('renders the wall-first workspace shell after the authenticated user selects an active tenant', async () => {
         mockListMembershipsForUser.mockResolvedValue([
             {
                 tenantId: 'tenant-a',
@@ -70,9 +70,21 @@ describe('WorkspacePage', () => {
 
         renderApp(page);
 
-        expect(screen.getByText('Workspace')).toBeTruthy();
-        expect(screen.getAllByText('Alpha Industries')).toHaveLength(2);
-        expect(screen.getByText(/You are signed in as/i)).toBeTruthy();
+        expect(
+            screen.getByRole('navigation', { name: /workspace sections/i }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /wall/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /scan/i })).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: /wall canvas section/i }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('complementary', { name: /scanner command surface/i }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Alpha Industries')).toBeInTheDocument();
+        expect(
+            screen.queryByText(/tenant-safe inventory surfaces are ready/i),
+        ).not.toBeInTheDocument();
     });
 
     it('redirects back to organization selection when no active tenant has been chosen', async () => {
