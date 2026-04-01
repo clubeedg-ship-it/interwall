@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-04-01T13:30:00.000Z"
-last_activity: 2026-04-01
+stopped_at: Completed 02-inventory-core-model-01-PLAN.md
+last_updated: "2026-04-01T16:06:20.491Z"
+last_activity: 2026-04-01 -- Completed Phase 02 Plan 01
 progress:
   total_phases: 8
-  completed_phases: 0
-  total_plans: 7
-  completed_plans: 7
-  percent: 50
+  completed_phases: 1
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Businesses can manage inventory, orders, kits, email-driven automation, and profitability in one durable multi-tenant system without the sync failures and architectural fragmentation of the prototype.
-**Current focus:** Phase 01 — tenant-safe-foundation
+**Current focus:** Phase 02 — inventory-core-model
 
 ## Current Position
 
-Phase: 01 (tenant-safe-foundation) — EXECUTING
-Plan: 7 of 7
-Status: Execution complete, ready to verify
-Last activity: 2026-04-01
+Phase: 02 (inventory-core-model) — EXECUTING
+Plan: 2 of 3
+Status: Ready for Phase 02 Plan 02
+Last activity: 2026-04-01 -- Completed Phase 02 Plan 01
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -82,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 01-tenant-safe-foundation]: Successful sign-in now routes to /workspace so shared middleware owns the post-auth tenant handoff.
 - [Phase 01-tenant-safe-foundation]: Membership admin actions resolve tenant scope from the authenticated active-tenant context and never trust client tenant ids.
 - [Phase 01-tenant-safe-foundation]: The members settings page reuses the guarded organization-selection action for switching active tenants.
+- [Phase 02]: Keep inventory row types in a dedicated shared module and re-export them through both database.ts and the package root.
+- [Phase 02]: Separate immutable stock acquisition metadata from adjustment and relocation payloads so FIFO work can layer on later without contract churn.
 
 ### Pending Todos
 
@@ -93,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T10:48:47.184Z
-Stopped at: Completed 01-06-PLAN.md
-Resume file: None
+Last session: 2026-04-01T16:06:20.491Z
+Stopped at: Completed 02-inventory-core-model-01-PLAN.md
+Resume file: .planning/phases/02-inventory-core-model/02-02-PLAN.md

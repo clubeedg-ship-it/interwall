@@ -13,8 +13,8 @@
 
 ### Inventory Model
 
-- [ ] **INV-01**: User can create and manage products with SKU/EAN, barcode, reorder settings, and stock metadata
-- [ ] **INV-02**: User can manage warehouses, zones, and shelves with persistent database-backed configuration
+- [x] **INV-01**: User can create and manage products with SKU/EAN, barcode, reorder settings, and stock metadata
+- [x] **INV-02**: User can manage warehouses, zones, and shelves with persistent database-backed configuration
 - [ ] **INV-03**: User can view shelf status with color-coded reorder indicators based on stock versus reorder thresholds
 - [ ] **INV-04**: System values stock and consumes inventory using FIFO rules
 
@@ -74,8 +74,8 @@
 | TEN-01 | Phase 1 | Complete |
 | TEN-02 | Phase 1 | Complete |
 | TEN-03 | Phase 1 | Complete |
-| INV-01 | Phase 2 | Pending |
-| INV-02 | Phase 2 | Pending |
+| INV-01 | Phase 2 | Complete |
+| INV-02 | Phase 2 | Complete |
 | INV-03 | Phase 3 | Pending |
 | INV-04 | Phase 4 | Pending |
 | ORD-01 | Phase 4 | Pending |
