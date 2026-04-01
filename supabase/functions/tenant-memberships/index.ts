@@ -99,7 +99,7 @@ async function listMemberships(
 
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
-        .from('memberships')
+        .from('tenant_memberships')
         .select('id, tenant_id, user_id, role, status, created_at')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
@@ -140,7 +140,7 @@ async function updateMembershipRole(
 
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
-        .from('memberships')
+        .from('tenant_memberships')
         .update({ role })
         .eq('tenant_id', tenantId)
         .eq('id', input.membershipId)
@@ -190,7 +190,7 @@ async function removeMembership(
 
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
-        .from('memberships')
+        .from('tenant_memberships')
         .delete()
         .eq('tenant_id', tenantId)
         .eq('id', input.membershipId)
@@ -249,7 +249,7 @@ async function createMembershipForExistingUser(
     };
 
     const { data, error } = await adminClient
-        .from('memberships')
+        .from('tenant_memberships')
         .insert(payload)
         .select('id, tenant_id, user_id, role, status, created_at')
         .maybeSingle<MembershipRecord>();

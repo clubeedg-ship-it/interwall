@@ -40,7 +40,7 @@ export async function requireTenantMembership(
     },
 ): Promise<TenantMembership> {
     const { data, error } = await client
-        .from('memberships')
+        .from('tenant_memberships')
         .select('id, tenant_id, user_id, role, status')
         .eq('tenant_id', options.tenantId)
         .eq('user_id', options.userId)
