@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-04-01T10:45:50.068Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-04-01T10:48:47.186Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 43
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 01 (tenant-safe-foundation) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -54,6 +54,7 @@ Progress: [████░░░░░░] 43%
 | Phase 01-tenant-safe-foundation P01 | 270 | 2 tasks | 13 files |
 | Phase 01-tenant-safe-foundation P03 | 14 | 2 tasks | 6 files |
 | Phase 01-tenant-safe-foundation P07 | 5 | 2 tasks | 5 files |
+| Phase 01-tenant-safe-foundation P02 | 1 | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 01-tenant-safe-foundation]: Keep privileged tenant and auth rules under supabase/functions and treat apps/web as a thin handoff layer.
 - [Phase 01-tenant-safe-foundation]: Use shared request-scoped auth and tenant guard helpers so later edge functions inherit the same backend checks.
 - [Phase 01-tenant-safe-foundation]: Expose tenant membership operations as action-routed Deno.serve handlers for Phase 1 app actions to target.
+- [Phase 01-tenant-safe-foundation]: Shared role and membership contracts now live in @interwall/shared so auth and database code import one canonical tenancy surface.
+- [Phase 01-tenant-safe-foundation]: The Phase 1 web entrypoint stops at sign-in and organization handoff messaging to avoid leaking premature inventory UI.
+- [Phase 01-tenant-safe-foundation]: Next.js config uses next.config.mjs instead of next.config.ts because the installed Next 14 build does not support TypeScript config files.
 
 ### Pending Todos
 
@@ -82,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T10:45:50.065Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-04-01T10:48:47.184Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
