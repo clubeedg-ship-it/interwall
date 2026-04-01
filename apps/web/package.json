@@ -9,6 +9,8 @@
     "test:server": "vitest --config vitest.config.ts --passWithNoTests --environment node"
   },
   "dependencies": {
+    "@supabase/ssr": "0.10.0",
+    "@supabase/supabase-js": "2.101.1",
     "@interwall/shared": "0.0.0",
     "@interwall/ui": "0.0.0",
     "class-variance-authority": "^0.7.1",

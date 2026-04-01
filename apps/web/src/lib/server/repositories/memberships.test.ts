@@ -19,16 +19,21 @@ type MembershipFixture = {
     user_id: string;
     role: 'owner' | 'admin' | 'member';
     status: 'active' | 'invited' | 'inactive';
+    created_at: string;
+    updated_at: string;
     tenant: {
         id: string;
         slug: string;
         name: string;
+        created_by: string | null;
+        created_at: string;
+        updated_at: string;
     };
 };
 
 function createMembershipClient(rows: MembershipFixture[]) {
     return {
-        from(table: string) {
+        from(table: 'tenant_memberships') {
             expect(table).toBe('tenant_memberships');
 
             const filters = new Map<string, string>();
@@ -83,10 +88,15 @@ describe('membership repositories', () => {
             user_id: 'user-1',
             role: 'owner',
             status: 'active',
+            created_at: '2026-04-01T00:00:00.000Z',
+            updated_at: '2026-04-01T00:00:00.000Z',
             tenant: {
                 id: 'tenant-a',
                 slug: 'alpha',
                 name: 'Alpha Industries',
+                created_by: 'user-1',
+                created_at: '2026-04-01T00:00:00.000Z',
+                updated_at: '2026-04-01T00:00:00.000Z',
             },
         },
         {
@@ -95,10 +105,32 @@ describe('membership repositories', () => {
             user_id: 'user-2',
             role: 'admin',
             status: 'active',
+            created_at: '2026-04-01T00:00:00.000Z',
+            updated_at: '2026-04-01T00:00:00.000Z',
             tenant: {
                 id: 'tenant-b',
                 slug: 'beta',
                 name: 'Beta Works',
+                created_by: 'user-2',
+                created_at: '2026-04-01T00:00:00.000Z',
+                updated_at: '2026-04-01T00:00:00.000Z',
+            },
+        },
+        {
+            id: 'membership-c',
+            tenant_id: 'tenant-c',
+            user_id: 'user-1',
+            role: 'member',
+            status: 'active',
+            created_at: '2026-04-01T00:00:00.000Z',
+            updated_at: '2026-04-01T00:00:00.000Z',
+            tenant: {
+                id: 'tenant-c',
+                slug: 'gamma',
+                name: 'Gamma Fabrication',
+                created_by: 'user-1',
+                created_at: '2026-04-01T00:00:00.000Z',
+                updated_at: '2026-04-01T00:00:00.000Z',
             },
         },
     ];
@@ -114,6 +146,13 @@ describe('membership repositories', () => {
                 tenantSlug: 'alpha',
                 tenantName: 'Alpha Industries',
                 role: 'owner',
+                isActive: true,
+            },
+            {
+                tenantId: 'tenant-c',
+                tenantSlug: 'gamma',
+                tenantName: 'Gamma Fabrication',
+                role: 'member',
                 isActive: true,
             },
         ]);
@@ -146,7 +185,7 @@ describe('membership repositories', () => {
         await expect(
             assertTenantAdmin(client, {
                 user,
-                tenantId: 'tenant-b',
+                tenantId: 'tenant-c',
             }),
         ).rejects.toThrow(/tenant admin/i);
     });
