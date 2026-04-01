@@ -66,7 +66,11 @@ Plans:
   2. User can use responsive pages across desktop, tablet, and mobile form factors.
   3. User can use barcode-driven lookup or stock actions on supported devices.
   4. The interface preserves the intended Omiximo visual identity while using maintainable React components.
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [x] 03-01-PLAN.md — Establish the wall-first shell, route composition, and typed wall view-model contracts
+- [ ] 03-02-PLAN.md — Implement the wall grid, reorder-state rendering, and shelf detail surfaces
+- [ ] 03-03-PLAN.md — Add scanner-first lookup and stock action workflows
 **UI hint**: yes
 
 ### Phase 4: Orders & FIFO Ledger
@@ -136,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Tenant-Safe Foundation | 7/7 | Complete    | 2026-04-01 |
 | 2. Inventory Core Model | 3/3 | Complete | 2026-04-01 |
-| 3. Wall Experience | 0/0 | Not started | - |
+| 3. Wall Experience | 0/3 | Not started | - |
 | 4. Orders & FIFO Ledger | 0/0 | Not started | - |
 | 5. Kits & Costing | 0/0 | Not started | - |
 | 6. Email Automation | 0/0 | Not started | - |

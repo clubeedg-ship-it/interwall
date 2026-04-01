@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-04-01T16:32:03.559Z"
+status: executing
+stopped_at: Completed 03-wall-experience-01-PLAN.md
+last_updated: "2026-04-01T17:34:38.638Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 8
   completed_phases: 2
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 13
+  completed_plans: 11
   percent: 100
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Businesses can manage inventory, orders, kits, email-driven automation, and profitability in one durable multi-tenant system without the sync failures and architectural fragmentation of the prototype.
-**Current focus:** Phase 02 — inventory-core-model
+**Current focus:** Phase 03 — wall-experience
 
 ## Current Position
 
-Phase: 02 (inventory-core-model) — VERIFYING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 03 (wall-experience) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-01
 
 Progress: [██████████] 100%
@@ -59,6 +59,7 @@ Progress: [██████████] 100%
 | Phase 01-tenant-safe-foundation P04 | 10 | 2 tasks | 16 files |
 | Phase 01-tenant-safe-foundation P06 | 18 | 2 tasks | 7 files |
 | Phase 02 P03 | 10 | 2 tasks | 6 files |
+| Phase 03-wall-experience P01 | 6 | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 02-inventory-core-model]: Tenant membership stays in RLS while parent-child correctness stays in trigger functions, keeping policies focused on access control instead of business semantics.
 - [Phase 02]: Keep normal inventory reads in typed repositories while routing stock mutation semantics through the inventory-stock edge function.
 - [Phase 02]: Stock mutations trust the validated x-active-tenant context and preserve acquisition metadata for later FIFO logic.
+- [Phase 03-wall-experience]: Keep Phase 3 wall data in shared contracts so later plans can implement wall and scanner features without changing the workspace route surface.
+- [Phase 03-wall-experience]: Introduce a dedicated WallShell instead of mutating the earlier auth shell so wall navigation can evolve independently from Phase 1 auth chrome.
+- [Phase 03-wall-experience]: Split Vitest into explicit app and server configs because the existing multi-project setup was not discovering app tests.
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T16:32:03.557Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-04-01T17:34:38.636Z
+Stopped at: Completed 03-wall-experience-01-PLAN.md
 Resume file: None
