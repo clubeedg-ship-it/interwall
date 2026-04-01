@@ -69,7 +69,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 03-01-PLAN.md — Establish the wall-first shell, route composition, and typed wall view-model contracts
-- [ ] 03-02-PLAN.md — Implement the wall grid, reorder-state rendering, and shelf detail surfaces
+- [x] 03-02-PLAN.md — Implement the wall grid, reorder-state rendering, and shelf detail surfaces
 - [ ] 03-03-PLAN.md — Add scanner-first lookup and stock action workflows
 **UI hint**: yes
 

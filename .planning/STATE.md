@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-wall-experience-01-PLAN.md
-last_updated: "2026-04-01T17:34:38.638Z"
+stopped_at: Completed 03-wall-experience-02-PLAN.md
+last_updated: "2026-04-01T18:10:01.027Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 100
 ---
 
@@ -60,6 +60,7 @@ Progress: [██████████] 100%
 | Phase 01-tenant-safe-foundation P06 | 18 | 2 tasks | 7 files |
 | Phase 02 P03 | 10 | 2 tasks | 6 files |
 | Phase 03-wall-experience P01 | 6 | 2 tasks | 14 files |
+| Phase 03-wall-experience P02 | 7 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Recent decisions affecting current work:
 - [Phase 03-wall-experience]: Keep Phase 3 wall data in shared contracts so later plans can implement wall and scanner features without changing the workspace route surface.
 - [Phase 03-wall-experience]: Introduce a dedicated WallShell instead of mutating the earlier auth shell so wall navigation can evolve independently from Phase 1 auth chrome.
 - [Phase 03-wall-experience]: Split Vitest into explicit app and server configs because the existing multi-project setup was not discovering app tests.
+- [Phase 03-wall-experience]: Load all stock lots in one tenant-scoped query and group by shelf_id in memory to avoid N+1 per-shelf queries for wall assembly
+- [Phase 03-wall-experience]: Primary product per shelf resolved by highest total on-hand with earliest received_at tie-break for deterministic wall display
+- [Phase 03-wall-experience]: Wall semantic colors use exact hex values from UI spec rather than Tailwind palette aliases for precise visual fidelity
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T17:34:38.636Z
-Stopped at: Completed 03-wall-experience-01-PLAN.md
+Last session: 2026-04-01T18:10:01.025Z
+Stopped at: Completed 03-wall-experience-02-PLAN.md
 Resume file: None
