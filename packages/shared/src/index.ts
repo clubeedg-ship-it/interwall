@@ -13,11 +13,19 @@ export type {
     MembershipSummary,
 } from './tenancy';
 export type {
+    InventoryZoneUpsertInput,
     InventoryZoneRow,
     ProductRow,
     ProductStatus,
+    ProductUpsertInput,
+    ShelfUpsertInput,
     ShelfRow,
+    StockAdjustmentInput,
+    StockLotCreateInput,
     StockLotRow,
+    StockLotUpdateInput,
+    StockRelocationInput,
     TrackingMode,
+    WarehouseUpsertInput,
     WarehouseRow,
 } from './inventory';
