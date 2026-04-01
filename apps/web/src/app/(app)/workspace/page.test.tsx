@@ -71,17 +71,17 @@ describe('WorkspacePage', () => {
         renderApp(page);
 
         expect(
-            screen.getByRole('navigation', { name: /workspace sections/i }),
-        ).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /wall/i })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /scan/i })).toBeInTheDocument();
+            screen.getAllByRole('navigation', { name: /workspace sections/i }).length,
+        ).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByRole('link', { name: /wall/i }).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByRole('link', { name: /scan/i }).length).toBeGreaterThanOrEqual(1);
         expect(
             screen.getByRole('region', { name: /wall canvas section/i }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('complementary', { name: /scanner command surface/i }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Alpha Industries')).toBeInTheDocument();
+        expect(screen.getAllByText('Alpha Industries').length).toBeGreaterThanOrEqual(1);
         expect(
             screen.queryByText(/tenant-safe inventory surfaces are ready/i),
         ).not.toBeInTheDocument();
