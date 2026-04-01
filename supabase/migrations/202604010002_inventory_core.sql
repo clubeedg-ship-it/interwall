@@ -178,3 +178,360 @@ create index if not exists stock_lots_received_at_idx
 
 create index if not exists stock_lots_product_received_at_idx
     on public.stock_lots (product_id, received_at, quantity_on_hand);
+
+create or replace function public.assert_inventory_parent_tenant(
+    expected_tenant_id uuid,
+    parent_tenant_id uuid,
+    relation_name text
+)
+returns void
+language plpgsql
+as $$
+begin
+    if parent_tenant_id is null then
+        raise exception '% references a missing parent record', relation_name;
+    end if;
+
+    if expected_tenant_id <> parent_tenant_id then
+        raise exception '% tenant mismatch for tenant %', relation_name, expected_tenant_id;
+    end if;
+end;
+$$;
+
+create or replace function public.inventory_make_shelf_display_code(
+    zone_label text,
+    shelf_column integer,
+    shelf_level integer
+)
+returns text
+language sql
+immutable
+as $$
+    select upper(trim(zone_label))
+        || '-'
+        || lpad(shelf_column::text, 2, '0')
+        || '-'
+        || lpad(shelf_level::text, 2, '0');
+$$;
+
+create or replace function public.apply_inventory_warehouse_defaults()
+returns trigger
+language plpgsql
+as $$
+begin
+    new.code = upper(trim(new.code));
+    new.display_code = new.code;
+    return new;
+end;
+$$;
+
+create or replace function public.enforce_inventory_zone_lineage()
+returns trigger
+language plpgsql
+as $$
+declare
+    warehouse_tenant_id uuid;
+begin
+    select warehouse.tenant_id
+    into warehouse_tenant_id
+    from public.warehouses warehouse
+    where warehouse.id = new.warehouse_id;
+
+    perform public.assert_inventory_parent_tenant(
+        new.tenant_id,
+        warehouse_tenant_id,
+        'inventory_zones.warehouse_id'
+    );
+
+    new.label = upper(trim(new.label));
+    new.display_code = new.label;
+
+    return new;
+end;
+$$;
+
+create or replace function public.enforce_inventory_shelf_lineage()
+returns trigger
+language plpgsql
+as $$
+declare
+    warehouse_tenant_id uuid;
+    zone_tenant_id uuid;
+    zone_warehouse_id uuid;
+    zone_label text;
+begin
+    select warehouse.tenant_id
+    into warehouse_tenant_id
+    from public.warehouses warehouse
+    where warehouse.id = new.warehouse_id;
+
+    perform public.assert_inventory_parent_tenant(
+        new.tenant_id,
+        warehouse_tenant_id,
+        'shelves.warehouse_id'
+    );
+
+    select zone.tenant_id, zone.warehouse_id, zone.label
+    into zone_tenant_id, zone_warehouse_id, zone_label
+    from public.inventory_zones zone
+    where zone.id = new.zone_id;
+
+    perform public.assert_inventory_parent_tenant(
+        new.tenant_id,
+        zone_tenant_id,
+        'shelves.zone_id'
+    );
+
+    if zone_warehouse_id <> new.warehouse_id then
+        raise exception 'shelves.zone_id must belong to shelves.warehouse_id';
+    end if;
+
+    new.display_code = public.inventory_make_shelf_display_code(
+        zone_label,
+        new.column_position,
+        new.level_position
+    );
+    new.label = coalesce(nullif(trim(new.label), ''), new.display_code);
+
+    return new;
+end;
+$$;
+
+create or replace function public.enforce_inventory_stock_lot_lineage()
+returns trigger
+language plpgsql
+as $$
+declare
+    product_tenant_id uuid;
+    shelf_tenant_id uuid;
+begin
+    select product.tenant_id
+    into product_tenant_id
+    from public.products product
+    where product.id = new.product_id;
+
+    perform public.assert_inventory_parent_tenant(
+        new.tenant_id,
+        product_tenant_id,
+        'stock_lots.product_id'
+    );
+
+    select shelf.tenant_id
+    into shelf_tenant_id
+    from public.shelves shelf
+    where shelf.id = new.shelf_id;
+
+    perform public.assert_inventory_parent_tenant(
+        new.tenant_id,
+        shelf_tenant_id,
+        'stock_lots.shelf_id'
+    );
+
+    return new;
+end;
+$$;
+
+drop trigger if exists set_products_updated_at on public.products;
+create trigger set_products_updated_at
+before update on public.products
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_warehouses_updated_at on public.warehouses;
+create trigger set_warehouses_updated_at
+before update on public.warehouses
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_inventory_zones_updated_at on public.inventory_zones;
+create trigger set_inventory_zones_updated_at
+before update on public.inventory_zones
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_shelves_updated_at on public.shelves;
+create trigger set_shelves_updated_at
+before update on public.shelves
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_stock_lots_updated_at on public.stock_lots;
+create trigger set_stock_lots_updated_at
+before update on public.stock_lots
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists apply_inventory_warehouse_defaults on public.warehouses;
+create trigger apply_inventory_warehouse_defaults
+before insert or update on public.warehouses
+for each row
+execute function public.apply_inventory_warehouse_defaults();
+
+drop trigger if exists enforce_inventory_zone_lineage on public.inventory_zones;
+create trigger enforce_inventory_zone_lineage
+before insert or update on public.inventory_zones
+for each row
+execute function public.enforce_inventory_zone_lineage();
+
+drop trigger if exists enforce_inventory_shelf_lineage on public.shelves;
+create trigger enforce_inventory_shelf_lineage
+before insert or update on public.shelves
+for each row
+execute function public.enforce_inventory_shelf_lineage();
+
+drop trigger if exists enforce_inventory_stock_lot_lineage on public.stock_lots;
+create trigger enforce_inventory_stock_lot_lineage
+before insert or update on public.stock_lots
+for each row
+execute function public.enforce_inventory_stock_lot_lineage();
+
+alter table public.products enable row level security;
+alter table public.warehouses enable row level security;
+alter table public.inventory_zones enable row level security;
+alter table public.shelves enable row level security;
+alter table public.stock_lots enable row level security;
+
+drop policy if exists "products_select_member" on public.products;
+create policy "products_select_member"
+on public.products
+for select
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "products_insert_member" on public.products;
+create policy "products_insert_member"
+on public.products
+for insert
+to authenticated
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "products_update_member" on public.products;
+create policy "products_update_member"
+on public.products
+for update
+to authenticated
+using (public.is_tenant_member(tenant_id))
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "products_delete_member" on public.products;
+create policy "products_delete_member"
+on public.products
+for delete
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "warehouses_select_member" on public.warehouses;
+create policy "warehouses_select_member"
+on public.warehouses
+for select
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "warehouses_insert_member" on public.warehouses;
+create policy "warehouses_insert_member"
+on public.warehouses
+for insert
+to authenticated
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "warehouses_update_member" on public.warehouses;
+create policy "warehouses_update_member"
+on public.warehouses
+for update
+to authenticated
+using (public.is_tenant_member(tenant_id))
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "warehouses_delete_member" on public.warehouses;
+create policy "warehouses_delete_member"
+on public.warehouses
+for delete
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "inventory_zones_select_member" on public.inventory_zones;
+create policy "inventory_zones_select_member"
+on public.inventory_zones
+for select
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "inventory_zones_insert_member" on public.inventory_zones;
+create policy "inventory_zones_insert_member"
+on public.inventory_zones
+for insert
+to authenticated
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "inventory_zones_update_member" on public.inventory_zones;
+create policy "inventory_zones_update_member"
+on public.inventory_zones
+for update
+to authenticated
+using (public.is_tenant_member(tenant_id))
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "inventory_zones_delete_member" on public.inventory_zones;
+create policy "inventory_zones_delete_member"
+on public.inventory_zones
+for delete
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "shelves_select_member" on public.shelves;
+create policy "shelves_select_member"
+on public.shelves
+for select
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "shelves_insert_member" on public.shelves;
+create policy "shelves_insert_member"
+on public.shelves
+for insert
+to authenticated
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "shelves_update_member" on public.shelves;
+create policy "shelves_update_member"
+on public.shelves
+for update
+to authenticated
+using (public.is_tenant_member(tenant_id))
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "shelves_delete_member" on public.shelves;
+create policy "shelves_delete_member"
+on public.shelves
+for delete
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "stock_lots_select_member" on public.stock_lots;
+create policy "stock_lots_select_member"
+on public.stock_lots
+for select
+to authenticated
+using (public.is_tenant_member(tenant_id));
+
+drop policy if exists "stock_lots_insert_member" on public.stock_lots;
+create policy "stock_lots_insert_member"
+on public.stock_lots
+for insert
+to authenticated
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "stock_lots_update_member" on public.stock_lots;
+create policy "stock_lots_update_member"
+on public.stock_lots
+for update
+to authenticated
+using (public.is_tenant_member(tenant_id))
+with check (public.is_tenant_member(tenant_id));
+
+drop policy if exists "stock_lots_delete_member" on public.stock_lots;
+create policy "stock_lots_delete_member"
+on public.stock_lots
+for delete
+to authenticated
+using (public.is_tenant_member(tenant_id));
