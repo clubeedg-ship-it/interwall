@@ -2,7 +2,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "allowJs": false,
-    "incremental": true,
     "jsx": "preserve",
     "noEmit": true,
     "plugins": [

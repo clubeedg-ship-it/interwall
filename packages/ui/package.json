@@ -10,7 +10,7 @@
     "react-dom": "^18.3.1"
   },
   "scripts": {
-    "typecheck": "tsc --project tsconfig.json --pretty false"
+    "typecheck": "tsc --project tsconfig.json --pretty false --noEmit"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --project tsconfig.json --pretty false"
+    "typecheck": "tsc --project tsconfig.json --pretty false --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

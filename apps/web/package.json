@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "typecheck": "tsc --project tsconfig.json --pretty false"
+    "typecheck": "tsc --project tsconfig.json --pretty false --noEmit"
   },
   "dependencies": {
     "@interwall/shared": "0.0.0",
