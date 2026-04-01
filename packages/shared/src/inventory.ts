@@ -1,5 +1,22 @@
 export type ProductStatus = 'active' | 'archived';
 export type TrackingMode = 'none' | 'lot' | 'serial';
+export type PurchaseOrderStatus =
+    | 'draft'
+    | 'confirmed'
+    | 'partially_received'
+    | 'received'
+    | 'cancelled';
+export type SalesOrderStatus =
+    | 'draft'
+    | 'confirmed'
+    | 'partially_shipped'
+    | 'shipped'
+    | 'cancelled';
+export type StockLedgerEntryType =
+    | 'receipt'
+    | 'shipment'
+    | 'adjustment'
+    | 'relocation';
 
 export interface ProductRow {
     id: string;
@@ -81,6 +98,81 @@ export interface StockLotRow {
     updated_at: string;
 }
 
+export interface PurchaseOrderRow {
+    id: string;
+    tenant_id: string;
+    order_number: string;
+    warehouse_id: string;
+    supplier_name: string | null;
+    supplier_reference: string | null;
+    status: PurchaseOrderStatus;
+    order_date: string;
+    expected_date: string | null;
+    received_date: string | null;
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PurchaseOrderLineRow {
+    id: string;
+    tenant_id: string;
+    purchase_order_id: string;
+    product_id: string;
+    quantity_ordered: number;
+    quantity_received: number;
+    unit_cost: number | null;
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SalesOrderRow {
+    id: string;
+    tenant_id: string;
+    order_number: string;
+    warehouse_id: string;
+    customer_name: string | null;
+    customer_reference: string | null;
+    status: SalesOrderStatus;
+    order_date: string;
+    expected_date: string | null;
+    shipped_date: string | null;
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SalesOrderLineRow {
+    id: string;
+    tenant_id: string;
+    sales_order_id: string;
+    product_id: string;
+    quantity_ordered: number;
+    quantity_shipped: number;
+    unit_price: number | null;
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface StockLedgerEntryRow {
+    id: string;
+    tenant_id: string;
+    stock_lot_id: string | null;
+    product_id: string;
+    warehouse_id: string;
+    entry_type: StockLedgerEntryType;
+    quantity_delta: number;
+    unit_cost: number | null;
+    cost_basis_total: number | null;
+    purchase_order_line_id: string | null;
+    sales_order_line_id: string | null;
+    reason: string;
+    note: string | null;
+    created_at: string;
+}
+
 export interface ProductUpsertInput {
     sku: string;
     barcode: string | null;
@@ -154,6 +246,107 @@ export interface StockAdjustmentInput {
 
 export interface StockRelocationInput {
     destination_shelf_id: string;
+    reason: string;
+    note: string | null;
+}
+
+export interface PurchaseOrderLineInput {
+    product_id: string;
+    quantity_ordered: number;
+    unit_cost: number | null;
+    note: string | null;
+}
+
+export interface SalesOrderLineInput {
+    product_id: string;
+    quantity_ordered: number;
+    unit_price: number | null;
+    note: string | null;
+}
+
+export interface CreatePurchaseOrderInput {
+    order_number: string;
+    warehouse_id: string;
+    supplier_name: string | null;
+    supplier_reference: string | null;
+    order_date: string;
+    expected_date: string | null;
+    note: string | null;
+    lines: PurchaseOrderLineInput[];
+}
+
+export interface UpdatePurchaseOrderInput {
+    purchase_order_id: string;
+    order_number: string;
+    warehouse_id: string;
+    supplier_name: string | null;
+    supplier_reference: string | null;
+    order_date: string;
+    expected_date: string | null;
+    note: string | null;
+    lines: PurchaseOrderLineInput[];
+}
+
+export interface ConfirmPurchaseOrderInput {
+    purchase_order_id: string;
+}
+
+export interface ReceivePurchaseOrderLineInput {
+    purchase_order_line_id: string;
+    quantity_received: number;
+    shelf_id: string;
+    received_at: string;
+    lot_reference: string | null;
+    supplier_reference: string | null;
+    note: string | null;
+}
+
+export interface CreateSalesOrderInput {
+    order_number: string;
+    warehouse_id: string;
+    customer_name: string | null;
+    customer_reference: string | null;
+    order_date: string;
+    expected_date: string | null;
+    note: string | null;
+    lines: SalesOrderLineInput[];
+}
+
+export interface UpdateSalesOrderInput {
+    sales_order_id: string;
+    order_number: string;
+    warehouse_id: string;
+    customer_name: string | null;
+    customer_reference: string | null;
+    order_date: string;
+    expected_date: string | null;
+    note: string | null;
+    lines: SalesOrderLineInput[];
+}
+
+export interface ConfirmSalesOrderInput {
+    sales_order_id: string;
+}
+
+export interface PreviewSalesOrderShipmentInput {
+    sales_order_line_id: string;
+    quantity_shipped: number;
+}
+
+export interface ShipSalesOrderLineInput {
+    sales_order_line_id: string;
+    quantity_shipped: number;
+    note: string | null;
+}
+
+export interface CancelPurchaseOrderInput {
+    purchase_order_id: string;
+    reason: string;
+    note: string | null;
+}
+
+export interface CancelSalesOrderInput {
+    sales_order_id: string;
     reason: string;
     note: string | null;
 }
