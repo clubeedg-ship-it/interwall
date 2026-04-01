@@ -47,7 +47,7 @@
 ### UX & Platform
 
 - [x] **UI-01**: User can operate the system through a responsive Next.js interface that preserves the Omiximo wall aesthetic
-- [ ] **UI-02**: User can use barcode-driven product lookup and stock workflows on supported devices
+- [x] **UI-02**: User can use barcode-driven product lookup and stock workflows on supported devices
 - [ ] **ADM-01**: Admin can access audit logs, email automation settings, and tenant-level system settings
 - [ ] **QLT-01**: Critical business logic is covered by automated unit, integration, and end-to-end tests
 
@@ -93,7 +93,7 @@
 | REP-01 | Phase 7 | Pending |
 | REP-02 | Phase 7 | Pending |
 | UI-01 | Phase 3 | Complete |
-| UI-02 | Phase 3 | Pending |
+| UI-02 | Phase 3 | Complete |
 | ADM-01 | Phase 7 | Pending |
 | QLT-01 | Phase 8 | Pending |
 
