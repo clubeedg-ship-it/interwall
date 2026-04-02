@@ -145,7 +145,7 @@ describe('OrderWorkspaceScreen', () => {
         expect(screen.getByTestId('primary-order-action')).toHaveTextContent('Confirm order');
         expect(screen.getByText('Purchase order')).toBeInTheDocument();
         expect(screen.getByText('Main Warehouse')).toBeInTheDocument();
-        expect(screen.getByText('2026-04-04')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('2026-04-04')).toBeInTheDocument();
         expect(screen.getByText('Cancel order')).toBeInTheDocument();
     });
 

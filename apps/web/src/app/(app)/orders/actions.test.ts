@@ -57,6 +57,10 @@ vi.mock('next/headers', () => ({
     cookies: vi.fn(() => mockCookieStore),
 }));
 
+vi.mock('next/cache', () => ({
+    revalidatePath: vi.fn(),
+}));
+
 import {
     cancelPurchaseOrderAction,
     cancelSalesOrderAction,
