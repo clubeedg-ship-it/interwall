@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. PostgreSQL has all business tables (products, ean_compositions, stock_lots, transactions, zones, shelves, fixed_costs, emails) with correct constraints
   3. FIFO deduction DB function processes a sale without negative stock, even with concurrent calls
   4. Single user can authenticate and access the app (session-based, no multi-tenant)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: PostgreSQL schema migration (all tables, constraints, CHECK on quantity >= 0)
-- [ ] 01-02: DB functions (FIFO deduction, EAN composition resolution, sale processing workflow)
-- [ ] 01-03: Infrastructure swap (remove InvenTree from Docker Compose, add Supabase/PostgreSQL + simple auth)
+- [ ] 01-01-PLAN.md — PostgreSQL schema DDL (all tables, constraints, CHECK on quantity >= 0)
+- [ ] 01-02-PLAN.md — DB functions (FIFO deduction, EAN composition resolution, sale processing workflow)
+- [ ] 01-03-PLAN.md — Infrastructure: Docker Compose (3 containers), FastAPI skeleton, session auth, nginx proxy
 
 ### Phase 2: Frontend Wiring
 **Goal**: The frontend loads the supabase-js client via CDN, app.js is split into manageable modules, and EAN compositions can be created and managed from the UI
