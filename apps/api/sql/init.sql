@@ -259,4 +259,109 @@ AS $$
      WHERE ec.parent_ean = p_parent_ean;
 $$;
 
+-- DB-04: Sale processing workflow
+-- Atomically: resolve composition -> deduct each component FIFO -> compute COGS -> record transaction.
+-- Raises an exception (and rolls back) if any component has insufficient stock.
+-- Returns: UUID of the created transaction record
+CREATE OR REPLACE FUNCTION process_sale(
+    p_parent_ean  TEXT,
+    p_quantity    INTEGER,
+    p_sale_price  NUMERIC,
+    p_marketplace TEXT,
+    p_order_ref   TEXT    DEFAULT NULL,
+    p_email_id    UUID    DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_comp        RECORD;
+    v_product_id  UUID;
+    v_cogs        NUMERIC(12,4) := 0;
+    v_deducted    INTEGER;
+    v_need        INTEGER;
+    v_comp_cost   NUMERIC(12,4);
+    v_lot         RECORD;
+    v_take        INTEGER;
+    v_remain_cost INTEGER;
+    v_txn_id      UUID;
+    v_fixed_cost  NUMERIC(12,4);
+    v_total_price NUMERIC(12,4);
+    v_profit      NUMERIC(12,4);
+BEGIN
+    -- Validate parent product exists
+    SELECT id INTO v_product_id FROM products WHERE ean = p_parent_ean;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Product not found: %', p_parent_ean;
+    END IF;
+
+    v_total_price := p_sale_price * p_quantity;
+
+    -- For each component in the composition
+    FOR v_comp IN
+        SELECT ec.component_ean,
+               p.id   AS comp_product_id,
+               ec.quantity * p_quantity AS total_need
+          FROM ean_compositions ec
+          JOIN products p ON p.ean = ec.component_ean
+         WHERE ec.parent_ean = p_parent_ean
+    LOOP
+        -- Compute cost of lots that WILL be consumed (FIFO order, accurate COGS)
+        v_comp_cost := 0;
+        v_remain_cost := v_comp.total_need;
+
+        FOR v_lot IN
+            SELECT id, quantity, unit_cost
+              FROM stock_lots
+             WHERE product_id = v_comp.comp_product_id
+               AND quantity > 0
+             ORDER BY received_at ASC
+             FOR UPDATE
+        LOOP
+            EXIT WHEN v_remain_cost <= 0;
+            v_take        := LEAST(v_remain_cost, v_lot.quantity);
+            v_comp_cost   := v_comp_cost + (v_take * v_lot.unit_cost);
+            v_remain_cost := v_remain_cost - v_take;
+        END LOOP;
+
+        -- Validate sufficient stock
+        IF v_remain_cost > 0 THEN
+            RAISE EXCEPTION 'Insufficient stock for component: %', v_comp.component_ean;
+        END IF;
+
+        -- Deduct stock (reuses the locked rows above; same transaction)
+        v_deducted := deduct_fifo_stock(
+            v_comp.comp_product_id,
+            v_comp.total_need,
+            p_order_ref
+        );
+
+        v_cogs := v_cogs + v_comp_cost;
+    END LOOP;
+
+    -- Compute fixed costs
+    SELECT COALESCE(SUM(
+        CASE WHEN is_percentage
+             THEN v_total_price * value / 100
+             ELSE value
+        END
+    ), 0)
+      INTO v_fixed_cost
+      FROM fixed_costs;
+
+    v_profit := v_total_price - v_cogs - v_fixed_cost;
+
+    -- Insert immutable transaction record
+    INSERT INTO transactions (
+        type, product_ean, quantity, unit_price, total_price,
+        marketplace, order_reference, cogs, profit, source_email_id
+    ) VALUES (
+        'sale', p_parent_ean, p_quantity, p_sale_price, v_total_price,
+        p_marketplace, p_order_ref, v_cogs, v_profit, p_email_id
+    ) RETURNING id INTO v_txn_id;
+
+    RETURN v_txn_id;
+END;
+$$;
+
 COMMIT;
