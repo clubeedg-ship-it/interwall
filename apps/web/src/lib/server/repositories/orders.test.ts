@@ -4,7 +4,6 @@ import type {
     ProductRow,
     PurchaseOrderLineRow,
     PurchaseOrderRow,
-    SalesOrderRow,
     ShelfRow,
     StockLotRow,
     WarehouseRow,
@@ -26,6 +25,22 @@ type SalesOrderLineRow = {
     quantity_shipped: number;
     unit_price: number | null;
     cost_basis_total: number | null;
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+type SalesOrderRow = {
+    id: string;
+    tenant_id: string;
+    order_number: string;
+    warehouse_id: string;
+    customer_name: string | null;
+    customer_reference: string | null;
+    status: 'draft' | 'confirmed' | 'partially_shipped' | 'shipped' | 'cancelled';
+    order_date: string;
+    expected_date: string | null;
+    shipped_date: string | null;
     note: string | null;
     created_at: string;
     updated_at: string;
