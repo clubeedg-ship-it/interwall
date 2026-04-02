@@ -66,9 +66,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Email service rewired to PostgreSQL (Python service writes directly via psycopg, purchases first)
-- [ ] 03-02: Sale processing via DB function + email service wiring for sales
-- [ ] 03-03: Profit engine UI (dashboard, fixed costs config, marketplace breakdown, valuation report)
+- [ ] 03-01-PLAN.md — Email poller package (parsers copied, sale_writer, purchase_writer, email_log, poller with APScheduler)
+- [ ] 03-02-PLAN.md — FastAPI routers (fixed_costs, profit summary/valuation/transactions, stock_lots) + APScheduler lifespan + docker-compose IMAP vars
+- [ ] 03-03-PLAN.md — profit.js rewire to /api/fixed-costs + /api/profit/summary; init.sql fixed_costs seed; human-verify checkpoint
 
 ### Phase 4: Wall & Scanner
 **Goal**: The wall UI renders zones, shelves, and stock health from the database, scanner assigns products to shelves in the database, and zero browser state is needed to operate the warehouse
