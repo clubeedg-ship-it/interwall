@@ -109,7 +109,7 @@ export interface PurchaseOrderRow {
     order_date: string;
     expected_date: string | null;
     received_date: string | null;
-    note: string | null;
+    notes: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -122,7 +122,7 @@ export interface PurchaseOrderLineRow {
     quantity_ordered: number;
     quantity_received: number;
     unit_cost: number | null;
-    note: string | null;
+    notes: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -136,9 +136,8 @@ export interface SalesOrderRow {
     customer_reference: string | null;
     status: SalesOrderStatus;
     order_date: string;
-    expected_date: string | null;
     shipped_date: string | null;
-    note: string | null;
+    notes: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -151,7 +150,8 @@ export interface SalesOrderLineRow {
     quantity_ordered: number;
     quantity_shipped: number;
     unit_price: number | null;
-    note: string | null;
+    cost_basis_total: number | null;
+    notes: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -161,12 +161,13 @@ export interface StockLedgerEntryRow {
     tenant_id: string;
     stock_lot_id: string | null;
     product_id: string;
-    warehouse_id: string;
+    shelf_id: string | null;
     entry_type: StockLedgerEntryType;
     quantity_delta: number;
-    unit_cost: number | null;
-    cost_basis_total: number | null;
+    unit_cost_at_time: number | null;
+    purchase_order_id: string | null;
     purchase_order_line_id: string | null;
+    sales_order_id: string | null;
     sales_order_line_id: string | null;
     reason: string;
     note: string | null;
