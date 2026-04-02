@@ -11,6 +11,8 @@ from starlette.middleware.sessions import SessionMiddleware
 import db
 from auth import router as auth_router
 from routers.health import router as health_router
+from routers.products import router as products_router
+from routers.compositions import router as compositions_router
 
 
 @asynccontextmanager
@@ -40,3 +42,5 @@ app.add_middleware(
 # Routers
 app.include_router(auth_router)
 app.include_router(health_router)
+app.include_router(products_router)
+app.include_router(compositions_router)
