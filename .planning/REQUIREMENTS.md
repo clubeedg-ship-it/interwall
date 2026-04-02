@@ -17,10 +17,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### EAN Compositions
 
-- [ ] **EAN-01**: User can create EAN composition mapping a parent product to component products with quantities
-- [ ] **EAN-02**: User can edit and delete existing EAN compositions
-- [ ] **EAN-03**: System prevents circular references in EAN compositions (A→B→A)
-- [ ] **EAN-04**: System validates that component EANs exist as products before saving composition
+- [x] **EAN-01**: User can create EAN composition mapping a parent product to component products with quantities
+- [x] **EAN-02**: User can edit and delete existing EAN compositions
+- [x] **EAN-03**: System prevents circular references in EAN compositions (A→B→A)
+- [x] **EAN-04**: System validates that component EANs exist as products before saving composition
 
 ### Email Automation
 
@@ -56,9 +56,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **FE-01**: app.js split into modules (no file >500 lines)
 - [ ] **FE-02**: All innerHTML with user data sanitized (XSS prevention)
-- [ ] **FE-03**: All InvenTree API calls replaced with database queries
-- [ ] **FE-04**: Zero localStorage for business data (theme and last-view only)
-- [ ] **FE-05**: Frontend auth uses session cookies; no inventree_token in localStorage; no new CDN dependencies (supersedes original "supabase-js via CDN" — Phase 1 locked FastAPI, not Supabase)
+- [x] **FE-03**: All InvenTree API calls replaced with database queries
+- [x] **FE-04**: Zero localStorage for business data (theme and last-view only)
+- [x] **FE-05**: Frontend auth uses session cookies; no inventree_token in localStorage; no new CDN dependencies (supersedes original "supabase-js via CDN" — Phase 1 locked FastAPI, not Supabase)
 
 ### Infrastructure
 
@@ -119,13 +119,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 1 | Complete |
 | FE-01 | Phase 2 | Pending |
 | FE-02 | Phase 2 | Pending |
-| FE-03 | Phase 2 | Pending |
-| FE-04 | Phase 2 | Pending |
-| FE-05 | Phase 2 | Pending |
-| EAN-01 | Phase 2 | Pending |
-| EAN-02 | Phase 2 | Pending |
-| EAN-03 | Phase 2 | Pending |
-| EAN-04 | Phase 2 | Pending |
+| FE-03 | Phase 2 | Complete |
+| FE-04 | Phase 2 | Complete |
+| FE-05 | Phase 2 | Complete |
+| EAN-01 | Phase 2 | Complete |
+| EAN-02 | Phase 2 | Complete |
+| EAN-03 | Phase 2 | Complete |
+| EAN-04 | Phase 2 | Complete |
 | MAIL-01 | Phase 3 | Pending |
 | MAIL-02 | Phase 3 | Pending |
 | MAIL-03 | Phase 3 | Pending |
