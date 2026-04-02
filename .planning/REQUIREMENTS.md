@@ -9,11 +9,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Database & Schema
 
-- [ ] **DB-01**: PostgreSQL schema exists with all business tables (products, ean_compositions, stock_lots, transactions, zones, shelves, warehouses, fixed_costs, emails)
+- [x] **DB-01**: PostgreSQL schema exists with all business tables (products, ean_compositions, stock_lots, transactions, zones, shelves, warehouses, fixed_costs, emails)
 - [ ] **DB-02**: Atomic FIFO stock deduction implemented as PostgreSQL function with SELECT FOR UPDATE to prevent race conditions
 - [ ] **DB-03**: EAN composition resolution implemented as PostgreSQL function (returns all components with quantities for a parent EAN)
 - [ ] **DB-04**: Sale processing workflow implemented as PostgreSQL function (resolve composition → deduct components FIFO → compute COGS → record transaction)
-- [ ] **DB-05**: CHECK constraint on stock_lots.quantity >= 0 prevents negative inventory
+- [x] **DB-05**: CHECK constraint on stock_lots.quantity >= 0 prevents negative inventory
 
 ### EAN Compositions
 
@@ -109,11 +109,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | Phase 1 | Pending |
+| DB-01 | Phase 1 | Complete |
 | DB-02 | Phase 1 | Pending |
 | DB-03 | Phase 1 | Pending |
 | DB-04 | Phase 1 | Pending |
-| DB-05 | Phase 1 | Pending |
+| DB-05 | Phase 1 | Complete |
 | INFRA-01 | Phase 1 | Pending |
 | INFRA-02 | Phase 1 | Pending |
 | INFRA-03 | Phase 1 | Pending |
