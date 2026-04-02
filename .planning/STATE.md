@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-04-01T21:57:49.749Z"
-last_activity: 2026-04-01
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-04-02T09:32:07.588Z"
+last_activity: 2026-04-02
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 19
-  completed_plans: 16
-  percent: 100
+  completed_plans: 17
+  percent: 89
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 04 (orders-fifo-ledger) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
-Last activity: 2026-04-01
+Last activity: 2026-04-02
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 03-wall-experience P04 | 5 | 2 tasks | 7 files |
 | Phase 04 P01 | 4 | 2 tasks | 5 files |
 | Phase 04 P02 | 4 | 2 tasks | 1 files |
+| Phase 04 P03 | 10 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,9 @@ Recent decisions affecting current work:
 - [Phase 04]: Implemented FIFO as a pure helper that sorts a copied lot array by received_at and returns deterministic consumed slices, total cost, and remaining demand.
 - [Phase 04]: Keep order and ledger tables read-only to tenant members and route all stock-affecting writes through security-definer SQL helpers.
 - [Phase 04]: Enforce tenant and parent-record lineage in triggers so RLS remains focused on visibility instead of business correctness.
+- [Phase 04]: Kept order workspace reads in repositories that assemble tenant-scoped view models for list, detail, ledger, and FIFO preview loading.
+- [Phase 04]: Used the inventory-orders edge function as the only privileged order mutation boundary, delegating receipt and shipment commits to SQL RPC helpers.
+- [Phase 04]: Worked around shared sales-order row drift locally in server code so Phase 4 execution could continue without a separate contract migration.
 
 ### Pending Todos
 
@@ -122,6 +126,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T21:57:49.747Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-04-02T09:32:07.586Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
