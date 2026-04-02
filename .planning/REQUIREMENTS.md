@@ -54,7 +54,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Frontend Cleanup
 
-- [ ] **FE-01**: app.js split into modules (no file >500 lines)
+- [x] **FE-01**: app.js split into modules (no file >500 lines)
 - [ ] **FE-02**: All innerHTML with user data sanitized (XSS prevention)
 - [x] **FE-03**: All InvenTree API calls replaced with database queries
 - [x] **FE-04**: Zero localStorage for business data (theme and last-view only)
@@ -117,7 +117,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| FE-01 | Phase 2 | Pending |
+| FE-01 | Phase 2 | Complete |
 | FE-02 | Phase 2 | Pending |
 | FE-03 | Phase 2 | Complete |
 | FE-04 | Phase 2 | Complete |

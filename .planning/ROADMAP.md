@@ -49,7 +49,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01-PLAN.md — app.js mechanical split into 19 modules + sanitize() XSS utility (FE-01, FE-02)
+- [x] 02-01-PLAN.md — app.js mechanical split into 19 modules + sanitize() XSS utility (FE-01, FE-02)
 - [x] 02-02-PLAN.md — FastAPI products + compositions endpoints + auth session cookie rewire (FE-03, FE-04, FE-05, EAN-01..04)
 - [ ] 02-03-PLAN.md — EAN Compositions CRUD view in browser + end-to-end checkpoint (EAN-01..04, FE-03, FE-04)
 
