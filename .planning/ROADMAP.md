@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — PostgreSQL schema DDL (all tables, constraints, CHECK on quantity >= 0)
-- [ ] 01-02-PLAN.md — DB functions (FIFO deduction, EAN composition resolution, sale processing workflow)
+- [x] 01-02-PLAN.md — DB functions (FIFO deduction, EAN composition resolution, sale processing workflow)
 - [ ] 01-03-PLAN.md — Infrastructure: Docker Compose (3 containers), FastAPI skeleton, session auth, nginx proxy
 
 ### Phase 2: Frontend Wiring
