@@ -9,6 +9,7 @@ For the interwall rebuild, `supabase/functions` is the first-class home for back
 - tenant membership and role checks
 - privileged membership administration
 - trusted inventory stock mutation semantics (`inventory-stock`)
+- trusted order CRUD, receiving, shipping, cancellation, and FIFO-backed ledger writes (`inventory-orders`)
 - other server-only tenant and auth flows added in later phases
 
 `apps/web` is not the home for this logic. The web app should stay focused on UI, session orchestration, and thin request handoff into the backend surface defined here.
@@ -23,6 +24,7 @@ For the interwall rebuild, `supabase/functions` is the first-class home for back
 
 - `tenant-memberships`: lists and administers tenant memberships behind membership-aware guards
 - `inventory-stock`: owns create, update, adjust, and relocate stock-lot mutations after validating the caller and active tenant
+- `inventory-orders`: owns order CRUD, confirmation, cancellation, purchase receiving, and sales shipping through the `apply_purchase_order_receipt` and `apply_sales_order_shipment` SQL RPC helpers
 
 ## Edge Function Contract
 
