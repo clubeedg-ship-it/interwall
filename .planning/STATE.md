@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-frontend-wiring-01-PLAN.md
-last_updated: "2026-04-02T20:49:35.593Z"
+stopped_at: "Checkpoint 02-03: awaiting human-verify of compositions CRUD + auth rewire"
+last_updated: "2026-04-02T20:54:24.283Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P03 | 2 | 2 tasks | 10 files |
 | Phase 02-frontend-wiring P02 | 1 | 2 tasks | 3 files |
 | Phase 02-frontend-wiring P01 | 60 | 2 tasks | 20 files |
+| Phase 02-frontend-wiring P03 | 156 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 02-frontend-wiring]: bin-modal.js kept separate (not merged into wall.js) because merge would exceed 500-line limit
 - [Phase 02-frontend-wiring]: catalog split at categoryManager boundary: catalog-core.js (catalog) + catalog-detail.js (categoryManager, batchDetail, batchEditor)
 - [Phase 02-frontend-wiring]: sanitize() XSS utility added to config.js using createTextNode pattern; applied to 6+ XSS vectors in wall.js, catalog-core.js, ui.js, auth.js
+- [Phase 02-frontend-wiring]: auth.getHeaders() kept as legacy shim for tenant.js compatibility — returns only Content-Type/Accept (no Authorization)
+- [Phase 02-frontend-wiring]: api.request() surfaces FastAPI detail message on 4xx for meaningful error toasts in compositions CRUD
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T20:49:35.591Z
-Stopped at: Completed 02-frontend-wiring-01-PLAN.md
+Last session: 2026-04-02T20:54:15.835Z
+Stopped at: Checkpoint 02-03: awaiting human-verify of compositions CRUD + auth rewire
 Resume file: None
