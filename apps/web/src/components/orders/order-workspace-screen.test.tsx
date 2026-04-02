@@ -71,6 +71,8 @@ const selectedOrder: OrderDetailViewModel = {
     orderType: 'purchase',
     orderNumber: 'PO-001',
     counterpartyName: 'Supplier A',
+    counterpartyReference: 'SUP-A',
+    warehouseId: 'warehouse-1',
     warehouseName: 'Main Warehouse',
     status: 'draft',
     linkedDates: {
@@ -200,6 +202,8 @@ describe('OrderWorkspaceScreen', () => {
             orderType: 'sales',
             orderNumber: 'SO-001',
             counterpartyName: 'Customer A',
+            counterpartyReference: 'CUST-A',
+            warehouseId: 'warehouse-2',
             warehouseName: 'Overflow Warehouse',
             status: 'draft',
             nextAction: 'Confirm order',

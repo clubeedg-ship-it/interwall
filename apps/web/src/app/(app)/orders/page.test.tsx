@@ -93,6 +93,8 @@ describe('OrdersPage', () => {
             orderType: 'purchase',
             orderNumber: 'PO-001',
             counterpartyName: 'Supplier A',
+            counterpartyReference: 'SUP-A',
+            warehouseId: 'warehouse-1',
             warehouseName: 'Main Warehouse',
             status: 'draft',
             linkedDates: {

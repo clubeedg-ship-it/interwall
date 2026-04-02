@@ -69,6 +69,8 @@ export interface OrderDetailViewModel {
     orderType: OrderType;
     orderNumber: string;
     counterpartyName: string | null;
+    counterpartyReference: string | null;
+    warehouseId: string;
     warehouseName: string;
     status: PurchaseOrderStatus | SalesOrderStatus;
     linkedDates: {

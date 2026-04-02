@@ -531,6 +531,8 @@ export async function getPurchaseOrderDetail(
         orderType: 'purchase',
         orderNumber: order.order_number,
         counterpartyName: order.supplier_name,
+        counterpartyReference: order.supplier_reference,
+        warehouseId: order.warehouse_id,
         warehouseName: warehousesById.get(order.warehouse_id)?.name ?? 'Unknown warehouse',
         status: order.status,
         linkedDates: {
@@ -593,6 +595,8 @@ export async function getSalesOrderDetail(
         orderType: 'sales',
         orderNumber: order.order_number,
         counterpartyName: order.customer_name,
+        counterpartyReference: order.customer_reference,
+        warehouseId: order.warehouse_id,
         warehouseName: warehousesById.get(order.warehouse_id)?.name ?? 'Unknown warehouse',
         status: order.status,
         linkedDates: {

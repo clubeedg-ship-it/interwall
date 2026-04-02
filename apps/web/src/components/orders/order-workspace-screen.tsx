@@ -59,10 +59,12 @@ function createHeaderValueFromOrder(order: OrderDetailViewModel): OrderHeaderFor
         orderType: order.orderType,
         orderNumber: order.orderNumber,
         supplierName: order.orderType === 'purchase' ? order.counterpartyName ?? '' : '',
-        supplierReference: '',
+        supplierReference:
+            order.orderType === 'purchase' ? order.counterpartyReference ?? '' : '',
         customerName: order.orderType === 'sales' ? order.counterpartyName ?? '' : '',
-        customerReference: '',
-        warehouseId: '',
+        customerReference:
+            order.orderType === 'sales' ? order.counterpartyReference ?? '' : '',
+        warehouseId: order.warehouseId,
         orderDate: order.linkedDates.orderDate,
         expectedDate: order.linkedDates.expectedDate ?? '',
         note: order.note ?? '',
