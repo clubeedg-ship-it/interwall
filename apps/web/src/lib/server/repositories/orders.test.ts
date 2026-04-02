@@ -4,7 +4,10 @@ import type {
     ProductRow,
     PurchaseOrderLineRow,
     PurchaseOrderRow,
+    SalesOrderLineRow,
+    SalesOrderRow,
     ShelfRow,
+    StockLedgerEntryRow,
     StockLotRow,
     WarehouseRow,
 } from '@interwall/shared';
@@ -15,54 +18,6 @@ import {
     getShipmentPreview,
     listOrders,
 } from './orders';
-
-type SalesOrderLineRow = {
-    id: string;
-    tenant_id: string;
-    sales_order_id: string;
-    product_id: string;
-    quantity_ordered: number;
-    quantity_shipped: number;
-    unit_price: number | null;
-    cost_basis_total: number | null;
-    note: string | null;
-    created_at: string;
-    updated_at: string;
-};
-
-type SalesOrderRow = {
-    id: string;
-    tenant_id: string;
-    order_number: string;
-    warehouse_id: string;
-    customer_name: string | null;
-    customer_reference: string | null;
-    status: 'draft' | 'confirmed' | 'partially_shipped' | 'shipped' | 'cancelled';
-    order_date: string;
-    expected_date: string | null;
-    shipped_date: string | null;
-    note: string | null;
-    created_at: string;
-    updated_at: string;
-};
-
-type StockLedgerEntryRow = {
-    id: string;
-    tenant_id: string;
-    stock_lot_id: string | null;
-    product_id: string;
-    shelf_id: string | null;
-    entry_type: 'receipt' | 'shipment' | 'adjustment' | 'relocation';
-    quantity_delta: number;
-    unit_cost_at_time: number | null;
-    purchase_order_id: string | null;
-    purchase_order_line_id: string | null;
-    sales_order_id: string | null;
-    sales_order_line_id: string | null;
-    reason: string;
-    note: string | null;
-    created_at: string;
-};
 
 type TableName =
     | 'products'
@@ -226,7 +181,7 @@ describe('listOrders', () => {
                     order_date: '2026-04-01',
                     expected_date: null,
                     received_date: null,
-                    note: 'restock',
+                    notes: 'restock',
                     created_at: '2026-04-01T00:00:00.000Z',
                     updated_at: '2026-04-04T09:00:00.000Z',
                 },
@@ -241,7 +196,7 @@ describe('listOrders', () => {
                     order_date: '2026-04-01',
                     expected_date: null,
                     received_date: null,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-01T00:00:00.000Z',
                     updated_at: '2026-04-05T00:00:00.000Z',
                 },
@@ -255,7 +210,7 @@ describe('listOrders', () => {
                     quantity_ordered: 10,
                     quantity_received: 4,
                     unit_cost: 2.5,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-01T00:00:00.000Z',
                     updated_at: '2026-04-01T00:00:00.000Z',
                 },
@@ -270,9 +225,8 @@ describe('listOrders', () => {
                     customer_reference: 'CUST-Z',
                     status: 'partially_shipped',
                     order_date: '2026-04-02',
-                    expected_date: null,
                     shipped_date: null,
-                    note: 'priority',
+                    notes: 'priority',
                     created_at: '2026-04-02T00:00:00.000Z',
                     updated_at: '2026-04-03T09:00:00.000Z',
                 },
@@ -287,7 +241,7 @@ describe('listOrders', () => {
                     quantity_shipped: 3,
                     unit_price: 5,
                     cost_basis_total: 7.5,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-02T00:00:00.000Z',
                     updated_at: '2026-04-02T00:00:00.000Z',
                 },
@@ -374,7 +328,7 @@ describe('getOrderDetail', () => {
                     order_date: '2026-04-01',
                     expected_date: '2026-04-05',
                     received_date: null,
-                    note: 'restock',
+                    notes: 'restock',
                     created_at: '2026-04-01T08:00:00.000Z',
                     updated_at: '2026-04-04T09:00:00.000Z',
                 },
@@ -388,7 +342,7 @@ describe('getOrderDetail', () => {
                     quantity_ordered: 10,
                     quantity_received: 4,
                     unit_cost: 2.5,
-                    note: 'blue batch',
+                    notes: 'blue batch',
                     created_at: '2026-04-01T08:00:00.000Z',
                     updated_at: '2026-04-04T09:00:00.000Z',
                 },
@@ -532,9 +486,8 @@ describe('getOrderDetail', () => {
                     customer_reference: 'CUST-A',
                     status: 'confirmed',
                     order_date: '2026-04-02',
-                    expected_date: null,
                     shipped_date: null,
-                    note: 'rush',
+                    notes: 'rush',
                     created_at: '2026-04-02T08:00:00.000Z',
                     updated_at: '2026-04-02T09:00:00.000Z',
                 },
@@ -549,7 +502,7 @@ describe('getOrderDetail', () => {
                     quantity_shipped: 3,
                     unit_price: 5,
                     cost_basis_total: 7.5,
-                    note: 'ship partial',
+                    notes: 'ship partial',
                     created_at: '2026-04-02T08:00:00.000Z',
                     updated_at: '2026-04-03T09:00:00.000Z',
                 },
@@ -733,9 +686,8 @@ describe('getShipmentPreview', () => {
                     customer_reference: 'CUST-A',
                     status: 'confirmed',
                     order_date: '2026-04-02',
-                    expected_date: null,
                     shipped_date: null,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-02T08:00:00.000Z',
                     updated_at: '2026-04-02T08:00:00.000Z',
                 },
@@ -750,7 +702,7 @@ describe('getShipmentPreview', () => {
                     quantity_shipped: 0,
                     unit_price: 5,
                     cost_basis_total: null,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-02T08:00:00.000Z',
                     updated_at: '2026-04-02T08:00:00.000Z',
                 },
@@ -906,9 +858,8 @@ describe('getShipmentPreview', () => {
                     customer_reference: 'CUST-A',
                     status: 'confirmed',
                     order_date: '2026-04-02',
-                    expected_date: null,
                     shipped_date: null,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-02T08:00:00.000Z',
                     updated_at: '2026-04-02T08:00:00.000Z',
                 },
@@ -923,7 +874,7 @@ describe('getShipmentPreview', () => {
                     quantity_shipped: 0,
                     unit_price: 5,
                     cost_basis_total: null,
-                    note: null,
+                    notes: null,
                     created_at: '2026-04-02T08:00:00.000Z',
                     updated_at: '2026-04-02T08:00:00.000Z',
                 },

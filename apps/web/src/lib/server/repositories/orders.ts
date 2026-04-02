@@ -6,62 +6,17 @@ import type {
     ProductRow,
     PurchaseOrderLineRow,
     PurchaseOrderRow,
+    SalesOrderLineRow,
+    SalesOrderRow,
     ShipmentFifoPreview,
     ShipmentFifoPreviewLot,
     ShelfRow,
+    StockLedgerEntryRow,
     StockLotRow,
     WarehouseRow,
 } from '@interwall/shared';
 
 import { computeFifoConsumption, type FifoCandidateLot } from '../fifo';
-
-type SalesOrderLineRow = {
-    id: string;
-    tenant_id: string;
-    sales_order_id: string;
-    product_id: string;
-    quantity_ordered: number;
-    quantity_shipped: number;
-    unit_price: number | null;
-    cost_basis_total: number | null;
-    note: string | null;
-    created_at: string;
-    updated_at: string;
-};
-
-type SalesOrderRow = {
-    id: string;
-    tenant_id: string;
-    order_number: string;
-    warehouse_id: string;
-    customer_name: string | null;
-    customer_reference: string | null;
-    status: 'draft' | 'confirmed' | 'partially_shipped' | 'shipped' | 'cancelled';
-    order_date: string;
-    expected_date: string | null;
-    shipped_date: string | null;
-    note: string | null;
-    created_at: string;
-    updated_at: string;
-};
-
-type StockLedgerEntryRow = {
-    id: string;
-    tenant_id: string;
-    stock_lot_id: string | null;
-    product_id: string;
-    shelf_id: string | null;
-    entry_type: 'receipt' | 'shipment' | 'adjustment' | 'relocation';
-    quantity_delta: number;
-    unit_cost_at_time: number | null;
-    purchase_order_id: string | null;
-    purchase_order_line_id: string | null;
-    sales_order_id: string | null;
-    sales_order_line_id: string | null;
-    reason: string;
-    note: string | null;
-    created_at: string;
-};
 
 type QueryResult<T> = Promise<{
     data: T;
@@ -210,7 +165,7 @@ function toPurchaseLineItem(input: {
         outstandingQuantity: input.line.quantity_ordered - input.line.quantity_received,
         unitCost: input.line.unit_cost,
         unitPrice: null,
-        note: input.line.note,
+        note: input.line.notes,
     };
 }
 
@@ -229,7 +184,7 @@ function toSalesLineItem(input: {
         outstandingQuantity: input.line.quantity_ordered - input.line.quantity_shipped,
         unitCost: null,
         unitPrice: input.line.unit_price,
-        note: input.line.note,
+        note: input.line.notes,
     };
 }
 
@@ -547,7 +502,7 @@ export async function getPurchaseOrderDetail(
             unitValue: summaryValue,
         }),
         nextAction: buildNextPurchaseAction(order.status),
-        note: order.note,
+        note: order.notes,
         lines,
         fifoPreview: null,
         ledgerEntries,
@@ -611,7 +566,7 @@ export async function getSalesOrderDetail(
             unitValue: summaryValue,
         }),
         nextAction: buildNextSalesAction(order.status),
-        note: order.note,
+        note: order.notes,
         lines,
         fifoPreview: null,
         ledgerEntries,
