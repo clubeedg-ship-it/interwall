@@ -16,6 +16,9 @@ const {
     mockCreateSalesOrderAction,
     mockUpdateSalesOrderAction,
     mockConfirmPurchaseOrderAction,
+    mockReceivePurchaseOrderLineAction,
+    mockLoadShipmentPreviewAction,
+    mockShipSalesOrderLineAction,
     mockCancelPurchaseOrderAction,
 } = vi.hoisted(() => ({
     mockCreatePurchaseOrderAction: vi.fn(),
@@ -23,6 +26,9 @@ const {
     mockCreateSalesOrderAction: vi.fn(),
     mockUpdateSalesOrderAction: vi.fn(),
     mockConfirmPurchaseOrderAction: vi.fn(),
+    mockReceivePurchaseOrderLineAction: vi.fn(),
+    mockLoadShipmentPreviewAction: vi.fn(),
+    mockShipSalesOrderLineAction: vi.fn(),
     mockCancelPurchaseOrderAction: vi.fn(),
 }));
 
@@ -32,7 +38,10 @@ vi.mock('@/app/(app)/orders/actions', () => ({
     createSalesOrderAction: mockCreateSalesOrderAction,
     updateSalesOrderAction: mockUpdateSalesOrderAction,
     confirmPurchaseOrderAction: mockConfirmPurchaseOrderAction,
+    receivePurchaseOrderLineAction: mockReceivePurchaseOrderLineAction,
     confirmSalesOrderAction: vi.fn(),
+    loadShipmentPreviewAction: mockLoadShipmentPreviewAction,
+    shipSalesOrderLineAction: mockShipSalesOrderLineAction,
     cancelPurchaseOrderAction: mockCancelPurchaseOrderAction,
     cancelSalesOrderAction: vi.fn(),
 }));
@@ -90,6 +99,44 @@ const selectedOrder: OrderDetailViewModel = {
     ledgerEntries: [],
 };
 
+const salesOrder: OrderDetailViewModel = {
+    ...selectedOrder,
+    id: 'sales-1',
+    orderType: 'sales',
+    orderNumber: 'SO-001',
+    counterpartyName: 'Customer A',
+    counterpartyReference: 'CUST-A',
+    warehouseId: 'warehouse-2',
+    warehouseName: 'Overflow Warehouse',
+    status: 'confirmed',
+    nextAction: 'Ship items',
+    linkedDates: {
+        orderDate: '2026-04-03',
+        expectedDate: '2026-04-05',
+        receivedDate: null,
+        shippedDate: null,
+        createdAt: '2026-04-03T08:00:00.000Z',
+    },
+    valueSummary: '$120.00 ordered',
+    lines: [
+        {
+            id: 'sales-line-1',
+            productId: 'product-1',
+            productName: 'Anchor Bracket',
+            sku: 'AB-001',
+            quantityOrdered: 6,
+            quantityReceived: 0,
+            quantityShipped: 0,
+            outstandingQuantity: 6,
+            unitCost: null,
+            unitPrice: 30,
+            note: 'Rush shipment',
+        },
+    ],
+    fifoPreview: null,
+    ledgerEntries: [],
+};
+
 describe('OrderWorkspaceScreen', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -98,6 +145,27 @@ describe('OrderWorkspaceScreen', () => {
         mockCreateSalesOrderAction.mockResolvedValue(undefined);
         mockUpdateSalesOrderAction.mockResolvedValue(undefined);
         mockConfirmPurchaseOrderAction.mockResolvedValue(undefined);
+        mockReceivePurchaseOrderLineAction.mockResolvedValue(undefined);
+        mockLoadShipmentPreviewAction.mockResolvedValue({
+            lineItemId: 'sales-line-1',
+            productId: 'product-1',
+            productName: 'Anchor Bracket',
+            requestedQuantity: 6,
+            remainingDemand: 0,
+            shortfallMessage: null,
+            totalCost: 45,
+            lots: [
+                {
+                    stockLotId: 'lot-1',
+                    lotReference: 'LOT-001',
+                    receivedAt: '2026-03-01T10:00:00.000Z',
+                    quantityAvailable: 4,
+                    quantityConsumed: 4,
+                    unitCost: 7.5,
+                },
+            ],
+        });
+        mockShipSalesOrderLineAction.mockResolvedValue(undefined);
         mockCancelPurchaseOrderAction.mockResolvedValue(undefined);
     });
 
@@ -293,5 +361,129 @@ describe('OrderWorkspaceScreen', () => {
         expect(
             screen.queryByRole('button', { name: /remove line item/i }),
         ).not.toBeInTheDocument();
+    });
+
+    it('opens a focused receive task surface with remaining quantity, destination context, and receive submission', async () => {
+        const receivingOrder: OrderDetailViewModel = {
+            ...selectedOrder,
+            status: 'confirmed',
+            nextAction: 'Receive stock',
+            lines: [
+                {
+                    id: 'purchase-line-1',
+                    productId: 'product-1',
+                    productName: 'Anchor Bracket',
+                    sku: 'AB-001',
+                    quantityOrdered: 10,
+                    quantityReceived: 4,
+                    quantityShipped: 0,
+                    outstandingQuantity: 6,
+                    unitCost: 2.5,
+                    unitPrice: null,
+                    note: 'Dock intake',
+                },
+            ],
+        };
+        const { user } = renderApp(
+            <OrderWorkspaceScreen
+                orders={orders}
+                selectedOrder={receivingOrder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('primary-order-action'));
+
+        expect(screen.getByText('Receive stock')).toBeInTheDocument();
+        expect(screen.getByText('6 units remaining')).toBeInTheDocument();
+        expect(screen.getByText('Main Warehouse')).toBeInTheDocument();
+        expect(screen.getByLabelText('Destination shelf')).toBeInTheDocument();
+
+        await user.type(screen.getByLabelText('Quantity to receive'), '5');
+        await user.type(screen.getByLabelText('Destination shelf'), 'shelf-1');
+        fireEvent.change(screen.getByLabelText('Received at'), {
+            target: { value: '2026-04-05T10:00' },
+        });
+        await user.click(screen.getByRole('button', { name: 'Receive stock' }));
+
+        expect(mockReceivePurchaseOrderLineAction).toHaveBeenCalledWith(
+            expect.objectContaining({
+                purchaseOrderId: 'purchase-1',
+                purchaseOrderLineId: 'purchase-line-1',
+                quantityReceived: 5,
+                shelfId: 'shelf-1',
+            }),
+        );
+    });
+
+    it('loads a FIFO preview before ship confirmation and enables shipping only when there is no shortfall', async () => {
+        const { user } = renderApp(
+            <OrderWorkspaceScreen
+                orders={orders}
+                selectedOrder={salesOrder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('primary-order-action'));
+        await user.clear(screen.getByLabelText('Quantity to ship'));
+        await user.type(screen.getByLabelText('Quantity to ship'), '6');
+        await user.click(screen.getByRole('button', { name: 'Review shipment' }));
+
+        expect(mockLoadShipmentPreviewAction).toHaveBeenCalledWith({
+            salesOrderId: 'sales-1',
+            salesOrderLineId: 'sales-line-1',
+            quantityShipped: 6,
+        });
+        expect(screen.getByText('Total cost basis')).toBeInTheDocument();
+        expect(screen.getByText('LOT-001')).toBeInTheDocument();
+
+        const shipButton = screen.getByRole('button', { name: 'Ship items' });
+        expect(shipButton).toBeEnabled();
+
+        await user.click(shipButton);
+
+        expect(mockShipSalesOrderLineAction).toHaveBeenCalledWith({
+            salesOrderId: 'sales-1',
+            salesOrderLineId: 'sales-line-1',
+            quantityShipped: 6,
+            note: '',
+        });
+    });
+
+    it('renders the exact backend shortfall message inline and blocks shipment when stock is insufficient', async () => {
+        mockLoadShipmentPreviewAction.mockResolvedValueOnce({
+            lineItemId: 'sales-line-1',
+            productId: 'product-1',
+            productName: 'Anchor Bracket',
+            requestedQuantity: 6,
+            remainingDemand: 2,
+            shortfallMessage: 'Insufficient stock for Anchor Bracket. Short by 2 units.',
+            totalCost: 30,
+            lots: [
+                {
+                    stockLotId: 'lot-1',
+                    lotReference: 'LOT-001',
+                    receivedAt: '2026-03-01T10:00:00.000Z',
+                    quantityAvailable: 4,
+                    quantityConsumed: 4,
+                    unitCost: 7.5,
+                },
+            ],
+        });
+        const { user } = renderApp(
+            <OrderWorkspaceScreen
+                orders={orders}
+                selectedOrder={salesOrder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('primary-order-action'));
+        await user.clear(screen.getByLabelText('Quantity to ship'));
+        await user.type(screen.getByLabelText('Quantity to ship'), '6');
+        await user.click(screen.getByRole('button', { name: 'Review shipment' }));
+
+        expect(
+            screen.getByText('Insufficient stock for Anchor Bracket. Short by 2 units.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Ship items' })).toBeDisabled();
     });
 });

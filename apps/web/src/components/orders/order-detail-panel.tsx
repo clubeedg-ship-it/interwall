@@ -14,6 +14,7 @@ import { OrderStatusBadge } from './order-status-badge';
 export interface OrderDetailPanelProps {
     order: OrderDetailViewModel | null;
     mode: 'view' | 'edit' | 'create';
+    suppressPrimaryAction?: boolean;
     headerValue: OrderHeaderFormValue;
     lineEditorProps: OrderLineEditorProps;
     onHeaderChange: (nextValue: OrderHeaderFormValue) => void;
@@ -29,6 +30,7 @@ function renderOrderTypeLabel(orderType: OrderDetailViewModel['orderType']): str
 export function OrderDetailPanel({
     order,
     mode,
+    suppressPrimaryAction = false,
     headerValue,
     lineEditorProps,
     onHeaderChange,
@@ -46,21 +48,15 @@ export function OrderDetailPanel({
 
     const activeStatus: PurchaseOrderStatus | SalesOrderStatus =
         mode === 'create' ? 'draft' : order!.status;
+    const detailOrder = order;
     const primaryActionLabel =
         mode === 'create'
             ? 'Create order'
-            : activeStatus === 'draft'
-              ? 'Confirm order'
-              : activeStatus === 'confirmed' ||
-                  activeStatus === 'partially_received' ||
-                  activeStatus === 'partially_shipped'
-                ? 'Cancel order'
-                : null;
+            : detailOrder?.nextAction ?? (activeStatus === 'draft' ? 'Confirm order' : null);
     const orderTitle =
         mode === 'create' ? 'New order draft' : order!.orderNumber;
     const orderType: OrderType =
         mode === 'create' ? headerValue.orderType : order!.orderType;
-    const detailOrder = order;
 
     return (
         <div className="rounded-[2rem] border border-white/10 bg-[#102131]/90 p-6 shadow-[0_28px_80px_rgba(8,15,31,0.36)]">
@@ -82,7 +78,7 @@ export function OrderDetailPanel({
                                 : `${detailOrder?.counterpartyName ?? 'Counterparty pending'} • ${detailOrder?.warehouseName}`}
                         </p>
                     </div>
-                    {primaryActionLabel ? (
+                    {primaryActionLabel && !suppressPrimaryAction ? (
                         <button
                             data-testid="primary-order-action"
                             className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#14b8a6] px-5 text-sm font-semibold text-[#09111f]"

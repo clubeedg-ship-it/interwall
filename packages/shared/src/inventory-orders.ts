@@ -45,9 +45,11 @@ export interface ShipmentFifoPreviewLot {
 export interface ShipmentFifoPreview {
     lineItemId: string;
     productId: string;
+    productName: string;
     requestedQuantity: number;
     remainingDemand: number;
     totalCost: number | null;
+    shortfallMessage: string | null;
     lots: ShipmentFifoPreviewLot[];
 }
 

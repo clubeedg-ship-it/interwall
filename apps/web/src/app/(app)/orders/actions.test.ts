@@ -4,11 +4,14 @@ const {
     mockCreatePurchaseOrder,
     mockUpdatePurchaseOrder,
     mockConfirmPurchaseOrder,
+    mockReceivePurchaseOrderLine,
     mockCreateSalesOrder,
     mockUpdateSalesOrder,
     mockConfirmSalesOrder,
+    mockShipSalesOrderLine,
     mockCancelPurchaseOrder,
     mockCancelSalesOrder,
+    mockGetShipmentPreview,
     mockRequireUserSession,
     mockCreateServerSupabaseClient,
     mockListMembershipsForUser,
@@ -17,11 +20,14 @@ const {
     mockCreatePurchaseOrder: vi.fn(),
     mockUpdatePurchaseOrder: vi.fn(),
     mockConfirmPurchaseOrder: vi.fn(),
+    mockReceivePurchaseOrderLine: vi.fn(),
     mockCreateSalesOrder: vi.fn(),
     mockUpdateSalesOrder: vi.fn(),
     mockConfirmSalesOrder: vi.fn(),
+    mockShipSalesOrderLine: vi.fn(),
     mockCancelPurchaseOrder: vi.fn(),
     mockCancelSalesOrder: vi.fn(),
+    mockGetShipmentPreview: vi.fn(),
     mockRequireUserSession: vi.fn(),
     mockCreateServerSupabaseClient: vi.fn(),
     mockListMembershipsForUser: vi.fn(),
@@ -34,12 +40,26 @@ vi.mock('@/lib/server/order-mutations', () => ({
     createPurchaseOrder: mockCreatePurchaseOrder,
     updatePurchaseOrder: mockUpdatePurchaseOrder,
     confirmPurchaseOrder: mockConfirmPurchaseOrder,
+    receivePurchaseOrderLine: mockReceivePurchaseOrderLine,
     createSalesOrder: mockCreateSalesOrder,
     updateSalesOrder: mockUpdateSalesOrder,
     confirmSalesOrder: mockConfirmSalesOrder,
+    shipSalesOrderLine: mockShipSalesOrderLine,
     cancelPurchaseOrder: mockCancelPurchaseOrder,
     cancelSalesOrder: mockCancelSalesOrder,
 }));
+
+vi.mock('@/lib/server/repositories/orders', async () => {
+    const actual =
+        await vi.importActual<typeof import('@/lib/server/repositories/orders')>(
+            '@/lib/server/repositories/orders',
+        );
+
+    return {
+        ...actual,
+        getShipmentPreview: mockGetShipmentPreview,
+    };
+});
 
 vi.mock('@/lib/server/auth', () => ({
     requireUserSession: mockRequireUserSession,
@@ -68,6 +88,9 @@ import {
     confirmSalesOrderAction,
     createPurchaseOrderAction,
     createSalesOrderAction,
+    loadShipmentPreviewAction,
+    receivePurchaseOrderLineAction,
+    shipSalesOrderLineAction,
     updatePurchaseOrderAction,
     updateSalesOrderAction,
 } from './actions';
@@ -242,6 +265,75 @@ describe('orders server actions', () => {
                 sales_order_id: 'sales-1',
                 reason: 'customer_changed_mind',
                 note: 'Cancelled before ship',
+            },
+        });
+    });
+
+    it('delegates receive, shipment preview, and ship actions with the active tenant resolved on the server', async () => {
+        mockGetShipmentPreview.mockResolvedValue({
+            lineItemId: 'sales-line-1',
+            productId: 'product-1',
+            productName: 'Anchor Bracket',
+            requestedQuantity: 6,
+            remainingDemand: 2,
+            shortfallMessage: 'Insufficient stock for Anchor Bracket. Short by 2 units.',
+            totalCost: 45,
+            lots: [],
+        });
+
+        await receivePurchaseOrderLineAction({
+            purchaseOrderId: 'purchase-1',
+            purchaseOrderLineId: 'purchase-line-1',
+            quantityReceived: 5,
+            shelfId: 'shelf-1',
+            receivedAt: '2026-04-05T10:00:00.000Z',
+            lotReference: 'LOT-001',
+            supplierReference: 'SUP-PO-1',
+            note: 'Dock intake',
+        });
+
+        const preview = await loadShipmentPreviewAction({
+            salesOrderId: 'sales-1',
+            salesOrderLineId: 'sales-line-1',
+            quantityShipped: 6,
+        });
+
+        await shipSalesOrderLineAction({
+            salesOrderId: 'sales-1',
+            salesOrderLineId: 'sales-line-1',
+            quantityShipped: 4,
+            note: 'Packed for route A',
+        });
+
+        expect(mockReceivePurchaseOrderLine).toHaveBeenCalledWith({
+            tenantId: 'tenant-1',
+            input: {
+                purchase_order_line_id: 'purchase-line-1',
+                quantity_received: 5,
+                shelf_id: 'shelf-1',
+                received_at: '2026-04-05T10:00:00.000Z',
+                lot_reference: 'LOT-001',
+                supplier_reference: 'SUP-PO-1',
+                note: 'Dock intake',
+            },
+        });
+        expect(mockGetShipmentPreview).toHaveBeenCalledWith({}, {
+            tenantId: 'tenant-1',
+            salesOrderLineId: 'sales-line-1',
+            quantityShipped: 6,
+        });
+        expect(preview).toEqual(
+            expect.objectContaining({
+                shortfallMessage: 'Insufficient stock for Anchor Bracket. Short by 2 units.',
+                remainingDemand: 2,
+            }),
+        );
+        expect(mockShipSalesOrderLine).toHaveBeenCalledWith({
+            tenantId: 'tenant-1',
+            input: {
+                sales_order_line_id: 'sales-line-1',
+                quantity_shipped: 4,
+                note: 'Packed for route A',
             },
         });
     });

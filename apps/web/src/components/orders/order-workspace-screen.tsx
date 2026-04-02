@@ -15,6 +15,9 @@ import {
     confirmSalesOrderAction,
     createPurchaseOrderAction,
     createSalesOrderAction,
+    loadShipmentPreviewAction,
+    receivePurchaseOrderLineAction,
+    shipSalesOrderLineAction,
     updatePurchaseOrderAction,
     updateSalesOrderAction,
 } from '@/app/(app)/orders/actions';
@@ -29,6 +32,7 @@ import {
     type OrderLineEditorProps,
 } from './order-line-editor';
 import { OrderList } from './order-list';
+import { OrderTaskSurface } from './order-task-surface';
 
 export interface OrderWorkspaceScreenProps {
     orders: OrderWorkspaceListItem[];
@@ -36,6 +40,7 @@ export interface OrderWorkspaceScreenProps {
 }
 
 type EditorMode = 'view' | 'edit' | 'create';
+type TaskSurfaceMode = 'receive' | 'ship' | null;
 
 type DraftLine = OrderLineEditorProps['lines'][number];
 
@@ -100,9 +105,11 @@ export function OrderWorkspaceScreen({
     const [lines, setLines] = useState<DraftLine[]>(
         selectedOrder?.lines.map(toDraftLineValue) ?? [],
     );
+    const [taskSurfaceMode, setTaskSurfaceMode] = useState<TaskSurfaceMode>(null);
 
     useEffect(() => {
         resetToSelectedOrderState(selectedOrder, setMode, setHeaderValue, setLines);
+        setTaskSurfaceMode(null);
     }, [selectedOrder]);
 
     const handleNewOrder = (orderType: OrderType) => {
@@ -196,6 +203,16 @@ export function OrderWorkspaceScreen({
             return;
         }
 
+        if (selectedOrder.nextAction === 'Receive stock') {
+            setTaskSurfaceMode('receive');
+            return;
+        }
+
+        if (selectedOrder.nextAction === 'Ship items') {
+            setTaskSurfaceMode('ship');
+            return;
+        }
+
         await handleCancelOrder();
     };
 
@@ -244,60 +261,81 @@ export function OrderWorkspaceScreen({
     };
 
     return (
-        <div
-            className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]"
-            data-testid="orders-workspace-layout"
-        >
-            <section
-                aria-label="Orders list"
-                className="rounded-[2rem] border border-white/10 bg-[#102131]/85 p-4 shadow-[0_28px_80px_rgba(8,15,31,0.32)]"
-            >
-                <div className="mb-4 flex items-center justify-between gap-4 px-2">
-                    <div>
-                        <p className="text-xs uppercase tracking-[0.22em] text-[#14b8a6]">
-                            Orders
-                        </p>
-                        <h2 className="mt-2 text-xl font-semibold text-white">
-                            Active workflow
-                        </h2>
-                    </div>
-                    <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
-                        {orders.length} open
-                    </p>
-                </div>
-                <div className="mb-4 flex flex-wrap gap-4 px-2">
-                    <button
-                        className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white"
-                        onClick={() => handleNewOrder('purchase')}
-                        type="button"
+        <div className="relative">
+            {taskSurfaceMode === null ? (
+                <div
+                    className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]"
+                    data-testid="orders-workspace-layout"
+                >
+                    <section
+                        aria-label="Orders list"
+                        className="rounded-[2rem] border border-white/10 bg-[#102131]/85 p-4 shadow-[0_28px_80px_rgba(8,15,31,0.32)]"
                     >
-                        New purchase order
-                    </button>
-                    <button
-                        className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white"
-                        onClick={() => handleNewOrder('sales')}
-                        type="button"
-                    >
-                        New sales order
-                    </button>
+                        <div className="mb-4 flex items-center justify-between gap-4 px-2">
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.22em] text-[#14b8a6]">
+                                    Orders
+                                </p>
+                                <h2 className="mt-2 text-xl font-semibold text-white">
+                                    Active workflow
+                                </h2>
+                            </div>
+                            <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+                                {orders.length} open
+                            </p>
+                        </div>
+                        <div className="mb-4 flex flex-wrap gap-4 px-2">
+                            <button
+                                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white"
+                                onClick={() => handleNewOrder('purchase')}
+                                type="button"
+                            >
+                                New purchase order
+                            </button>
+                            <button
+                                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white"
+                                onClick={() => handleNewOrder('sales')}
+                                type="button"
+                            >
+                                New sales order
+                            </button>
+                        </div>
+                        <OrderList
+                            orders={orders}
+                            selectedOrderId={selectedOrder?.id ?? orders[0]?.id ?? null}
+                        />
+                    </section>
+                    <aside aria-label="Order detail" className="min-w-0">
+                        <OrderDetailPanel
+                            headerValue={headerValue}
+                            lineEditorProps={lineEditorProps}
+                            mode={mode}
+                            onCancelOrder={handleCancelOrder}
+                            onHeaderChange={setHeaderValue}
+                            onPrimaryAction={handlePrimaryAction}
+                            onSaveDraft={handleSaveDraft}
+                            order={selectedOrder}
+                        />
+                    </aside>
                 </div>
-                <OrderList
-                    orders={orders}
-                    selectedOrderId={selectedOrder?.id ?? orders[0]?.id ?? null}
-                />
-            </section>
-            <aside aria-label="Order detail" className="min-w-0">
-                <OrderDetailPanel
-                    headerValue={headerValue}
-                    lineEditorProps={lineEditorProps}
-                    mode={mode}
-                    onCancelOrder={handleCancelOrder}
-                    onHeaderChange={setHeaderValue}
-                    onPrimaryAction={handlePrimaryAction}
-                    onSaveDraft={handleSaveDraft}
+            ) : null}
+            {selectedOrder && taskSurfaceMode ? (
+                <OrderTaskSurface
+                    mode={taskSurfaceMode}
+                    onClose={() => setTaskSurfaceMode(null)}
+                    onLoadShipmentPreview={loadShipmentPreviewAction}
+                    onReceive={async (input) => {
+                        await receivePurchaseOrderLineAction(input);
+                        setTaskSurfaceMode(null);
+                    }}
+                    onShip={async (input) => {
+                        await shipSalesOrderLineAction(input);
+                        setTaskSurfaceMode(null);
+                    }}
+                    open
                     order={selectedOrder}
                 />
-            </aside>
+            ) : null}
         </div>
     );
 }

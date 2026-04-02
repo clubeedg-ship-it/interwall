@@ -17,6 +17,8 @@ import {
     confirmSalesOrder,
     createPurchaseOrder,
     createSalesOrder,
+    receivePurchaseOrderLine,
+    shipSalesOrderLine,
     updatePurchaseOrder,
     updateSalesOrder,
 } from '@/lib/server/order-mutations';
@@ -24,8 +26,10 @@ import {
     listMembershipsForUser,
     type MembershipRepositoryClient,
 } from '@/lib/server/repositories/memberships';
+import type { OrdersRepositoryClient } from '@/lib/server/repositories/orders';
 import { createServerSupabaseClient } from '@/lib/server/supabase';
 import { requireActiveTenant, resolveActiveTenant } from '@/lib/server/tenant-context';
+import { getShipmentPreview, type ShipmentPreviewResult } from '@/lib/server/repositories/orders';
 
 type PurchaseOrderDraftInput = {
     purchaseOrderId?: string;
@@ -134,6 +138,34 @@ export async function confirmPurchaseOrderAction(input: {
     revalidateOrdersPaths(input.purchaseOrderId);
 }
 
+export async function receivePurchaseOrderLineAction(input: {
+    purchaseOrderId: string;
+    purchaseOrderLineId: string;
+    quantityReceived: number;
+    shelfId: string;
+    receivedAt: string;
+    lotReference: string | null;
+    supplierReference: string | null;
+    note: string | null;
+}): Promise<void> {
+    const tenantId = await resolveTenantId();
+
+    await receivePurchaseOrderLine({
+        tenantId,
+        input: {
+            purchase_order_line_id: input.purchaseOrderLineId,
+            quantity_received: input.quantityReceived,
+            shelf_id: input.shelfId,
+            received_at: input.receivedAt,
+            lot_reference: input.lotReference,
+            supplier_reference: input.supplierReference,
+            note: input.note,
+        },
+    });
+
+    revalidateOrdersPaths(input.purchaseOrderId);
+}
+
 export async function createSalesOrderAction(
     input: SalesOrderDraftInput,
 ): Promise<void> {
@@ -188,6 +220,41 @@ export async function confirmSalesOrderAction(input: {
         tenantId,
         input: {
             sales_order_id: input.salesOrderId,
+        },
+    });
+
+    revalidateOrdersPaths(input.salesOrderId);
+}
+
+export async function loadShipmentPreviewAction(input: {
+    salesOrderId: string;
+    salesOrderLineId: string;
+    quantityShipped: number;
+}): Promise<ShipmentPreviewResult> {
+    const tenantId = await resolveTenantId();
+    const supabase = createServerSupabaseClient();
+
+    return await getShipmentPreview(supabase as unknown as OrdersRepositoryClient, {
+        tenantId,
+        salesOrderLineId: input.salesOrderLineId,
+        quantityShipped: input.quantityShipped,
+    });
+}
+
+export async function shipSalesOrderLineAction(input: {
+    salesOrderId: string;
+    salesOrderLineId: string;
+    quantityShipped: number;
+    note: string | null;
+}): Promise<void> {
+    const tenantId = await resolveTenantId();
+
+    await shipSalesOrderLine({
+        tenantId,
+        input: {
+            sales_order_line_id: input.salesOrderLineId,
+            quantity_shipped: input.quantityShipped,
+            note: input.note,
         },
     });
 
