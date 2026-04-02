@@ -192,4 +192,71 @@ CREATE INDEX idx_emails_message_id ON emails(message_id);
 INSERT INTO warehouses (id, name)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Main Warehouse');
 
+-- =============================================================================
+-- Business Logic Functions
+-- =============================================================================
+
+-- DB-02: FIFO stock deduction
+-- Deducts p_quantity units from p_product_id using FIFO (oldest lot first).
+-- Uses plain FOR UPDATE (not SKIP LOCKED) so concurrent callers serialize,
+-- maintaining strict FIFO order. Single-threaded email poller means this
+-- contention path is rare in practice.
+-- Returns: integer count actually deducted (may be < p_quantity if insufficient stock)
+CREATE OR REPLACE FUNCTION deduct_fifo_stock(
+    p_product_id  UUID,
+    p_quantity    INTEGER,
+    p_order_ref   TEXT DEFAULT NULL
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_lot       RECORD;
+    v_remaining INTEGER := p_quantity;
+    v_take      INTEGER;
+    v_deducted  INTEGER := 0;
+BEGIN
+    IF p_quantity <= 0 THEN
+        RETURN 0;
+    END IF;
+
+    FOR v_lot IN
+        SELECT id, quantity
+          FROM stock_lots
+         WHERE product_id = p_product_id
+           AND quantity > 0
+         ORDER BY received_at ASC
+         FOR UPDATE
+    LOOP
+        EXIT WHEN v_remaining <= 0;
+
+        v_take      := LEAST(v_remaining, v_lot.quantity);
+
+        UPDATE stock_lots
+           SET quantity = quantity - v_take
+         WHERE id = v_lot.id;
+
+        v_remaining := v_remaining - v_take;
+        v_deducted  := v_deducted  + v_take;
+    END LOOP;
+
+    RETURN v_deducted;
+END;
+$$;
+
+-- DB-03: EAN composition resolution
+-- Returns all components (with names and quantities) for a given parent EAN.
+-- Returns 0 rows if no compositions exist (not an error).
+CREATE OR REPLACE FUNCTION resolve_composition(p_parent_ean TEXT)
+RETURNS TABLE(component_ean TEXT, component_name TEXT, quantity INTEGER)
+LANGUAGE sql STABLE
+AS $$
+    SELECT ec.component_ean,
+           p.name        AS component_name,
+           ec.quantity
+      FROM ean_compositions ec
+      JOIN products p ON p.ean = ec.component_ean
+     WHERE ec.parent_ean = p_parent_ean;
+$$;
+
 COMMIT;
