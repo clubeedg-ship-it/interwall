@@ -14,8 +14,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Tenant-Safe Foundation** - Establish the new stack, authentication, tenant model, and row-level security. (completed 2026-04-01)
 - [x] **Phase 2: Inventory Core Model** - Build the core product, warehouse, zone, shelf, and stock data model. (completed 2026-04-01)
-- [ ] **Phase 3: Wall Experience** - Recreate the warehouse UI and scanning-oriented workflows in the new frontend.
-- [ ] **Phase 4: Orders & FIFO Ledger** - Implement durable purchase/sales order flows and FIFO-backed stock movement.
+- [x] **Phase 3: Wall Experience** - Recreate the warehouse UI and scanning-oriented workflows in the new frontend. (completed 2026-04-02)
+- [x] **Phase 4: Orders & FIFO Ledger** - Implement durable purchase/sales order flows and FIFO-backed stock movement. (completed 2026-04-02)
 - [ ] **Phase 5: Kits & Costing** - Add bill-of-materials logic and profit-aware kit consumption.
 - [ ] **Phase 6: Email Automation** - Internalize mailbox ingestion, parsing, review, and order creation.
 - [ ] **Phase 7: Reorder, Reporting & Admin** - Add reorder-point automation, dashboards, audit visibility, and tenant settings.
@@ -83,13 +83,14 @@ Plans:
   2. Receiving a purchase order increases stock in the correct warehouse context.
   3. Shipping or confirming a sale reduces stock through durable transaction records.
   4. FIFO stock consumption is used for inventory valuation and order-cost accounting.
-**Plans**: 5 plans
+**Plans**: 6 plans
 Plans:
-- [ ] `04-01-PLAN.md` — Define shared order, ledger, and FIFO contracts plus the pure FIFO helper.
+- [x] `04-01-PLAN.md` — Define shared order, ledger, and FIFO contracts plus the pure FIFO helper.
 - [x] `04-02-PLAN.md` — Add the orders, line-item, and immutable ledger schema with server-only write paths, atomic workflow RPCs, and RLS.
 - [x] `04-03-PLAN.md` — Implement tenant-scoped order repositories plus the trusted receiving and shipping backend workflows over the SQL RPC boundary.
-- [ ] `04-04-PLAN.md` — Build the Orders workspace shell integration, routes, list-detail layout, and draft order editing flows.
-- [ ] `04-05-PLAN.md` — Add receive and ship task surfaces, FIFO preview, and the read-only ledger UI.
+- [x] `04-04-PLAN.md` — Build the Orders workspace shell integration, routes, list-detail layout, and draft order editing flows.
+- [x] `04-05-PLAN.md` — Add receive and ship task surfaces, FIFO preview, and the read-only ledger UI.
+- [x] `04-06-PLAN.md` — Gap closure: realign shared Phase 4 row contracts with the SQL schema and remove repository-local workaround types.
 **UI hint**: yes
 
 ### Phase 5: Kits & Costing
@@ -147,8 +148,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Tenant-Safe Foundation | 7/7 | Complete    | 2026-04-01 |
 | 2. Inventory Core Model | 3/3 | Complete | 2026-04-01 |
-| 3. Wall Experience | 3/4 | In progress | - |
-| 4. Orders & FIFO Ledger | 3/5 | In progress | - |
+| 3. Wall Experience | 4/4 | Complete | 2026-04-02 |
+| 4. Orders & FIFO Ledger | 6/6 | Complete | 2026-04-02 |
 | 5. Kits & Costing | 0/0 | Not started | - |
 | 6. Email Automation | 0/0 | Not started | - |
 | 7. Reorder, Reporting & Admin | 0/0 | Not started | - |
