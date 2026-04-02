@@ -32,6 +32,7 @@ import {
     type OrderLineEditorProps,
 } from './order-line-editor';
 import { OrderList } from './order-list';
+import { OrderLedgerTable } from './order-ledger-table';
 import { OrderTaskSurface } from './order-task-surface';
 
 export interface OrderWorkspaceScreenProps {
@@ -106,10 +107,12 @@ export function OrderWorkspaceScreen({
         selectedOrder?.lines.map(toDraftLineValue) ?? [],
     );
     const [taskSurfaceMode, setTaskSurfaceMode] = useState<TaskSurfaceMode>(null);
+    const [showLedger, setShowLedger] = useState(false);
 
     useEffect(() => {
         resetToSelectedOrderState(selectedOrder, setMode, setHeaderValue, setLines);
         setTaskSurfaceMode(null);
+        setShowLedger(false);
     }, [selectedOrder]);
 
     const handleNewOrder = (orderType: OrderType) => {
@@ -306,16 +309,22 @@ export function OrderWorkspaceScreen({
                         />
                     </section>
                     <aside aria-label="Order detail" className="min-w-0">
-                        <OrderDetailPanel
-                            headerValue={headerValue}
-                            lineEditorProps={lineEditorProps}
-                            mode={mode}
-                            onCancelOrder={handleCancelOrder}
-                            onHeaderChange={setHeaderValue}
-                            onPrimaryAction={handlePrimaryAction}
-                            onSaveDraft={handleSaveDraft}
-                            order={selectedOrder}
-                        />
+                        <div className="space-y-6">
+                            <OrderDetailPanel
+                                headerValue={headerValue}
+                                lineEditorProps={lineEditorProps}
+                                mode={mode}
+                                onCancelOrder={handleCancelOrder}
+                                onHeaderChange={setHeaderValue}
+                                onPrimaryAction={handlePrimaryAction}
+                                onSaveDraft={handleSaveDraft}
+                                onViewLedger={() => setShowLedger((current) => !current)}
+                                order={selectedOrder}
+                            />
+                            {selectedOrder && showLedger ? (
+                                <OrderLedgerTable entries={selectedOrder.ledgerEntries} />
+                            ) : null}
+                        </div>
                     </aside>
                 </div>
             ) : null}

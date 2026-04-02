@@ -96,7 +96,32 @@ const selectedOrder: OrderDetailViewModel = {
     note: 'Restock brackets',
     lines: [],
     fifoPreview: null,
-    ledgerEntries: [],
+    ledgerEntries: [
+        {
+            id: 'ledger-1',
+            entryType: 'receipt',
+            createdAt: '2026-04-02T09:30:00.000Z',
+            quantityDelta: 6,
+            unitCost: 2.5,
+            costBasisTotal: 15,
+            lotReference: 'LOT-001',
+            reason: 'purchase_order_receipt',
+            note: 'Dock intake',
+            orderNumber: 'PO-001',
+        },
+        {
+            id: 'ledger-2',
+            entryType: 'shipment',
+            createdAt: '2026-04-04T11:00:00.000Z',
+            quantityDelta: -2,
+            unitCost: 7.5,
+            costBasisTotal: 15,
+            lotReference: 'LOT-001',
+            reason: 'sales_order_shipment',
+            note: 'Packed for route A',
+            orderNumber: 'SO-001',
+        },
+    ],
 };
 
 const salesOrder: OrderDetailViewModel = {
@@ -433,6 +458,8 @@ describe('OrderWorkspaceScreen', () => {
             salesOrderLineId: 'sales-line-1',
             quantityShipped: 6,
         });
+        expect(screen.getByText('Quantity consumed')).toBeInTheDocument();
+        expect(screen.getByText('$45.00')).toBeInTheDocument();
         expect(screen.getByText('Total cost basis')).toBeInTheDocument();
         expect(screen.getByText('LOT-001')).toBeInTheDocument();
 
@@ -485,5 +512,47 @@ describe('OrderWorkspaceScreen', () => {
             screen.getByText('Insufficient stock for Anchor Bracket. Short by 2 units.'),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Ship items' })).toBeDisabled();
+    });
+
+    it('renders a read-only ledger table with sticky headers, delta chips, references, and cost snapshots', async () => {
+        const { user } = renderApp(
+            <OrderWorkspaceScreen
+                orders={orders}
+                selectedOrder={selectedOrder}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'View ledger' }));
+
+        expect(screen.getByRole('table', { name: 'Order ledger' })).toBeInTheDocument();
+        expect(screen.getByText('sticky')).toBeInTheDocument();
+        expect(screen.getByText('+6')).toBeInTheDocument();
+        expect(screen.getByText('-2')).toBeInTheDocument();
+        expect(screen.getAllByText('LOT-001').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('PO-001').length).toBeGreaterThan(0);
+        expect(screen.getByText('$15.00')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+    });
+
+    it('keeps the ledger reachable through View ledger while task surfaces exist in the workspace', async () => {
+        const { user, rerender } = renderApp(
+            <OrderWorkspaceScreen
+                orders={orders}
+                selectedOrder={selectedOrder}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: 'View ledger' })).toBeInTheDocument();
+
+        rerender(
+            <OrderWorkspaceScreen
+                orders={orders}
+                selectedOrder={salesOrder}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: 'View ledger' })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'View ledger' }));
+        expect(screen.getByRole('table', { name: 'Order ledger' })).toBeInTheDocument();
     });
 });

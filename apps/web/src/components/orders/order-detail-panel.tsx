@@ -15,6 +15,7 @@ export interface OrderDetailPanelProps {
     order: OrderDetailViewModel | null;
     mode: 'view' | 'edit' | 'create';
     suppressPrimaryAction?: boolean;
+    onViewLedger?: () => void;
     headerValue: OrderHeaderFormValue;
     lineEditorProps: OrderLineEditorProps;
     onHeaderChange: (nextValue: OrderHeaderFormValue) => void;
@@ -31,6 +32,7 @@ export function OrderDetailPanel({
     order,
     mode,
     suppressPrimaryAction = false,
+    onViewLedger,
     headerValue,
     lineEditorProps,
     onHeaderChange,
@@ -78,18 +80,29 @@ export function OrderDetailPanel({
                                 : `${detailOrder?.counterpartyName ?? 'Counterparty pending'} • ${detailOrder?.warehouseName}`}
                         </p>
                     </div>
-                    {primaryActionLabel && !suppressPrimaryAction ? (
-                        <button
-                            data-testid="primary-order-action"
-                            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#14b8a6] px-5 text-sm font-semibold text-[#09111f]"
-                            onClick={() => {
-                                void onPrimaryAction();
-                            }}
-                            type="button"
-                        >
-                            {primaryActionLabel}
-                        </button>
-                    ) : null}
+                    <div className="flex flex-wrap gap-3">
+                        {detailOrder && onViewLedger ? (
+                            <button
+                                className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white"
+                                onClick={onViewLedger}
+                                type="button"
+                            >
+                                View ledger
+                            </button>
+                        ) : null}
+                        {primaryActionLabel && !suppressPrimaryAction ? (
+                            <button
+                                data-testid="primary-order-action"
+                                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#14b8a6] px-5 text-sm font-semibold text-[#09111f]"
+                                onClick={() => {
+                                    void onPrimaryAction();
+                                }}
+                                type="button"
+                            >
+                                {primaryActionLabel}
+                            </button>
+                        ) : null}
+                    </div>
                 </div>
             </div>
 
