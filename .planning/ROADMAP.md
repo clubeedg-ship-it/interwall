@@ -51,7 +51,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — app.js mechanical split into 19 modules + sanitize() XSS utility (FE-01, FE-02)
 - [x] 02-02-PLAN.md — FastAPI products + compositions endpoints + auth session cookie rewire (FE-03, FE-04, FE-05, EAN-01..04)
-- [ ] 02-03-PLAN.md — EAN Compositions CRUD view in browser + end-to-end checkpoint (EAN-01..04, FE-03, FE-04)
+- [x] 02-03-PLAN.md — EAN Compositions CRUD view in browser + end-to-end checkpoint (EAN-01..04, FE-03, FE-04)
 
 ### Phase 3: Core Value Loop
 **Goal**: Purchase and sale emails are processed automatically — stock IN from purchases, FIFO component deduction from sales, and accurate profit recorded in the database
