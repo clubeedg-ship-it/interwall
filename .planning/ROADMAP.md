@@ -45,13 +45,13 @@ Plans:
   3. User can create, edit, and delete EAN compositions from the UI, with compositions persisted in the database
   4. System rejects circular composition references and missing component EANs before saving
   5. Browser localStorage holds only theme and last-view preferences — no business data
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01: app.js split into modules (mechanical extraction, no logic changes, maintain init order)
-- [ ] 02-02: supabase-js CDN wiring + replace all api.request() calls + localStorage business data removal
-- [ ] 02-03: EAN composition CRUD UI (create/edit/delete with circular reference and EAN validation)
+- [ ] 02-01-PLAN.md — app.js mechanical split into 19 modules + sanitize() XSS utility (FE-01, FE-02)
+- [ ] 02-02-PLAN.md — FastAPI products + compositions endpoints + auth session cookie rewire (FE-03, FE-04, FE-05, EAN-01..04)
+- [ ] 02-03-PLAN.md — EAN Compositions CRUD view in browser + end-to-end checkpoint (EAN-01..04, FE-03, FE-04)
 
 ### Phase 3: Core Value Loop
 **Goal**: Purchase and sale emails are processed automatically — stock IN from purchases, FIFO component deduction from sales, and accurate profit recorded in the database
@@ -63,7 +63,7 @@ Plans:
   3. Sending the same email twice does not create duplicate stock or transactions
   4. Profit dashboard shows profit over time and breakdown by marketplace, sourced from database transactions
   5. Inventory valuation report shows total stock value (quantity × unit cost per lot)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
 - [ ] 03-01: Email service rewired to PostgreSQL (Python service writes directly via psycopg, purchases first)
@@ -80,7 +80,7 @@ Plans:
   3. Shelf cells are color-coded green/yellow/red based on stock level relative to reorder point
   4. User can add and remove zones with column and level configuration, persisted in the database
   5. Barcode scan looks up product by EAN and lets user assign it to a shelf, updating the stock lot in the database
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
