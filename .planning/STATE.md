@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-04-02T09:32:07.588Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-04-02T10:04:47.074Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 89
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 04 (orders-fifo-ledger) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-04-02
 
@@ -66,6 +66,7 @@ Progress: [█████████░] 89%
 | Phase 04 P01 | 4 | 2 tasks | 5 files |
 | Phase 04 P02 | 4 | 2 tasks | 1 files |
 | Phase 04 P03 | 10 | 2 tasks | 6 files |
+| Phase 04-orders-fifo-ledger P04 | 25 | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Kept order workspace reads in repositories that assemble tenant-scoped view models for list, detail, ledger, and FIFO preview loading.
 - [Phase 04]: Used the inventory-orders edge function as the only privileged order mutation boundary, delegating receipt and shipment commits to SQL RPC helpers.
 - [Phase 04]: Worked around shared sales-order row drift locally in server code so Phase 4 execution could continue without a separate contract migration.
+- [Phase 04-orders-fifo-ledger]: Kept draft order editing in client state while routing persistence through tenant-resolved server actions.
+- [Phase 04-orders-fifo-ledger]: Extended order detail projections with warehouseId and counterpartyReference so existing draft headers prefill correctly.
 
 ### Pending Todos
 
@@ -126,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T09:32:07.586Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-04-02T10:04:47.072Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
