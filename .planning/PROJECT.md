@@ -12,7 +12,8 @@ When a sale email arrives, the system auto-deducts component stock via EAN compo
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ All business data in PostgreSQL — zero localStorage for business state — Phase 1
+- ✓ InvenTree backend fully removed — Phase 1
 
 ### Active
 
@@ -24,8 +25,6 @@ When a sale email arrives, the system auto-deducts component stock via EAN compo
 - [ ] Zone/shelf configuration persisted in database (not localStorage)
 - [ ] Scanner maps EAN to shelf location in database
 - [ ] Product catalog CRUD from database
-- [ ] All business data in PostgreSQL — zero localStorage for business state
-- [ ] InvenTree backend fully removed
 - [ ] Frontend code cleanup (split app.js monolith, fix XSS, batch queries)
 
 ### Out of Scope
@@ -92,4 +91,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after initialization*
+*Last updated: 2026-04-02 after Phase 1 completion*
