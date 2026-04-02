@@ -58,7 +58,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **FE-02**: All innerHTML with user data sanitized (XSS prevention)
 - [ ] **FE-03**: All InvenTree API calls replaced with database queries
 - [ ] **FE-04**: Zero localStorage for business data (theme and last-view only)
-- [ ] **FE-05**: Frontend loads supabase-js via CDN (no build step)
+- [ ] **FE-05**: Frontend auth uses session cookies; no inventree_token in localStorage; no new CDN dependencies (supersedes original "supabase-js via CDN" — Phase 1 locked FastAPI, not Supabase)
 
 ### Infrastructure
 
