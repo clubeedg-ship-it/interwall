@@ -1,0 +1,15 @@
+# Node
+node_modules/
+.next/
+
+# Environment
+.env
+.env.local
+.env.docker.local
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# OS
+.DS_Store
