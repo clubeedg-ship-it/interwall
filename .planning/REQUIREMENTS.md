@@ -1,107 +1,155 @@
-# Requirements: interwall
+# Requirements: Omiximo Inventory MVP
 
-**Defined:** 2026-04-01
-**Core Value:** Businesses can manage inventory, orders, kits, email-driven automation, and profitability in one durable multi-tenant system without the sync failures and architectural fragmentation of the prototype.
+**Defined:** 2026-04-02
+**Core Value:** When a sale email arrives, the system auto-deducts component stock via EAN compositions, computes FIFO-based profit including fixed costs, and records everything durably in the database.
 
 ## v1 Requirements
 
-### Tenancy & Access
+Requirements for initial release. Each maps to roadmap phases.
 
-- [x] **TEN-01**: User can belong to one or more organizations and only access data for the active tenant
-- [x] **TEN-02**: Admin can manage memberships and roles for a tenant
-- [x] **TEN-03**: Tenant-scoped data access is enforced through row-level security and membership-aware policies
+### Database & Schema
 
-### Inventory Model
+- [ ] **DB-01**: PostgreSQL schema exists with all business tables (products, ean_compositions, stock_lots, transactions, zones, shelves, warehouses, fixed_costs, emails)
+- [ ] **DB-02**: Atomic FIFO stock deduction implemented as PostgreSQL function with SELECT FOR UPDATE to prevent race conditions
+- [ ] **DB-03**: EAN composition resolution implemented as PostgreSQL function (returns all components with quantities for a parent EAN)
+- [ ] **DB-04**: Sale processing workflow implemented as PostgreSQL function (resolve composition → deduct components FIFO → compute COGS → record transaction)
+- [ ] **DB-05**: CHECK constraint on stock_lots.quantity >= 0 prevents negative inventory
 
-- [x] **INV-01**: User can create and manage products with SKU/EAN, barcode, reorder settings, and stock metadata
-- [x] **INV-02**: User can manage warehouses, zones, and shelves with persistent database-backed configuration
-- [x] **INV-03**: User can view shelf status with color-coded reorder indicators based on stock versus reorder thresholds
-- [x] **INV-04**: System values stock and consumes inventory using FIFO rules
+### EAN Compositions
 
-### Orders
-
-- [x] **ORD-01**: User can create and manage purchase orders with line items and receiving workflows
-- [x] **ORD-02**: User can create and manage sales orders with line items, statuses, and manual editing
-- [x] **ORD-03**: Purchase orders increase stock and sales orders decrease stock through durable transaction records
-
-### Kits & BOM
-
-- [ ] **KIT-01**: User can define kits with component products, quantities, and fixed costs
-- [ ] **KIT-02**: System automatically decrements component stock when a kit is sold
-- [ ] **KIT-03**: Profit calculations for kits include both FIFO component costs and fixed kit costs
+- [ ] **EAN-01**: User can create EAN composition mapping a parent product to component products with quantities
+- [ ] **EAN-02**: User can edit and delete existing EAN compositions
+- [ ] **EAN-03**: System prevents circular references in EAN compositions (A→B→A)
+- [ ] **EAN-04**: System validates that component EANs exist as products before saving composition
 
 ### Email Automation
 
-- [ ] **MAIL-01**: Tenant can configure mailbox connections and mapping rules for email ingestion
-- [ ] **MAIL-02**: System can parse incoming emails into purchase or sales orders with traceability to the source email
-- [ ] **MAIL-03**: Low-confidence email parses are routed to a review queue instead of silently creating bad data
-- [ ] **MAIL-04**: Email ingestion is idempotent so repeated polling does not create duplicate orders
+- [ ] **MAIL-01**: Purchase emails from MediaMarktSaturn, Bol.com, and Boulanger are parsed and create stock lots with correct EAN, quantity, unit cost, marketplace, and date
+- [ ] **MAIL-02**: Sale emails trigger FIFO component deduction via EAN composition lookup and record transaction with accurate COGS and profit
+- [ ] **MAIL-03**: Duplicate emails are rejected via unique message_id constraint (no double-processing)
+- [ ] **MAIL-04**: Email service writes directly to PostgreSQL (not InvenTree API)
+- [ ] **MAIL-05**: Processed emails are logged in emails table with parsed data and confidence score
 
-### Reorder & Analytics
+### Profit Engine
 
-- [ ] **ROP-01**: System calculates reorder points from demand during lead time and safety stock
-- [ ] **ROP-02**: System flags items below reorder point and can support replenishment workflows
-- [ ] **REP-01**: User can view dashboards for profitability, stock value, reorder status, and date-filtered reporting
-- [ ] **REP-02**: Profit and stock value reports stay consistent with FIFO and kit cost calculations
+- [ ] **PROF-01**: COGS calculated from FIFO component lot costs at point of sale deduction
+- [ ] **PROF-02**: Fixed costs configurable in database (VAT as %, commission as %, overhead as fixed amount)
+- [ ] **PROF-03**: Profit = sale price − COGS − fixed costs, stored on each sale transaction
+- [ ] **PROF-04**: Profit dashboard shows profit over time (daily/weekly/monthly) from database transactions
+- [ ] **PROF-05**: Profit dashboard shows breakdown by marketplace
+- [ ] **PROF-06**: Inventory valuation report shows total stock value (sum of quantity × unit cost)
 
-### UX & Platform
+### Wall UI & Warehouse
 
-- [x] **UI-01**: User can operate the system through a responsive Next.js interface that preserves the Omiximo wall aesthetic
-- [x] **UI-02**: User can use barcode-driven product lookup and stock workflows on supported devices
-- [ ] **ADM-01**: Admin can access audit logs, email automation settings, and tenant-level system settings
-- [ ] **QLT-01**: Critical business logic is covered by automated unit, integration, and end-to-end tests
+- [ ] **WALL-01**: Wall UI renders zones and shelves from database (not localStorage)
+- [ ] **WALL-02**: Stock levels displayed via batch query (1-2 queries, not N+1)
+- [ ] **WALL-03**: Shelf health color coded (green/yellow/red based on reorder point)
+- [ ] **WALL-04**: Zone and shelf configuration persisted in database and survives browser clear
+- [ ] **WALL-05**: User can add/remove zones with column/level configuration
+
+### Scanner
+
+- [ ] **SCAN-01**: Barcode scan looks up product by EAN in database
+- [ ] **SCAN-02**: User can assign scanned product to a shelf location (updates stock lot in database)
+
+### Frontend Cleanup
+
+- [ ] **FE-01**: app.js split into modules (no file >500 lines)
+- [ ] **FE-02**: All innerHTML with user data sanitized (XSS prevention)
+- [ ] **FE-03**: All InvenTree API calls replaced with database queries
+- [ ] **FE-04**: Zero localStorage for business data (theme and last-view only)
+- [ ] **FE-05**: Frontend loads supabase-js via CDN (no build step)
+
+### Infrastructure
+
+- [ ] **INFRA-01**: System runs without InvenTree containers (no Django, Celery, Redis dependency)
+- [ ] **INFRA-02**: Docker Compose config for PostgreSQL (or Supabase) + email service only
+- [ ] **INFRA-03**: Simple session-based auth (single user, no multi-tenant)
 
 ## v2 Requirements
 
-### Expansion
+Deferred to future release. Tracked but not in current roadmap.
 
-- **ROP-03**: System can auto-generate draft purchase orders for replenishment candidates
-- **I18N-01**: User can switch locale/language for internationalized workflows
-- **MIG-01**: Existing prototype users can run assisted migration tooling for products, configuration, and historical orders
+### Enhanced Email
+
+- **MAIL-V2-01**: Low-confidence email review queue UI for manual approval
+- **MAIL-V2-02**: Additional marketplace parser support (Amazon, eBay)
+
+### Advanced Warehouse
+
+- **WALL-V2-01**: Drag-and-drop shelf rearrangement
+- **WALL-V2-02**: Camera-based barcode scanning (mobile)
+
+### Reporting
+
+- **REP-V2-01**: Reorder point automation (auto-generate draft purchase orders)
+- **REP-V2-02**: Export reports to CSV/PDF
+
+### Platform
+
+- **PLAT-V2-01**: Multi-tenant support with RLS
+- **PLAT-V2-02**: CI/CD pipeline
+- **PLAT-V2-03**: React/Next.js frontend rewrite
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Keeping the old dual-storage prototype architecture | Conflicts with the rebuild objective and single-source-of-truth requirement |
-| Exposing privileged backend credentials to the client | Violates the security requirements in the spec |
-| Treating legacy code as the final architecture | The old repos are reference material, not the target platform |
+| Multi-tenant / organizations | Single business, single user — complexity not justified |
+| User roles and permissions | Single operator — no access control needed |
+| Label/barcode printing | Not needed for core workflow |
+| Real-time WebSocket updates | Polling is sufficient for single user |
+| Migration from old InvenTree data | Fresh start — old data not worth migrating |
+| Internationalization | Single business in Netherlands — Dutch/English only |
+| Mobile app | Web SPA is sufficient for warehouse use |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEN-01 | Phase 1 | Complete |
-| TEN-02 | Phase 1 | Complete |
-| TEN-03 | Phase 1 | Complete |
-| INV-01 | Phase 2 | Complete |
-| INV-02 | Phase 2 | Complete |
-| INV-03 | Phase 3 | Complete |
-| INV-04 | Phase 4 | Complete |
-| ORD-01 | Phase 4 | Complete |
-| ORD-02 | Phase 4 | Complete |
-| ORD-03 | Phase 4 | Complete |
-| KIT-01 | Phase 5 | Pending |
-| KIT-02 | Phase 5 | Pending |
-| KIT-03 | Phase 5 | Pending |
-| MAIL-01 | Phase 6 | Pending |
-| MAIL-02 | Phase 6 | Pending |
-| MAIL-03 | Phase 6 | Pending |
-| MAIL-04 | Phase 6 | Pending |
-| ROP-01 | Phase 7 | Pending |
-| ROP-02 | Phase 7 | Pending |
-| REP-01 | Phase 7 | Pending |
-| REP-02 | Phase 7 | Pending |
-| UI-01 | Phase 3 | Complete |
-| UI-02 | Phase 3 | Complete |
-| ADM-01 | Phase 7 | Pending |
-| QLT-01 | Phase 8 | Pending |
+| DB-01 | — | Pending |
+| DB-02 | — | Pending |
+| DB-03 | — | Pending |
+| DB-04 | — | Pending |
+| DB-05 | — | Pending |
+| EAN-01 | — | Pending |
+| EAN-02 | — | Pending |
+| EAN-03 | — | Pending |
+| EAN-04 | — | Pending |
+| MAIL-01 | — | Pending |
+| MAIL-02 | — | Pending |
+| MAIL-03 | — | Pending |
+| MAIL-04 | — | Pending |
+| MAIL-05 | — | Pending |
+| PROF-01 | — | Pending |
+| PROF-02 | — | Pending |
+| PROF-03 | — | Pending |
+| PROF-04 | — | Pending |
+| PROF-05 | — | Pending |
+| PROF-06 | — | Pending |
+| WALL-01 | — | Pending |
+| WALL-02 | — | Pending |
+| WALL-03 | — | Pending |
+| WALL-04 | — | Pending |
+| WALL-05 | — | Pending |
+| SCAN-01 | — | Pending |
+| SCAN-02 | — | Pending |
+| FE-01 | — | Pending |
+| FE-02 | — | Pending |
+| FE-03 | — | Pending |
+| FE-04 | — | Pending |
+| FE-05 | — | Pending |
+| INFRA-01 | — | Pending |
+| INFRA-02 | — | Pending |
+| INFRA-03 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 25 total
-- Mapped to phases: 25
-- Unmapped: 0
+- v1 requirements: 35 total
+- Mapped to phases: 0
+- Unmapped: 35 ⚠️
 
 ---
-*Requirements defined: 2026-04-01*
-*Last updated: 2026-04-01 after reading SPECS.md*
+*Requirements defined: 2026-04-02*
+*Last updated: 2026-04-02 after initial definition*
