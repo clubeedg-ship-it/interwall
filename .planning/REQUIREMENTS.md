@@ -62,9 +62,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: System runs without InvenTree containers (no Django, Celery, Redis dependency)
-- [ ] **INFRA-02**: Docker Compose config for PostgreSQL (or Supabase) + email service only
-- [ ] **INFRA-03**: Simple session-based auth (single user, no multi-tenant)
+- [x] **INFRA-01**: System runs without InvenTree containers (no Django, Celery, Redis dependency)
+- [x] **INFRA-02**: Docker Compose config for PostgreSQL (or Supabase) + email service only
+- [x] **INFRA-03**: Simple session-based auth (single user, no multi-tenant)
 
 ## v2 Requirements
 
@@ -114,9 +114,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DB-03 | Phase 1 | Complete |
 | DB-04 | Phase 1 | Complete |
 | DB-05 | Phase 1 | Complete |
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
+| INFRA-03 | Phase 1 | Complete |
 | FE-01 | Phase 2 | Pending |
 | FE-02 | Phase 2 | Pending |
 | FE-03 | Phase 2 | Pending |

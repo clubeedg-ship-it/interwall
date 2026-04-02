@@ -12,7 +12,7 @@ Four phases deliver the brownfield cleanup. Phase 1 lays the PostgreSQL foundati
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - PostgreSQL schema, DB functions, and InvenTree removal
+- [x] **Phase 1: Foundation** - PostgreSQL schema, DB functions, and InvenTree removal (completed 2026-04-02)
 - [ ] **Phase 2: Frontend Wiring** - app.js split + supabase-js client + EAN composition CRUD
 - [ ] **Phase 3: Core Value Loop** - Email automation rewired to DB + profit engine
 - [ ] **Phase 4: Wall & Scanner** - Wall UI and scanner reading from database
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — PostgreSQL schema DDL (all tables, constraints, CHECK on quantity >= 0)
 - [x] 01-02-PLAN.md — DB functions (FIFO deduction, EAN composition resolution, sale processing workflow)
-- [ ] 01-03-PLAN.md — Infrastructure: Docker Compose (3 containers), FastAPI skeleton, session auth, nginx proxy
+- [x] 01-03-PLAN.md — Infrastructure: Docker Compose (3 containers), FastAPI skeleton, session auth, nginx proxy
 
 ### Phase 2: Frontend Wiring
 **Goal**: The frontend loads the supabase-js client via CDN, app.js is split into manageable modules, and EAN compositions can be created and managed from the UI
@@ -95,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In Progress|  |
+| 1. Foundation | 3/3 | Complete   | 2026-04-02 |
 | 2. Frontend Wiring | 0/3 | Not started | - |
 | 3. Core Value Loop | 0/3 | Not started | - |
 | 4. Wall & Scanner | 0/3 | Not started | - |
