@@ -1,8 +1,8 @@
-# Roadmap: interwall
+# Roadmap: Omiximo Inventory MVP
 
 ## Overview
 
-This roadmap rebuilds the Omiximo prototype into `interwall`, a unified multi-tenant inventory platform with its own backend, modern frontend, built-in email automation, durable stock and order workflows, and analytics that stay consistent with FIFO and kit-cost rules.
+Four phases deliver the brownfield cleanup. Phase 1 lays the PostgreSQL foundation and removes InvenTree. Phase 2 splits the app.js monolith and wires the DB client with EAN composition CRUD. Phase 3 rewires email automation and the profit engine — the core value loop. Phase 4 makes the wall UI and scanner read from the database, completing the reliability story.
 
 ## Phases
 
@@ -12,145 +12,90 @@ This roadmap rebuilds the Omiximo prototype into `interwall`, a unified multi-te
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Tenant-Safe Foundation** - Establish the new stack, authentication, tenant model, and row-level security. (completed 2026-04-01)
-- [x] **Phase 2: Inventory Core Model** - Build the core product, warehouse, zone, shelf, and stock data model. (completed 2026-04-01)
-- [x] **Phase 3: Wall Experience** - Recreate the warehouse UI and scanning-oriented workflows in the new frontend. (completed 2026-04-02)
-- [x] **Phase 4: Orders & FIFO Ledger** - Implement durable purchase/sales order flows and FIFO-backed stock movement. (completed 2026-04-02)
-- [ ] **Phase 5: Kits & Costing** - Add bill-of-materials logic and profit-aware kit consumption.
-- [ ] **Phase 6: Email Automation** - Internalize mailbox ingestion, parsing, review, and order creation.
-- [ ] **Phase 7: Reorder, Reporting & Admin** - Add reorder-point automation, dashboards, audit visibility, and tenant settings.
-- [ ] **Phase 8: Quality, Migration & Launch Readiness** - Finish verification, migration guidance, and production readiness work.
+- [ ] **Phase 1: Foundation** - PostgreSQL schema, DB functions, and InvenTree removal
+- [ ] **Phase 2: Frontend Wiring** - app.js split + supabase-js client + EAN composition CRUD
+- [ ] **Phase 3: Core Value Loop** - Email automation rewired to DB + profit engine
+- [ ] **Phase 4: Wall & Scanner** - Wall UI and scanner reading from database
 
 ## Phase Details
 
-### Phase 1: Tenant-Safe Foundation
-**Goal**: The new platform has a secure multi-tenant foundation with authenticated users, memberships, and tenant-isolated data access.
+### Phase 1: Foundation
+**Goal**: The system runs on PostgreSQL without InvenTree, and all atomic business logic is encoded as database functions
 **Depends on**: Nothing (first phase)
-**Requirements**: TEN-01, TEN-02, TEN-03
+**Requirements**: DB-01, DB-02, DB-03, DB-04, DB-05, INFRA-01, INFRA-02, INFRA-03
 **Success Criteria** (what must be TRUE):
-  1. User can sign in and operate within an active organization context.
-  2. Admin can manage memberships and roles for a tenant.
-  3. Tenant-scoped records are protected by row-level security and cannot leak across organizations.
-  4. The codebase has a clear `apps/web` frontend, `packages/*` shared layer, and `supabase/` backend structure for the rebuild.
-**Plans**: 7 plans
-Plans:
-- [x] `01-01-PLAN.md` — Bootstrap the monorepo workspace and package manifests.
-- [x] `01-02-PLAN.md` — Create the web app shell, shared tenancy contracts, and shared UI baseline.
-- [x] `01-03-PLAN.md` — Add the `@interwall/web` app test harness and Vitest/jsdom setup.
-- [x] `01-07-PLAN.md` — Establish the explicit `supabase/functions` backend boundary for privileged tenant/auth logic.
-- [x] `01-04-PLAN.md` — Create the Supabase tenancy schema, RLS policies, and active-tenant server helpers.
-- [x] `01-05-PLAN.md` — Implement sign-in, middleware gating, organization selection, and workspace landing.
-- [x] `01-06-PLAN.md` — Implement membership administration UI and admin-only actions.
-**UI hint**: yes
+  1. Docker Compose starts the system with no InvenTree, Celery, or Redis containers
+  2. PostgreSQL has all business tables (products, ean_compositions, stock_lots, transactions, zones, shelves, fixed_costs, emails) with correct constraints
+  3. FIFO deduction DB function processes a sale without negative stock, even with concurrent calls
+  4. Single user can authenticate and access the app (session-based, no multi-tenant)
+**Plans**: TBD
 
-### Phase 2: Inventory Core Model
-**Goal**: Products, warehouses, zones, shelves, and stock exist in the new schema with durable persistence and operational APIs.
+Plans:
+- [ ] 01-01: PostgreSQL schema migration (all tables, constraints, CHECK on quantity >= 0)
+- [ ] 01-02: DB functions (FIFO deduction, EAN composition resolution, sale processing workflow)
+- [ ] 01-03: Infrastructure swap (remove InvenTree from Docker Compose, add Supabase/PostgreSQL + simple auth)
+
+### Phase 2: Frontend Wiring
+**Goal**: The frontend loads the supabase-js client via CDN, app.js is split into manageable modules, and EAN compositions can be created and managed from the UI
 **Depends on**: Phase 1
-**Requirements**: INV-01, INV-02
+**Requirements**: FE-01, FE-02, FE-03, FE-04, FE-05, EAN-01, EAN-02, EAN-03, EAN-04
 **Success Criteria** (what must be TRUE):
-  1. User can create and manage products with identifiers, reorder settings, and stock metadata.
-  2. User can define warehouses, zones, and shelves without relying on localStorage.
-  3. The backend persists all inventory structure and stock records in the new tenant-aware schema.
-**Plans**: 3 plans
-Plans:
-- [x] `02-01-PLAN.md` — Define the shared inventory contracts for products, warehouse topology, and stock operations.
-- [x] `02-02-PLAN.md` — Create the tenant-safe Supabase schema, lineage guards, and RLS policies for the inventory core model.
-- [x] `02-03-PLAN.md` — Implement tenant-scoped inventory repositories and the trusted stock mutation backend surface.
+  1. No single frontend JS file exceeds 500 lines
+  2. All innerHTML assignments with user data are sanitized (no raw interpolation)
+  3. User can create, edit, and delete EAN compositions from the UI, with compositions persisted in the database
+  4. System rejects circular composition references and missing component EANs before saving
+  5. Browser localStorage holds only theme and last-view preferences — no business data
+**Plans**: TBD
+**UI hint**: yes
 
-### Phase 3: Wall Experience
-**Goal**: The new frontend reproduces the recognizable Omiximo wall UI and barcode-friendly workflows on the modern stack.
+Plans:
+- [ ] 02-01: app.js split into modules (mechanical extraction, no logic changes, maintain init order)
+- [ ] 02-02: supabase-js CDN wiring + replace all api.request() calls + localStorage business data removal
+- [ ] 02-03: EAN composition CRUD UI (create/edit/delete with circular reference and EAN validation)
+
+### Phase 3: Core Value Loop
+**Goal**: Purchase and sale emails are processed automatically — stock IN from purchases, FIFO component deduction from sales, and accurate profit recorded in the database
 **Depends on**: Phase 2
-**Requirements**: INV-03, UI-01, UI-02
+**Requirements**: MAIL-01, MAIL-02, MAIL-03, MAIL-04, MAIL-05, PROF-01, PROF-02, PROF-03, PROF-04, PROF-05, PROF-06
 **Success Criteria** (what must be TRUE):
-  1. User can browse the wall-style warehouse UI with shelf-level stock and reorder-state visibility.
-  2. User can use responsive pages across desktop, tablet, and mobile form factors.
-  3. User can use barcode-driven lookup or stock actions on supported devices.
-  4. The interface preserves the intended Omiximo visual identity while using maintainable React components.
-**Plans**: 4 plans
-Plans:
-- [x] 03-01-PLAN.md — Establish the wall-first shell, route composition, and typed wall view-model contracts
-- [x] 03-02-PLAN.md — Implement the wall grid, reorder-state rendering, and shelf detail surfaces
-- [x] 03-03-PLAN.md — Add scanner-first lookup and stock action workflows
-- [x] 03-04-PLAN.md — Gap closure: wire server actions and shelf detail into the wall experience
-**UI hint**: yes
+  1. A purchase email from MediaMarktSaturn, Bol.com, or Boulanger creates a stock lot with correct EAN, quantity, unit cost, marketplace, and date
+  2. A sale email triggers FIFO component deduction via EAN composition and records a transaction with accurate COGS and profit
+  3. Sending the same email twice does not create duplicate stock or transactions
+  4. Profit dashboard shows profit over time and breakdown by marketplace, sourced from database transactions
+  5. Inventory valuation report shows total stock value (quantity × unit cost per lot)
+**Plans**: TBD
 
-### Phase 4: Orders & FIFO Ledger
-**Goal**: Purchase and sales orders drive durable stock movement and FIFO-backed inventory accounting.
+Plans:
+- [ ] 03-01: Email service rewired to PostgreSQL (Python service writes directly via psycopg, purchases first)
+- [ ] 03-02: Sale processing via DB function + email service wiring for sales
+- [ ] 03-03: Profit engine UI (dashboard, fixed costs config, marketplace breakdown, valuation report)
+
+### Phase 4: Wall & Scanner
+**Goal**: The wall UI renders zones, shelves, and stock health from the database, scanner assigns products to shelves in the database, and zero browser state is needed to operate the warehouse
 **Depends on**: Phase 3
-**Requirements**: INV-04, ORD-01, ORD-02, ORD-03
+**Requirements**: WALL-01, WALL-02, WALL-03, WALL-04, WALL-05, SCAN-01, SCAN-02
 **Success Criteria** (what must be TRUE):
-  1. User can create and update purchase and sales orders with line items and statuses.
-  2. Receiving a purchase order increases stock in the correct warehouse context.
-  3. Shipping or confirming a sale reduces stock through durable transaction records.
-  4. FIFO stock consumption is used for inventory valuation and order-cost accounting.
-**Plans**: 6 plans
+  1. Wall UI loads zones and shelves from the database on every page load — clearing browser data does not change what is displayed
+  2. Stock levels across all shelves load in 1-2 queries (no N+1)
+  3. Shelf cells are color-coded green/yellow/red based on stock level relative to reorder point
+  4. User can add and remove zones with column and level configuration, persisted in the database
+  5. Barcode scan looks up product by EAN and lets user assign it to a shelf, updating the stock lot in the database
+**Plans**: TBD
+**UI hint**: yes
+
 Plans:
-- [x] `04-01-PLAN.md` — Define shared order, ledger, and FIFO contracts plus the pure FIFO helper.
-- [x] `04-02-PLAN.md` — Add the orders, line-item, and immutable ledger schema with server-only write paths, atomic workflow RPCs, and RLS.
-- [x] `04-03-PLAN.md` — Implement tenant-scoped order repositories plus the trusted receiving and shipping backend workflows over the SQL RPC boundary.
-- [x] `04-04-PLAN.md` — Build the Orders workspace shell integration, routes, list-detail layout, and draft order editing flows.
-- [x] `04-05-PLAN.md` — Add receive and ship task surfaces, FIFO preview, and the read-only ledger UI.
-- [x] `04-06-PLAN.md` — Gap closure: realign shared Phase 4 row contracts with the SQL schema and remove repository-local workaround types.
-**UI hint**: yes
-
-### Phase 5: Kits & Costing
-**Goal**: Kits/BOMs work as first-class entities and their sales correctly affect component stock and profitability.
-**Depends on**: Phase 4
-**Requirements**: KIT-01, KIT-02, KIT-03
-**Success Criteria** (what must be TRUE):
-  1. User can define kits with component lines and fixed costs.
-  2. Selling a kit automatically consumes the correct component quantities.
-  3. Profit calculations include FIFO component costs plus fixed kit costs.
-**Plans**: TBD
-**UI hint**: yes
-
-### Phase 6: Email Automation
-**Goal**: Email ingestion is built into the platform and can reliably create traceable orders with review for uncertain cases.
-**Depends on**: Phase 5
-**Requirements**: MAIL-01, MAIL-02, MAIL-03, MAIL-04
-**Success Criteria** (what must be TRUE):
-  1. Tenant can configure mailbox connections and mapping rules in the product.
-  2. Incoming emails can create purchase or sales orders linked back to the source message.
-  3. Low-confidence parses enter a review queue instead of silently generating bad records.
-  4. Reprocessing the same message does not create duplicate orders.
-**Plans**: TBD
-**UI hint**: yes
-
-### Phase 7: Reorder, Reporting & Admin
-**Goal**: The platform provides reorder-point logic, operational reporting, dashboards, and admin visibility.
-**Depends on**: Phase 6
-**Requirements**: ROP-01, ROP-02, REP-01, REP-02, ADM-01
-**Success Criteria** (what must be TRUE):
-  1. System calculates reorder points and flags replenishment candidates correctly.
-  2. User can view profitability, stock value, and reorder dashboards with useful filters.
-  3. Reported profit and stock value remain consistent with FIFO and kit costing.
-  4. Admin can inspect audit logs and tenant-level operational settings.
-**Plans**: TBD
-**UI hint**: yes
-
-### Phase 8: Quality, Migration & Launch Readiness
-**Goal**: The system is tested, documented, and ready for production rollout from the prototype ecosystem.
-**Depends on**: Phase 7
-**Requirements**: QLT-01
-**Success Criteria** (what must be TRUE):
-  1. Critical business logic is covered by automated unit, integration, and end-to-end tests.
-  2. Deployment and development documentation exist for the new platform.
-  3. Migration guidance exists for users moving from the prototype environment.
-  4. Production rollout risks are documented and reduced to an acceptable level.
-**Plans**: TBD
+- [ ] 04-01: Zone and shelf config from DB (replace localStorage zone/shelf state)
+- [ ] 04-02: Wall rendering from DB with batch stock query and health color coding
+- [ ] 04-03: Scanner shelf assignment from DB
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tenant-Safe Foundation | 7/7 | Complete    | 2026-04-01 |
-| 2. Inventory Core Model | 3/3 | Complete | 2026-04-01 |
-| 3. Wall Experience | 4/4 | Complete | 2026-04-02 |
-| 4. Orders & FIFO Ledger | 6/6 | Complete | 2026-04-02 |
-| 5. Kits & Costing | 0/0 | Not started | - |
-| 6. Email Automation | 0/0 | Not started | - |
-| 7. Reorder, Reporting & Admin | 0/0 | Not started | - |
-| 8. Quality, Migration & Launch Readiness | 0/0 | Not started | - |
+| 1. Foundation | 0/3 | Not started | - |
+| 2. Frontend Wiring | 0/3 | Not started | - |
+| 3. Core Value Loop | 0/3 | Not started | - |
+| 4. Wall & Scanner | 0/3 | Not started | - |

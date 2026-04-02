@@ -109,47 +109,47 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | — | Pending |
-| DB-02 | — | Pending |
-| DB-03 | — | Pending |
-| DB-04 | — | Pending |
-| DB-05 | — | Pending |
-| EAN-01 | — | Pending |
-| EAN-02 | — | Pending |
-| EAN-03 | — | Pending |
-| EAN-04 | — | Pending |
-| MAIL-01 | — | Pending |
-| MAIL-02 | — | Pending |
-| MAIL-03 | — | Pending |
-| MAIL-04 | — | Pending |
-| MAIL-05 | — | Pending |
-| PROF-01 | — | Pending |
-| PROF-02 | — | Pending |
-| PROF-03 | — | Pending |
-| PROF-04 | — | Pending |
-| PROF-05 | — | Pending |
-| PROF-06 | — | Pending |
-| WALL-01 | — | Pending |
-| WALL-02 | — | Pending |
-| WALL-03 | — | Pending |
-| WALL-04 | — | Pending |
-| WALL-05 | — | Pending |
-| SCAN-01 | — | Pending |
-| SCAN-02 | — | Pending |
-| FE-01 | — | Pending |
-| FE-02 | — | Pending |
-| FE-03 | — | Pending |
-| FE-04 | — | Pending |
-| FE-05 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
+| DB-01 | Phase 1 | Pending |
+| DB-02 | Phase 1 | Pending |
+| DB-03 | Phase 1 | Pending |
+| DB-04 | Phase 1 | Pending |
+| DB-05 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| FE-01 | Phase 2 | Pending |
+| FE-02 | Phase 2 | Pending |
+| FE-03 | Phase 2 | Pending |
+| FE-04 | Phase 2 | Pending |
+| FE-05 | Phase 2 | Pending |
+| EAN-01 | Phase 2 | Pending |
+| EAN-02 | Phase 2 | Pending |
+| EAN-03 | Phase 2 | Pending |
+| EAN-04 | Phase 2 | Pending |
+| MAIL-01 | Phase 3 | Pending |
+| MAIL-02 | Phase 3 | Pending |
+| MAIL-03 | Phase 3 | Pending |
+| MAIL-04 | Phase 3 | Pending |
+| MAIL-05 | Phase 3 | Pending |
+| PROF-01 | Phase 3 | Pending |
+| PROF-02 | Phase 3 | Pending |
+| PROF-03 | Phase 3 | Pending |
+| PROF-04 | Phase 3 | Pending |
+| PROF-05 | Phase 3 | Pending |
+| PROF-06 | Phase 3 | Pending |
+| WALL-01 | Phase 4 | Pending |
+| WALL-02 | Phase 4 | Pending |
+| WALL-03 | Phase 4 | Pending |
+| WALL-04 | Phase 4 | Pending |
+| WALL-05 | Phase 4 | Pending |
+| SCAN-01 | Phase 4 | Pending |
+| SCAN-02 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 35 total
-- Mapped to phases: 0
-- Unmapped: 35 ⚠️
+- Mapped to phases: 35
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after initial definition*
+*Last updated: 2026-04-02 after roadmap creation*
