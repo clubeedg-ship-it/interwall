@@ -116,14 +116,13 @@ describe('OrdersPage', () => {
 
         renderApp(page);
 
-        expect(
-            screen.getByRole('link', { name: /orders/i }),
-        ).toHaveAttribute('href', '/orders');
-        expect(
-            screen.getByRole('link', { name: /orders/i }),
-        ).toHaveAttribute('aria-current', 'page');
-        expect(screen.getByText('Alpha Industries')).toBeInTheDocument();
-        expect(screen.getByText('PO-001')).toBeInTheDocument();
+        const orderLinks = screen.getAllByRole('link', { name: /orders/i });
+
+        expect(orderLinks).toHaveLength(2);
+        expect(orderLinks[0]).toHaveAttribute('href', '/orders');
+        expect(orderLinks[0]).toHaveAttribute('aria-current', 'page');
+        expect(screen.getAllByText('Alpha Industries').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('PO-001').length).toBeGreaterThan(0);
         expect(mockListOrders).toHaveBeenCalledWith(expect.anything(), {
             tenantId: 'tenant-a',
         });

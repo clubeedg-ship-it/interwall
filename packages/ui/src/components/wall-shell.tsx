@@ -3,11 +3,11 @@ import type { ReactNode } from 'react';
 interface WallShellProps {
     children: ReactNode;
     tenantName: string;
-    activeItem?: 'wall' | 'scan' | 'catalog' | 'insights' | 'settings';
+    activeItem?: 'wall' | 'orders' | 'scan' | 'catalog' | 'insights' | 'settings';
 }
 
 interface WallNavItem {
-    id: 'wall' | 'scan' | 'catalog' | 'insights' | 'settings';
+    id: 'wall' | 'orders' | 'scan' | 'catalog' | 'insights' | 'settings';
     label: string;
     href: string;
     icon: JSX.Element;
@@ -28,6 +28,23 @@ const NAV_ITEMS: WallNavItem[] = [
                 strokeWidth="1.8"
             >
                 <path d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" />
+            </svg>
+        ),
+    },
+    {
+        id: 'orders',
+        label: 'Orders',
+        href: '/orders',
+        icon: (
+            <svg
+                aria-hidden="true"
+                className="h-6 w-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+            >
+                <path d="M7 5h10M7 9h10M7 13h6M6 4h12a2 2 0 0 1 2 2v12l-3-2-3 2-3-2-3 2-3-2V6a2 2 0 0 1 2-2Z" />
             </svg>
         ),
     },
@@ -115,6 +132,15 @@ export function WallShell({
     tenantName,
     activeItem = 'wall',
 }: WallShellProps): JSX.Element {
+    const activeNavItem =
+        NAV_ITEMS.find((item) => item.id === activeItem) ??
+        ({
+            id: 'wall',
+            label: 'Wall',
+            href: '/workspace',
+            icon: <></>,
+        } satisfies WallNavItem);
+
     return (
         <div className="min-h-screen bg-[#09111f] text-white">
             <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.16),_transparent_25%),radial-gradient(circle_at_bottom_right,_rgba(16,33,49,0.9),_transparent_45%)]" />
@@ -168,7 +194,7 @@ export function WallShell({
                                 </p>
                             </div>
                             <div className="inline-flex min-h-11 items-center rounded-full border border-[#14b8a6]/40 bg-[#14b8a6]/10 px-4 text-sm font-medium text-[#99f6e4]">
-                                Wall active
+                                {activeNavItem.label} active
                             </div>
                         </div>
                     </header>
@@ -179,7 +205,7 @@ export function WallShell({
                 aria-label="Workspace sections"
                 className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-[#102131]/95 px-4 py-3 backdrop-blur md:hidden"
             >
-                <div className="mx-auto grid max-w-3xl grid-cols-5 gap-2">
+                <div className="mx-auto grid max-w-3xl grid-cols-6 gap-2">
                     {NAV_ITEMS.map((item) => {
                         const isActive = item.id === activeItem;
 

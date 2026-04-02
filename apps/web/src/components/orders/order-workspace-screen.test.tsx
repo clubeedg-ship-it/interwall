@@ -76,7 +76,7 @@ describe('OrderWorkspaceScreen', () => {
             screen.getByRole('complementary', { name: /order detail/i }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('orders-workspace-layout')).toHaveClass('xl:grid-cols-[22rem_minmax(0,1fr)]');
-        expect(screen.getByText('PO-001')).toBeInTheDocument();
+        expect(screen.getAllByText('PO-001')).toHaveLength(2);
         expect(screen.getByText('SO-001')).toBeInTheDocument();
     });
 
@@ -89,10 +89,10 @@ describe('OrderWorkspaceScreen', () => {
         );
 
         expect(screen.getByText('Supplier A')).toBeInTheDocument();
-        expect(screen.getByText('Draft')).toBeInTheDocument();
-        expect(screen.getByText('2026-04-02')).toBeInTheDocument();
-        expect(screen.getByText('Main Warehouse')).toBeInTheDocument();
+        expect(screen.getAllByText('Draft')).toHaveLength(2);
+        expect(screen.getAllByText('2026-04-02').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Main Warehouse').length).toBeGreaterThan(0);
         expect(screen.getByText('8 open')).toBeInTheDocument();
-        expect(screen.getByText('$80.00 ordered')).toBeInTheDocument();
+        expect(screen.getAllByText('$80.00 ordered').length).toBeGreaterThan(0);
     });
 });

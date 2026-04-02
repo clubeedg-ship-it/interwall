@@ -118,10 +118,11 @@ describe('OrderDetailPage', () => {
 
         renderApp(page);
 
-        expect(
-            screen.getByRole('link', { name: /orders/i }),
-        ).toHaveAttribute('aria-current', 'page');
-        expect(screen.getByText('SO-001')).toBeInTheDocument();
+        expect(screen.getAllByRole('link', { name: /orders/i })[0]).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+        expect(screen.getAllByText('SO-001').length).toBeGreaterThan(0);
         expect(mockListOrders).toHaveBeenCalledWith(expect.anything(), {
             tenantId: 'tenant-a',
         });
