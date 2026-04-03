@@ -8,6 +8,10 @@
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace @interwall/web",
+    "local:prepare": "bash scripts/local/prepare.sh",
+    "local:up": "bash scripts/local/up.sh",
+    "local:up:host": "bash scripts/local/up-host.sh",
+    "local:down": "bash scripts/local/down.sh",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"

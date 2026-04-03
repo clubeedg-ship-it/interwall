@@ -117,7 +117,7 @@ export const middleware = createProtectedAppMiddleware({
 });
 
 export const config = {
-    matcher: ['/workspace/:path*', '/select-organization'],
+    matcher: ['/workspace/:path*', '/orders/:path*', '/settings/:path*', '/select-organization'],
 };
 
 export default middleware;

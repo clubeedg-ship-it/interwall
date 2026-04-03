@@ -19,6 +19,10 @@ export async function getUserSession(
     const { data, error } = await supabase.auth.getUser();
 
     if (error) {
+        if (error.message === 'Auth session missing!') {
+            return null;
+        }
+
         throw new Error(`Unable to resolve the authenticated user session: ${error.message}`);
     }
 
