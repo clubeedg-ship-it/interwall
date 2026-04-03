@@ -29,6 +29,10 @@ services:
     environment:
       DATABASE_URL: postgresql://interwall:${POSTGRES_PASSWORD:-interwall_dev_secret}@postgres:5432/interwall
       SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production-min-32-chars}
+      IMAP_SERVER: ${IMAP_SERVER:-}
+      IMAP_EMAIL: ${IMAP_EMAIL:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
     depends_on:
       postgres:
         condition: service_healthy
