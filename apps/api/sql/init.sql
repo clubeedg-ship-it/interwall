@@ -192,6 +192,13 @@ CREATE INDEX idx_emails_message_id ON emails(message_id);
 INSERT INTO warehouses (id, name)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Main Warehouse');
 
+-- Default fixed costs (matching profit.js DEFAULTS — user can edit via UI)
+INSERT INTO fixed_costs (name, value, is_percentage) VALUES
+    ('vat',        21.00, TRUE),
+    ('commission',  6.20, TRUE),
+    ('overhead',   95.00, FALSE)
+ON CONFLICT (name) DO NOTHING;
+
 -- =============================================================================
 -- Business Logic Functions
 -- =============================================================================
