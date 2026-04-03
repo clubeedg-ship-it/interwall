@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - PostgreSQL schema, DB functions, and InvenTree removal (completed 2026-04-02)
 - [ ] **Phase 2: Frontend Wiring** - app.js split + supabase-js client + EAN composition CRUD
-- [ ] **Phase 3: Core Value Loop** - Email automation rewired to DB + profit engine
+- [x] **Phase 3: Core Value Loop** - Email automation rewired to DB + profit engine (completed 2026-04-03)
 - [ ] **Phase 4: Wall & Scanner** - Wall UI and scanner reading from database
 
 ## Phase Details
@@ -68,7 +68,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Email poller package (parsers copied, sale_writer, purchase_writer, email_log, poller with APScheduler)
 - [x] 03-02-PLAN.md — FastAPI routers (fixed_costs, profit summary/valuation/transactions, stock_lots) + APScheduler lifespan + docker-compose IMAP vars
-- [ ] 03-03-PLAN.md — profit.js rewire to /api/fixed-costs + /api/profit/summary; init.sql fixed_costs seed; human-verify checkpoint
+- [x] 03-03-PLAN.md — profit.js rewire to /api/fixed-costs + /api/profit/summary; init.sql fixed_costs seed; human-verify checkpoint
 
 ### Phase 4: Wall & Scanner
 **Goal**: The wall UI renders zones, shelves, and stock health from the database, scanner assigns products to shelves in the database, and zero browser state is needed to operate the warehouse
@@ -97,5 +97,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-04-02 |
 | 2. Frontend Wiring | 1/3 | In Progress|  |
-| 3. Core Value Loop | 1/3 | In Progress|  |
+| 3. Core Value Loop | 3/3 | Complete   | 2026-04-03 |
 | 4. Wall & Scanner | 0/3 | Not started | - |
