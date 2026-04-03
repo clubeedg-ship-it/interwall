@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Checkpoint 02-03: awaiting human-verify of compositions CRUD + auth rewire"
-last_updated: "2026-04-03T13:38:47.297Z"
-last_activity: 2026-04-03 -- Phase 03 execution started
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-04-03T13:51:07.459Z"
+last_activity: 2026-04-03
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 8
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 03 (core-value-loop) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 03
-Last activity: 2026-04-03 -- Phase 03 execution started
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-frontend-wiring P02 | 1 | 2 tasks | 3 files |
 | Phase 02-frontend-wiring P01 | 60 | 2 tasks | 20 files |
 | Phase 02-frontend-wiring P03 | 156 | 2 tasks | 5 files |
+| Phase 03 P02 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 02-frontend-wiring]: sanitize() XSS utility added to config.js using createTextNode pattern; applied to 6+ XSS vectors in wall.js, catalog-core.js, ui.js, auth.js
 - [Phase 02-frontend-wiring]: auth.getHeaders() kept as legacy shim for tenant.js compatibility — returns only Content-Type/Accept (no Authorization)
 - [Phase 02-frontend-wiring]: api.request() surfaces FastAPI detail message on 4xx for meaningful error toasts in compositions CRUD
+- [Phase 03]: Transactions endpoint nested under /api/profit/transactions for co-location with dashboard data
+- [Phase 03]: APScheduler BackgroundScheduler (threaded) with max_instances=1 for sync poll_once; IMAP vars default empty for safe startup
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T20:54:15.835Z
-Stopped at: Checkpoint 02-03: awaiting human-verify of compositions CRUD + auth rewire
+Last session: 2026-04-03T13:51:07.457Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None

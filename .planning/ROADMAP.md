@@ -67,7 +67,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Email poller package (parsers copied, sale_writer, purchase_writer, email_log, poller with APScheduler)
-- [ ] 03-02-PLAN.md — FastAPI routers (fixed_costs, profit summary/valuation/transactions, stock_lots) + APScheduler lifespan + docker-compose IMAP vars
+- [x] 03-02-PLAN.md — FastAPI routers (fixed_costs, profit summary/valuation/transactions, stock_lots) + APScheduler lifespan + docker-compose IMAP vars
 - [ ] 03-03-PLAN.md — profit.js rewire to /api/fixed-costs + /api/profit/summary; init.sql fixed_costs seed; human-verify checkpoint
 
 ### Phase 4: Wall & Scanner
