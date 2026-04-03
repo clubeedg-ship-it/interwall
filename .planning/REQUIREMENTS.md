@@ -24,15 +24,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Email Automation
 
-- [ ] **MAIL-01**: Purchase emails from MediaMarktSaturn, Bol.com, and Boulanger are parsed and create stock lots with correct EAN, quantity, unit cost, marketplace, and date
-- [ ] **MAIL-02**: Sale emails trigger FIFO component deduction via EAN composition lookup and record transaction with accurate COGS and profit
-- [ ] **MAIL-03**: Duplicate emails are rejected via unique message_id constraint (no double-processing)
-- [ ] **MAIL-04**: Email service writes directly to PostgreSQL (not InvenTree API)
-- [ ] **MAIL-05**: Processed emails are logged in emails table with parsed data and confidence score
+- [x] **MAIL-01**: Purchase emails from MediaMarktSaturn, Bol.com, and Boulanger are parsed and create stock lots with correct EAN, quantity, unit cost, marketplace, and date
+- [x] **MAIL-02**: Sale emails trigger FIFO component deduction via EAN composition lookup and record transaction with accurate COGS and profit
+- [x] **MAIL-03**: Duplicate emails are rejected via unique message_id constraint (no double-processing)
+- [x] **MAIL-04**: Email service writes directly to PostgreSQL (not InvenTree API)
+- [x] **MAIL-05**: Processed emails are logged in emails table with parsed data and confidence score
 
 ### Profit Engine
 
-- [ ] **PROF-01**: COGS calculated from FIFO component lot costs at point of sale deduction
+- [x] **PROF-01**: COGS calculated from FIFO component lot costs at point of sale deduction
 - [ ] **PROF-02**: Fixed costs configurable in database (VAT as %, commission as %, overhead as fixed amount)
 - [ ] **PROF-03**: Profit = sale price − COGS − fixed costs, stored on each sale transaction
 - [ ] **PROF-04**: Profit dashboard shows profit over time (daily/weekly/monthly) from database transactions
@@ -126,12 +126,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EAN-02 | Phase 2 | Complete |
 | EAN-03 | Phase 2 | Complete |
 | EAN-04 | Phase 2 | Complete |
-| MAIL-01 | Phase 3 | Pending |
-| MAIL-02 | Phase 3 | Pending |
-| MAIL-03 | Phase 3 | Pending |
-| MAIL-04 | Phase 3 | Pending |
-| MAIL-05 | Phase 3 | Pending |
-| PROF-01 | Phase 3 | Pending |
+| MAIL-01 | Phase 3 | Complete |
+| MAIL-02 | Phase 3 | Complete |
+| MAIL-03 | Phase 3 | Complete |
+| MAIL-04 | Phase 3 | Complete |
+| MAIL-05 | Phase 3 | Complete |
+| PROF-01 | Phase 3 | Complete |
 | PROF-02 | Phase 3 | Pending |
 | PROF-03 | Phase 3 | Pending |
 | PROF-04 | Phase 3 | Pending |

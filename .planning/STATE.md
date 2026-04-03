@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Checkpoint 02-03: awaiting human-verify of compositions CRUD + auth rewire"
-last_updated: "2026-04-02T21:01:56.165Z"
-last_activity: 2026-04-02
+stopped_at: "Completed 03-01-PLAN.md"
+last_updated: "2026-04-03T13:45:31Z"
+last_activity: 2026-04-03
 progress:
   total_phases: 4
   completed_phases: 2
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 3
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-02
+Plan: 1 of 2
+Status: Executing
+Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-frontend-wiring P02 | 1 | 2 tasks | 3 files |
 | Phase 02-frontend-wiring P01 | 60 | 2 tasks | 20 files |
 | Phase 02-frontend-wiring P03 | 156 | 2 tasks | 5 files |
+| Phase 03-core-value-loop P01 | 6 | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Recent decisions affecting current work:
 - [Phase 02-frontend-wiring]: sanitize() XSS utility added to config.js using createTextNode pattern; applied to 6+ XSS vectors in wall.js, catalog-core.js, ui.js, auth.js
 - [Phase 02-frontend-wiring]: auth.getHeaders() kept as legacy shim for tenant.js compatibility — returns only Content-Type/Accept (no Authorization)
 - [Phase 02-frontend-wiring]: api.request() surfaces FastAPI detail message on 4xx for meaningful error toasts in compositions CRUD
+- [Phase 03-core-value-loop]: Copied sku_generator utils alongside parsers (parser dependency)
+- [Phase 03-core-value-loop]: IMAPClient uses os.environ directly instead of legacy Config class
+- [Phase 03-core-value-loop]: poll_once() returns early with warning on missing IMAP env vars (no crash)
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T20:54:15.835Z
-Stopped at: Checkpoint 02-03: awaiting human-verify of compositions CRUD + auth rewire
+Last session: 2026-04-03T13:45:31Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None

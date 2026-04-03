@@ -66,7 +66,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Email poller package (parsers copied, sale_writer, purchase_writer, email_log, poller with APScheduler)
+- [x] 03-01-PLAN.md — Email poller package (parsers copied, sale_writer, purchase_writer, email_log, poller with APScheduler)
 - [ ] 03-02-PLAN.md — FastAPI routers (fixed_costs, profit summary/valuation/transactions, stock_lots) + APScheduler lifespan + docker-compose IMAP vars
 - [ ] 03-03-PLAN.md — profit.js rewire to /api/fixed-costs + /api/profit/summary; init.sql fixed_costs seed; human-verify checkpoint
 
@@ -97,5 +97,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-04-02 |
 | 2. Frontend Wiring | 1/3 | In Progress|  |
-| 3. Core Value Loop | 0/3 | Not started | - |
+| 3. Core Value Loop | 1/3 | In Progress|  |
 | 4. Wall & Scanner | 0/3 | Not started | - |
