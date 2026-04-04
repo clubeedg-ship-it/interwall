@@ -15,6 +15,38 @@ class ComponentRow(BaseModel):
     quantity: int
 
 
+@router.get("")
+def list_all_compositions(session=Depends(require_session)):
+    """Return all compositions grouped by parent product."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT p.ean AS parent_ean, p.name AS parent_name,
+                          ec.component_ean, cp.name AS component_name, ec.quantity
+                   FROM ean_compositions ec
+                   JOIN products p ON p.ean = ec.parent_ean
+                   JOIN products cp ON cp.ean = ec.component_ean
+                   ORDER BY p.name, cp.name"""
+            )
+            rows = cur.fetchall()
+    # Group by parent
+    grouped = {}
+    for r in rows:
+        key = r['parent_ean']
+        if key not in grouped:
+            grouped[key] = {
+                'parent_ean': r['parent_ean'],
+                'parent_name': r['parent_name'],
+                'components': []
+            }
+        grouped[key]['components'].append({
+            'component_ean': r['component_ean'],
+            'component_name': r['component_name'],
+            'quantity': r['quantity']
+        })
+    return list(grouped.values())
+
+
 @router.get("/{parent_ean}")
 def get_composition(parent_ean: str, session=Depends(require_session)):
     """Return all component rows for a parent EAN, joined with component product name."""

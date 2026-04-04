@@ -1,0 +1,62 @@
+# Omiximo Email-to-Inventory Automation
+# Processes marketplace order emails and deducts components from InvenTree
+#
+# Usage:
+#   1. Copy ../.env.example to ../.env and fill in credentials
+#   2. docker compose up -d --build
+#   3. docker compose logs -f (to watch)
+
+services:
+  email-automation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: omiximo-email-automation
+    restart: unless-stopped
+
+    env_file:
+      - ../.env
+
+    environment:
+      # Override for Docker networking
+      INVENTREE_API_URL: http://inventree-server:8000/api
+      # Timezone (for cron scheduling)
+      TZ: ${TZ:-Europe/Amsterdam}
+
+    ports:
+      - "8085:8080"  # Config API
+
+    volumes:
+      # Persist run state and logs
+      - email_data:/app/data
+      - email_logs:/app/logs
+      # Shared config (editable via API)
+      - ../shared_config:/app/shared_config
+
+    networks:
+      - inventree_network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # Healthcheck verifies last run was within 2 hours
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /app/data/last_run.txt && test $(($(date +%s) - $(cat /app/data/last_run.txt))) -lt 7200"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
+
+volumes:
+  email_data:
+    name: omiximo_email_data
+  email_logs:
+    name: omiximo_email_logs
+
+networks:
+  inventree_network:
+    external: true
+    name: inventree_network

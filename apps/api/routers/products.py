@@ -13,8 +13,19 @@ class ProductCreate(BaseModel):
     ean: str
     name: str
     sku: str | None = None
+    category_id: str | None = None
+    description: str | None = None
     default_reorder_point: int = 0
     is_composite: bool = False
+
+
+class ProductUpdate(BaseModel):
+    name: str | None = None
+    sku: str | None = None
+    category_id: str | None = None
+    description: str | None = None
+    default_reorder_point: int | None = None
+    is_composite: bool | None = None
 
 
 @router.get("")
@@ -23,14 +34,16 @@ def list_products(q: str = "", session=Depends(require_session)):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, ean, name, sku, is_composite, default_reorder_point "
-                "FROM products "
-                "WHERE ean ILIKE %s OR name ILIKE %s "
-                "ORDER BY name LIMIT 100",
+                """SELECT p.id, p.ean, p.name, p.sku, p.is_composite,
+                          p.default_reorder_point, p.category_id, p.description,
+                          c.name AS category_name
+                   FROM products p
+                   LEFT JOIN categories c ON c.id = p.category_id
+                   WHERE p.ean ILIKE %s OR p.name ILIKE %s
+                   ORDER BY p.name LIMIT 100""",
                 (f"%{q}%", f"%{q}%"),
             )
-            rows = cur.fetchall()
-    return rows
+            return [dict(r) for r in cur.fetchall()]
 
 
 @router.get("/{ean}")
@@ -39,14 +52,18 @@ def get_product(ean: str, session=Depends(require_session)):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, ean, name, sku, is_composite, default_reorder_point "
-                "FROM products WHERE ean = %s",
+                """SELECT p.id, p.ean, p.name, p.sku, p.is_composite,
+                          p.default_reorder_point, p.category_id, p.description,
+                          c.name AS category_name
+                   FROM products p
+                   LEFT JOIN categories c ON c.id = p.category_id
+                   WHERE p.ean = %s""",
                 (ean,),
             )
             row = cur.fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Product EAN '{ean}' not found")
-    return row
+    return dict(row)
 
 
 @router.post("", status_code=201)
@@ -56,14 +73,49 @@ def create_product(product: ProductCreate, session=Depends(require_session)):
         with conn.cursor() as cur:
             try:
                 cur.execute(
-                    "INSERT INTO products (ean, name, sku, default_reorder_point, is_composite) "
-                    "VALUES (%s, %s, %s, %s, %s) RETURNING id, ean, name",
-                    (product.ean, product.name, product.sku,
-                     product.default_reorder_point, product.is_composite),
+                    """INSERT INTO products (ean, name, sku, category_id, description,
+                                            default_reorder_point, is_composite)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)
+                       RETURNING id, ean, name""",
+                    (product.ean, product.name, product.sku, product.category_id,
+                     product.description, product.default_reorder_point, product.is_composite),
                 )
                 row = cur.fetchone()
             except Exception as e:
                 if "unique" in str(e).lower():
                     raise HTTPException(status_code=409, detail=f"Product EAN '{product.ean}' already exists")
                 raise HTTPException(status_code=422, detail=str(e))
-    return row
+    return dict(row)
+
+
+@router.patch("/{ean}")
+def update_product(ean: str, body: ProductUpdate, session=Depends(require_session)):
+    """Update a product by EAN. Only provided fields are changed."""
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_clause = ", ".join(f"{k} = %s" for k in updates)
+    values = list(updates.values()) + [ean]
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE products SET {set_clause}, updated_at = NOW() WHERE ean = %s RETURNING id, ean, name",
+                values
+            )
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Product EAN '{ean}' not found")
+    return dict(row)
+
+
+@router.delete("/{ean}", status_code=204)
+def delete_product(ean: str, session=Depends(require_session)):
+    """Delete a product by EAN."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM products WHERE ean = %s RETURNING id", (ean,))
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Product EAN '{ean}' not found")

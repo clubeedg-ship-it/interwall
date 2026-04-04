@@ -17,6 +17,18 @@ CREATE TABLE warehouses (
 );
 
 -- =============================================================================
+-- TABLE: categories
+-- Product categories for organizing the catalog
+-- =============================================================================
+CREATE TABLE categories (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL UNIQUE,
+    description TEXT,
+    parent_id   UUID REFERENCES categories(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =============================================================================
 -- TABLE: products
 -- Master product catalog keyed by EAN barcode
 -- =============================================================================
@@ -25,6 +37,8 @@ CREATE TABLE products (
     ean                   TEXT        NOT NULL UNIQUE,
     name                  TEXT        NOT NULL,
     sku                   TEXT,
+    category_id           UUID        REFERENCES categories(id) ON DELETE SET NULL,
+    description           TEXT,
     default_reorder_point INTEGER     NOT NULL DEFAULT 0,
     is_composite          BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -191,6 +205,24 @@ CREATE INDEX idx_emails_message_id ON emails(message_id);
 
 INSERT INTO warehouses (id, name)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Main Warehouse');
+
+-- Default user (password: admin123 — change in production)
+INSERT INTO users (username, password_hash)
+VALUES ('omiximo', '$2b$12$RSJIyIN8eU1WwlnHeNBbTOECj98EoG83ZNEePXrtOsjvHFpwE7neO')
+ON CONFLICT (username) DO NOTHING;
+
+-- Default zones A and B (4 columns x 7 levels each)
+INSERT INTO zones (id, warehouse_id, name, columns, levels, layout_row, layout_col) VALUES
+    ('a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'A', 4, 7, 0, 0),
+    ('b0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'B', 4, 7, 0, 1);
+
+INSERT INTO shelves (zone_id, col, level, label)
+SELECT 'a0000000-0000-0000-0000-000000000001', c, l, 'A-' || c || '-' || l
+FROM generate_series(1,4) AS c, generate_series(1,7) AS l;
+
+INSERT INTO shelves (zone_id, col, level, label)
+SELECT 'b0000000-0000-0000-0000-000000000001', c, l, 'B-' || c || '-' || l
+FROM generate_series(1,4) AS c, generate_series(1,7) AS l;
 
 -- Default fixed costs (matching profit.js DEFAULTS — user can edit via UI)
 INSERT INTO fixed_costs (name, value, is_percentage) VALUES

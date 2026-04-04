@@ -1,15 +1,11 @@
-# Node
-node_modules/
-.next/
-
-# Environment
+__pycache__/
+*.pyc
 .env
-.env.local
-.env.docker.local
-
-# Supabase local
-supabase/.branches/
-supabase/.temp/
-
-# OS
+*.egg-info/
+node_modules/
 .DS_Store
+apps/api/__pycache__/
+apps/api/routers/__pycache__/
+apps/web/tsconfig.tsbuildinfo
+deno.lock
+.planning-archived-greenfield/
