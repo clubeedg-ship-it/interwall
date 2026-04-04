@@ -10,17 +10,18 @@ from email_poller.parsers.base import OrderData
 logger = logging.getLogger("email_poller.sale_writer")
 
 
-def resolve_ean(sku: str) -> str | None:
-    """Resolve marketplace SKU to products.ean. Returns None if not found."""
+def resolve_ean(identifier: str) -> str | None:
+    """Resolve a product identifier to its EAN.
+    Tries EAN first (primary key), then falls back to SKU (internal label)."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Try sku column first (marketplace internal ref)
-            cur.execute("SELECT ean FROM products WHERE sku = %s", (sku,))
+            # Try as EAN first (the system is EAN-guided)
+            cur.execute("SELECT ean FROM products WHERE ean = %s", (identifier,))
             row = cur.fetchone()
             if row:
                 return row['ean']
-            # Fallback: maybe the sku IS an EAN already
-            cur.execute("SELECT ean FROM products WHERE ean = %s", (sku,))
+            # Fallback: maybe it's a SKU (marketplace internal ref)
+            cur.execute("SELECT ean FROM products WHERE sku = %s", (identifier,))
             row = cur.fetchone()
             return row['ean'] if row else None
 

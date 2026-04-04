@@ -3132,9 +3132,66 @@ template {
     margin-left: 2px;
 }
 
+.comp-list-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.comp-list-card-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: var(--space-sm);
+}
+
 .comp-list-card-actions {
     flex-shrink: 0;
     margin-left: var(--space-md);
+}
+
+/* Expandable details */
+.comp-list-details {
+    display: none;
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border);
+}
+
+.comp-list-card.expanded .comp-list-details {
+    display: block;
+}
+
+.comp-list-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comp-list-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: var(--space-xs) var(--space-sm);
+    border-bottom: 1px solid var(--border);
+}
+
+.comp-list-table td {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.comp-list-detail-ean {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+}
+
+.comp-list-detail-qty {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .comp-add-btn {

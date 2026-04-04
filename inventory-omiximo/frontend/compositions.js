@@ -139,30 +139,49 @@ const compositions = {
             }
             container.innerHTML = data.map(comp => `
                 <div class="comp-list-card" data-ean="${sanitize(comp.parent_ean)}">
-                    <div class="comp-list-card-info">
-                        <div>
+                    <div class="comp-list-card-header">
+                        <div class="comp-list-card-info">
                             <span class="comp-list-card-ean">${sanitize(comp.parent_ean)}</span>
                             <span class="comp-list-card-name">${sanitize(comp.parent_name)}</span>
+                            <span class="comp-list-card-count">${comp.components.length} component${comp.components.length !== 1 ? 's' : ''}</span>
                         </div>
-                        <div class="comp-list-card-components">
-                            ${comp.components.map(c =>
-                                `<span class="comp-list-chip">${sanitize(c.component_name || c.component_ean)}<span class="chip-qty"> x${c.quantity}</span></span>`
-                            ).join('')}
+                        <div class="comp-list-card-actions">
+                            <button class="btn-icon comp-list-edit" data-ean="${sanitize(comp.parent_ean)}" title="Edit in wizard">&#9998;</button>
                         </div>
                     </div>
-                    <div class="comp-list-card-actions">
-                        <button class="btn-icon comp-list-edit" data-ean="${sanitize(comp.parent_ean)}" title="Edit">&#9998;</button>
+                    <div class="comp-list-details">
+                        <table class="comp-list-table">
+                            <thead><tr><th>EAN</th><th>Component</th><th>Qty</th></tr></thead>
+                            <tbody>
+                                ${comp.components.map(c => `
+                                    <tr>
+                                        <td class="comp-list-detail-ean">${sanitize(c.component_ean)}</td>
+                                        <td>${sanitize(c.component_name || '')}</td>
+                                        <td class="comp-list-detail-qty">x${c.quantity}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             `).join('');
 
-            // Click card or edit button to load into wizard
+            // Click card to expand/collapse details inline
             container.querySelectorAll('.comp-list-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const ean = card.dataset.ean;
+                const detailsEl = card.querySelector('.comp-list-details');
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.comp-list-edit')) return; // let edit button handle itself
+                    card.classList.toggle('expanded');
+                });
+            });
+
+            // Edit button loads into wizard
+            container.querySelectorAll('.comp-list-edit').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const ean = btn.dataset.ean;
                     document.getElementById('comp-parent-ean').value = ean;
                     this.confirmParent();
-                    // Scroll to top of compositions view
                     document.getElementById('view-compositions').scrollTo({ top: 0, behavior: 'smooth' });
                 });
             });
