@@ -11,11 +11,30 @@ logger = logging.getLogger("email_poller.email_log")
 
 
 def is_already_processed(message_id: str) -> bool:
-    """Check if message_id already in emails table."""
+    """Check if message_id already processed (status='processed').
+    'pending' and 'failed' rows are retryable — return False for those."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM emails WHERE message_id = %s", (message_id,))
-            return cur.fetchone() is not None
+            cur.execute(
+                "SELECT status FROM emails WHERE message_id = %s",
+                (message_id,)
+            )
+            row = cur.fetchone()
+            if row is None:
+                return False  # Never seen
+            return row['status'] == 'processed'  # Only skip if fully processed
+
+
+def get_existing_email_id(message_id: str) -> str | None:
+    """Get email UUID for an existing pending/failed row (for retry)."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM emails WHERE message_id = %s AND status IN ('pending', 'failed')",
+                (message_id,)
+            )
+            row = cur.fetchone()
+            return str(row['id']) if row else None
 
 
 def log_email(message_id: str, sender: str, subject: str,

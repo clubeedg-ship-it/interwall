@@ -105,8 +105,8 @@ CREATE TABLE emails (
     raw_body     TEXT,
     parsed_data  JSONB,
     confidence   NUMERIC(3,2),
-    status       TEXT           NOT NULL DEFAULT 'processed'
-                                CHECK (status IN ('processed', 'failed', 'review')),
+    status       TEXT           NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending', 'processed', 'failed', 'review')),
     processed_at TIMESTAMPTZ,
     created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
@@ -173,6 +173,21 @@ CREATE TABLE users (
     username        TEXT        NOT NULL UNIQUE,
     password_hash   TEXT        NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =============================================================================
+-- TABLE: sku_aliases
+-- Maps marketplace-specific SKUs to product EANs
+-- Marketplaces send their "Interne referentie" (not the EAN barcode)
+-- This table lets the email poller resolve SKU → EAN → compositions
+-- =============================================================================
+CREATE TABLE sku_aliases (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    marketplace_sku TEXT NOT NULL,
+    product_ean     TEXT NOT NULL REFERENCES products(ean) ON DELETE CASCADE,
+    marketplace     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(marketplace_sku, marketplace)
 );
 
 -- =============================================================================

@@ -3334,3 +3334,26 @@ INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721
 -- 2863 composition rows total
 
 COMMIT;
+
+-- =============================================================================
+-- SKU Aliases: marketplace SKU → product EAN mapping
+-- These are the "Interne referentie" values used on marketplace listings
+-- =============================================================================
+INSERT INTO sku_aliases (marketplace_sku, product_ean, marketplace) VALUES
+('DB-R3100', '8721515060014', 'MediaMarktSaturn'),
+('DB-R3101', '8721515060021', 'MediaMarktSaturn'),
+('DB-R5061', '8721515060090', 'MediaMarktSaturn'),
+('DB-R5036', '8721515060182', 'MediaMarktSaturn'),
+('DB-R5103', '8721515060090', 'MediaMarktSaturn'),
+('DB-R7112', '8721515060243', 'MediaMarktSaturn'),
+('DWH-R5060', '8721515060052', 'MediaMarktSaturn'),
+('DWH-R5061', '8721515060090', 'MediaMarktSaturn'),
+('DWH-R5062', '8721515060113', 'MediaMarktSaturn'),
+('DWH-R5103', '8721515060090', 'MediaMarktSaturn'),
+('DWH-R5106', '8721515060304', 'MediaMarktSaturn'),
+('DWH-R7109', '8721515060212', 'MediaMarktSaturn'),
+('RDT-R3005', '8721515060038', 'MediaMarktSaturn'),
+('RDT-R5047', '8721515060182', 'MediaMarktSaturn'),
+('OMX-GHANA-2026-R7-5700X-RTX3050-16G-512G', '8721515060243', 'MediaMarktSaturn'),
+('B23', '8721515060236', 'MediaMarktSaturn')
+ON CONFLICT (marketplace_sku, marketplace) DO NOTHING;
