@@ -223,7 +223,7 @@ VALUES ('00000000-0000-0000-0000-000000000001', 'Main Warehouse');
 
 -- Default user (password: admin123 — change in production)
 INSERT INTO users (username, password_hash)
-VALUES ('omiximo', '$2b$12$RSJIyIN8eU1WwlnHeNBbTOECj98EoG83ZNEePXrtOsjvHFpwE7neO')
+VALUES ('admin', '$2b$12$1bFOLqxE/ZDeNPEuR0FwW.9OItuHyJohw6fvRAb1gX6PH2ZVCB.rG')
 ON CONFLICT (username) DO NOTHING;
 
 -- Default zones A and B (4 columns x 7 levels each)
