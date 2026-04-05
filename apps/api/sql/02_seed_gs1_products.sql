@@ -1,5 +1,3 @@
-/opt/homebrew/Caskroom/miniconda/base/lib/python3.13/site-packages/openpyxl/worksheet/_reader.py:329: UserWarning: Data Validation extension is not supported and will be removed
-  warn(msg)
 -- =============================================================================
 -- Auto-generated: MijnGS1 product import for Interwall
 -- =============================================================================
@@ -3318,8 +3316,7 @@ INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721
 INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-CPU-R7-5700', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
 INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-RAM-16GB', 2) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
 INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-SSD-1TB', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
-INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-GPU-RTX5070', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;-- Summary: 23 components, 431 composites, 2863 composition links
-
+INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-GPU-RTX5070', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
 INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-CASE-NGG', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
 INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-PSU-STD', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
 INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721515064333', 'COMP-MOBO-AM4', 1) ON CONFLICT (parent_ean, component_ean) DO NOTHING;
@@ -3335,10 +3332,7 @@ INSERT INTO ean_compositions (parent_ean, component_ean, quantity) VALUES ('8721
 
 COMMIT;
 
--- =============================================================================
 -- SKU Aliases: marketplace SKU → product EAN mapping
--- These are the "Interne referentie" values used on marketplace listings
--- =============================================================================
 INSERT INTO sku_aliases (marketplace_sku, product_ean, marketplace) VALUES
 ('DB-R3100', '8721515060014', 'MediaMarktSaturn'),
 ('DB-R3101', '8721515060021', 'MediaMarktSaturn'),
