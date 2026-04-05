@@ -29,19 +29,28 @@ class ProductUpdate(BaseModel):
 
 
 @router.get("")
-def list_products(q: str = "", session=Depends(require_session)):
-    """List products, optionally filtered by EAN or name search."""
+def list_products(q: str = "", composite: str | None = None, session=Depends(require_session)):
+    """List products, optionally filtered by search and composite flag."""
+    conditions = ["(p.ean ILIKE %s OR p.name ILIKE %s)"]
+    params = [f"%{q}%", f"%{q}%"]
+
+    if composite == "true":
+        conditions.append("p.is_composite = TRUE")
+    elif composite == "false":
+        conditions.append("p.is_composite = FALSE")
+
+    where = " AND ".join(conditions)
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT p.id, p.ean, p.name, p.sku, p.is_composite,
-                          p.default_reorder_point, p.category_id, p.description,
-                          c.name AS category_name
-                   FROM products p
-                   LEFT JOIN categories c ON c.id = p.category_id
-                   WHERE p.ean ILIKE %s OR p.name ILIKE %s
-                   ORDER BY p.name LIMIT 100""",
-                (f"%{q}%", f"%{q}%"),
+                f"""SELECT p.id, p.ean, p.name, p.sku, p.is_composite,
+                           p.default_reorder_point, p.category_id, p.description,
+                           c.name AS category_name
+                    FROM products p
+                    LEFT JOIN categories c ON c.id = p.category_id
+                    WHERE {where}
+                    ORDER BY p.name LIMIT 500""",
+                params,
             )
             return [dict(r) for r in cur.fetchall()]
 

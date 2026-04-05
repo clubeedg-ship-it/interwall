@@ -99,8 +99,10 @@ const catalog = {
 
         try {
             const search = dom.catalogSearch?.value?.trim();
-            const query = search ? `?q=${encodeURIComponent(search)}` : '';
-            const products = await api.request(`/api/products${query}`);
+            const params = new URLSearchParams();
+            if (search) params.set('q', search);
+            params.set('composite', 'false');
+            const products = await api.request(`/api/products?${params}`);
 
             // Normalize to catalog state format
             const newParts = (Array.isArray(products) ? products : []).map(p => ({
