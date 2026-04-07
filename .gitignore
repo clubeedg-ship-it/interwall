@@ -9,3 +9,5 @@ apps/api/routers/__pycache__/
 apps/web/tsconfig.tsbuildinfo
 deno.lock
 .planning-archived-greenfield/
+apps/web/.env.local
+apps/web/.env.docker.local
