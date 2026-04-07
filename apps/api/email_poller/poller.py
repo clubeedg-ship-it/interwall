@@ -27,10 +27,14 @@ MARKETPLACE_SENDERS = {
 }
 
 
-def poll_once():
+def poll_once(fetch_all=False):
     """
-    Single poll cycle — fetch unseen emails from all marketplace senders,
+    Single poll cycle — fetch emails from all marketplace senders,
     parse and process each one. Designed to be called by APScheduler.
+
+    Args:
+        fetch_all: If True, fetch ALL emails (not just unseen).
+                   Use after a data reset when emails were already marked read.
 
     If IMAP_SERVER, IMAP_EMAIL, or IMAP_PASSWORD env vars are missing,
     logs a warning and returns early (does NOT crash).
@@ -44,21 +48,28 @@ def poll_once():
         logger.warning(f"Email poller disabled — missing env vars: {missing}")
         return
 
+    unseen_only = not fetch_all
+    logger.info(f"Poll starting (fetch_all={fetch_all})")
+
     try:
         with IMAPClient() as client:
             client.select_inbox()
             for name, sender in MARKETPLACE_SENDERS.items():
                 try:
-                    email_ids = client.search_from_sender(sender, unseen_only=True)
+                    email_ids = client.search_from_sender(sender, unseen_only=unseen_only)
+                    logger.info(f"{name}: {len(email_ids)} emails to process")
                     for eid in email_ids:
                         email_data = client.fetch_email(eid)
                         if email_data:
                             _process_one(email_data)
-                        client.mark_as_read(eid)
+                        if unseen_only:
+                            client.mark_as_read(eid)
                 except Exception as e:
                     logger.error(f"Error processing {name} emails: {e}", exc_info=True)
     except Exception as e:
         logger.error(f"Poll cycle error: {e}", exc_info=True)
+
+    logger.info("Poll complete")
 
 
 def retry_pending():

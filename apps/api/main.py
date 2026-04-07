@@ -3,6 +3,13 @@ Interwall Inventory OS — FastAPI Application
 Single-user inventory management backend.
 """
 import os
+import logging
+
+# Configure logging so email_poller output is visible
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s: %(message)s",
+)
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -73,10 +80,10 @@ import threading
 
 @app.post("/api/poll-now")
 def trigger_poll(session=Depends(require_session)):
-    """Manually trigger the email poller. Runs in background thread."""
-    thread = threading.Thread(target=poll_once, daemon=True)
+    """Manually trigger the email poller. Fetches ALL emails (including read ones)."""
+    thread = threading.Thread(target=lambda: poll_once(fetch_all=True), daemon=True)
     thread.start()
-    return {"ok": True, "message": "Email poll started"}
+    return {"ok": True, "message": "Email poll started (fetching all emails)"}
 
 # Routers
 app.include_router(auth_router)
