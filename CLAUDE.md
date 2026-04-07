@@ -1,9 +1,9 @@
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
-**Omiximo Inventory OS — Minimal MVP**
+**Interwall Inventory OS — Minimal MVP**
 
-A cleanup and rewiring of the existing Omiximo inventory management system for a small PC assembly business. The legacy vanilla JS frontend stays as-is; the backend moves from InvenTree API + localStorage to a direct PostgreSQL database. Email-driven stock management and FIFO profit calculation are the core value loop.
+A cleanup and rewiring of the existing Interwall inventory management system for a small PC assembly business. The legacy vanilla JS frontend stays as-is; the backend moves from InvenTree API + localStorage to a direct PostgreSQL database. Email-driven stock management and FIFO profit calculation are the core value loop.
 
 **Core Value:** When a sale email arrives, the system auto-deducts component stock via EAN compositions, computes FIFO-based profit including fixed costs, and records everything durably in the database — no manual intervention, no browser cache dependency.
 

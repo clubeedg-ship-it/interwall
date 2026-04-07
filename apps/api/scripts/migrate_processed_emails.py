@@ -6,7 +6,7 @@ Run once before first email poller deployment to avoid reprocessing old emails.
 Usage: python -m scripts.migrate_processed_emails
 
 Reads from PROCESSED_EMAILS_FILE env var or defaults to
-../../omiximo-email-automation/data/processed_emails.json
+../../interwall-email-automation/data/processed_emails.json
 """
 
 import json
@@ -21,7 +21,7 @@ def run():
     db.init_pool()
     data_file = os.environ.get(
         "PROCESSED_EMAILS_FILE",
-        "../../omiximo-email-automation/data/processed_emails.json"
+        "../../interwall-email-automation/data/processed_emails.json"
     )
     if not os.path.exists(data_file):
         print(f"No file at {data_file}, skipping migration")

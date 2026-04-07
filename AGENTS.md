@@ -3,9 +3,9 @@
 
 **interwall**
 
-interwall is a new standalone, enterprise-grade inventory management platform for small-to-medium manufacturing and assembly businesses. It replaces the existing `inventory-omiximo` prototype and the separate `omiximo-email-automation` service with a single multi-tenant system that owns inventory, orders, email ingestion, dashboards, and configuration in one codebase.
+interwall is a new standalone, enterprise-grade inventory management platform for small-to-medium manufacturing and assembly businesses. It replaces the existing `inventory-interwall` prototype and the separate `interwall-email-automation` service with a single multi-tenant system that owns inventory, orders, email ingestion, dashboards, and configuration in one codebase.
 
-The product keeps the strongest parts of the original Omiximo experience, especially the wall-style warehouse UI and visual design language, but rebuilds them on a modern React/Next.js and TypeScript stack with a proper backend, durable storage, tenant isolation, and maintainable business logic.
+The product keeps the strongest parts of the original Interwall experience, especially the wall-style warehouse UI and visual design language, but rebuilds them on a modern React/Next.js and TypeScript stack with a proper backend, durable storage, tenant isolation, and maintainable business logic.
 
 **Core Value:** Businesses can manage inventory, orders, kits, email-driven automation, and profitability in one durable multi-tenant system without the sync failures and architectural fragmentation of the prototype.
 
@@ -13,10 +13,10 @@ The product keeps the strongest parts of the original Omiximo experience, especi
 
 - **Architecture**: Build a single modern codebase rather than extending the split legacy systems — this is a core objective from the spec
 - **Tenancy**: All tenant-scoped data must be isolated with row-level security and membership-aware access control
-- **Frontend**: Use Next.js, React, TypeScript, Tailwind CSS, and shadcn/ui while preserving the recognizable Omiximo visual identity
+- **Frontend**: Use Next.js, React, TypeScript, Tailwind CSS, and shadcn/ui while preserving the recognizable Interwall visual identity
 - **Backend**: Use Supabase or equivalent PostgreSQL-backed infrastructure with secure server-side functions for privileged operations
 - **Business Logic**: FIFO valuation, kit consumption, reorder-point calculation, and email ingestion must be first-class backend concerns
-- **Reuse**: Reuse existing Omiximo UI patterns, barcode/FIFO logic, and email parsing heuristics where they help, but adapt them to the new schema and stack
+- **Reuse**: Reuse existing Interwall UI patterns, barcode/FIFO logic, and email parsing heuristics where they help, but adapt them to the new schema and stack
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:codebase/STACK.md -->
@@ -143,16 +143,16 @@ The product keeps the strongest parts of the original Omiximo experience, especi
 - `console.error()` for actual failures (auth failures, API errors)
 - Contextual prefixes: `'Initializing tenant module...'`, `'Auth failed:'`
 ## State Management
-- `omiximo_view` - current view name
-- `omiximo_tenant` - tenant context (JSON)
-- `omiximo_transactions` - transaction history (JSON)
-- `omiximo_zones` - dynamic zone configuration (JSON)
-- `omiximo_zone_version` - migration version tracker (string)
-- `omiximo_shelf_config` - per-shelf FIFO configuration (JSON)
-- `omiximo_cost_config` - fixed cost configuration (JSON)
-- `omiximo_fixed_components` - fixed component configuration (JSON)
+- `interwall_view` - current view name
+- `interwall_tenant` - tenant context (JSON)
+- `interwall_transactions` - transaction history (JSON)
+- `interwall_zones` - dynamic zone configuration (JSON)
+- `interwall_zone_version` - migration version tracker (string)
+- `interwall_shelf_config` - per-shelf FIFO configuration (JSON)
+- `interwall_cost_config` - fixed cost configuration (JSON)
+- `interwall_fixed_components` - fixed component configuration (JSON)
 - `theme` - dark/light mode (no prefix)
-- Store version key (`omiximo_zone_version`)
+- Store version key (`interwall_zone_version`)
 - On init, compare stored version with current
 - If mismatch: clear old data, restore defaults, save new version
 ## API Patterns
@@ -205,7 +205,7 @@ The product keeps the strongest parts of the original Omiximo experience, especi
 - Purpose: Serve static frontend files and reverse-proxy API requests to backend services
 - Location: `frontend/nginx.conf`
 - Contains: Proxy rules for `/api/` -> InvenTree, `/config-api/` -> Config API, `/media/` and `/static/` -> InvenTree
-- Depends on: `inventree-server` container, `omiximo-email-automation` container
+- Depends on: `inventree-server` container, `interwall-email-automation` container
 - Used by: Frontend SPA (all API calls go through nginx)
 - Purpose: Authoritative source for parts, stock items, locations, categories, sales orders
 - Location: External Docker image `inventree/inventree:stable`
@@ -213,7 +213,7 @@ The product keeps the strongest parts of the original Omiximo experience, especi
 - Depends on: PostgreSQL (`inventree-db`), Redis (`redis`)
 - Used by: Frontend SPA via nginx proxy
 - Purpose: Cross-device synchronization of fixed costs and fixed components configuration
-- Location: Referenced as `omiximo-email-automation` in `frontend/nginx.conf` (not in this repo's docker-compose)
+- Location: Referenced as `interwall-email-automation` in `frontend/nginx.conf` (not in this repo's docker-compose)
 - Contains: Express.js server with GET/POST `/api/config`, stores data as JSON file on disk
 - Depends on: Filesystem storage
 - Used by: Frontend SPA for syncing `fixed_costs` and `fixed_components`
@@ -236,10 +236,10 @@ The product keeps the strongest parts of the original Omiximo experience, especi
 - Pattern: `api.request(endpoint, options)` wraps `fetch()` with token auth headers, JSON parsing, error handling
 - Purpose: Dynamic warehouse zone CRUD with localStorage persistence
 - Location: `frontend/app.js` (lines ~647-789)
-- Pattern: Loads from `localStorage('omiximo_zones')`, provides `getAllZones()`, `addZone()`, `removeZone()` with version-based migration
+- Pattern: Loads from `localStorage('interwall_zones')`, provides `getAllZones()`, `addZone()`, `removeZone()` with version-based migration
 - Purpose: Per-shelf FIFO settings (split FIFO, bin capacities)
 - Location: `frontend/app.js` (lines ~1044-1186)
-- Pattern: Keyed storage `omiximo_shelf_config` with `getConfig(zone, col, level)`, `setConfig()`
+- Pattern: Keyed storage `interwall_shelf_config` with `getConfig(zone, col, level)`, `setConfig()`
 - Purpose: Debounced synchronization of config changes to Config API
 - Location: `frontend/profit.js` (lines ~11-77)
 - Pattern: 500ms debounce, POST entire config blob, fallback to localStorage on failure

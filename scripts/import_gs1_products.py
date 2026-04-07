@@ -6,7 +6,7 @@ Creates:
   2. Composite products (every EAN from the spreadsheet)
   3. EAN compositions linking each composite to its components
 
-Usage: docker exec -i omiximo-postgres psql -U interwall -d interwall < import.sql
+Usage: docker exec -i interwall-postgres psql -U interwall -d interwall < import.sql
        (this script generates the SQL)
 """
 

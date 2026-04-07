@@ -1,5 +1,5 @@
 """
-EAN Composition CRUD endpoints for Omiximo Inventory OS.
+EAN Composition CRUD endpoints for Interwall Inventory OS.
 Full-replace PUT pattern: delete all rows for parent, insert new set atomically.
 """
 from fastapi import APIRouter, Depends, HTTPException

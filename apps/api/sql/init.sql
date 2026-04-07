@@ -1,4 +1,4 @@
--- Omiximo Inventory OS — Database Schema
+-- Interwall Inventory OS — Database Schema
 -- Loaded automatically by postgres:15-alpine on first container start
 -- via /docker-entrypoint-initdb.d/01_init.sql
 
@@ -165,6 +165,19 @@ CREATE TABLE fixed_costs (
 );
 
 -- =============================================================================
+-- TABLE: vat_rates
+-- Per-marketplace VAT rates (marketplace → country → rate)
+-- Used by process_sale() to apply correct VAT per sale origin
+-- =============================================================================
+CREATE TABLE vat_rates (
+    id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    marketplace TEXT          NOT NULL UNIQUE,
+    country     TEXT          NOT NULL,
+    rate        NUMERIC(5,2)  NOT NULL,
+    updated_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+-- =============================================================================
 -- TABLE: users
 -- Single-user auth table (username/password, hashed, session cookie auth)
 -- =============================================================================
@@ -239,12 +252,18 @@ INSERT INTO shelves (zone_id, col, level, label)
 SELECT 'b0000000-0000-0000-0000-000000000001', c, l, 'B-' || c || '-' || l
 FROM generate_series(1,4) AS c, generate_series(1,7) AS l;
 
--- Default fixed costs (matching profit.js DEFAULTS — user can edit via UI)
+-- Default fixed costs (commission + overhead — VAT is per-marketplace in vat_rates)
 INSERT INTO fixed_costs (name, value, is_percentage) VALUES
-    ('vat',        21.00, TRUE),
     ('commission',  6.20, TRUE),
     ('overhead',   95.00, FALSE)
 ON CONFLICT (name) DO NOTHING;
+
+-- VAT rates per marketplace/country
+INSERT INTO vat_rates (marketplace, country, rate) VALUES
+    ('mediamarktsaturn', 'NL', 21.00),
+    ('bolcom',           'NL', 21.00),
+    ('boulanger',        'FR', 20.00)
+ON CONFLICT (marketplace) DO NOTHING;
 
 -- =============================================================================
 -- Business Logic Functions
@@ -393,7 +412,7 @@ BEGIN
         v_cogs := v_cogs + v_comp_cost;
     END LOOP;
 
-    -- Compute fixed costs
+    -- Compute fixed costs (commission + overhead, NOT VAT)
     SELECT COALESCE(SUM(
         CASE WHEN is_percentage
              THEN v_total_price * value / 100
@@ -402,6 +421,12 @@ BEGIN
     ), 0)
       INTO v_fixed_cost
       FROM fixed_costs;
+
+    -- Add marketplace-specific VAT (default 21% if marketplace not found)
+    v_fixed_cost := v_fixed_cost + (v_total_price * COALESCE(
+        (SELECT rate FROM vat_rates WHERE LOWER(marketplace) = LOWER(p_marketplace)),
+        21.00
+    ) / 100);
 
     v_profit := v_total_price - v_cogs - v_fixed_cost;
 

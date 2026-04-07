@@ -1,11 +1,11 @@
-# Interwall / Omiximo Inventory OS — Development Handoff
+# Interwall / Interwall Inventory OS — Development Handoff
 
 ## Project Status
 
 A PC assembly business inventory system. Legacy vanilla JS frontend + FastAPI backend + PostgreSQL. Email-driven stock management with FIFO profit calculation.
 
 **What works right now:**
-- Login (user: `omiximo` / pass: `admin123`)
+- Login (user: `interwall` / pass: `admin123`)
 - Product catalog CRUD (`/api/products`, `/api/categories`)
 - EAN Compositions — wizard to map assembled products to component parts
 - Stock lots — manual stock-IN via `/api/stock-lots`
@@ -31,7 +31,7 @@ A PC assembly business inventory system. Legacy vanilla JS frontend + FastAPI ba
 │   + proxy)  │     │  email poll) │     │            │
 └─────────────┘     └──────────────┘     └────────────┘
 
-Frontend: inventory-omiximo/frontend/ (vanilla JS, served by nginx)
+Frontend: inventory-interwall/frontend/ (vanilla JS, served by nginx)
 Backend:  apps/api/ (FastAPI + APScheduler email poller)
 Database: PostgreSQL 15 (via docker-compose)
 ```
@@ -79,7 +79,7 @@ API changes require `docker compose build api && docker compose up -d api`.
 | `resolve_composition(parent_ean)` | Returns component list for a composite product |
 | `process_sale(ean, qty, price, marketplace)` | Full sale workflow: resolve composition → FIFO deduct each component → compute COGS + fixed costs → record transaction |
 
-### Frontend (inventory-omiximo/frontend/)
+### Frontend (inventory-interwall/frontend/)
 | File | Purpose |
 |------|---------|
 | `config.js` | CONFIG.API_BASE (empty = same-origin proxy), state, sanitize() |
@@ -100,7 +100,7 @@ API changes require `docker compose build api && docker compose up -d api`.
 ### What's Built
 The email poller (`apps/api/email_poller/`) is fully implemented:
 - `poller.py` — APScheduler job that runs every 60s
-- `imap_client.py` — IMAP connection (copied from legacy `omiximo-email-automation`)
+- `imap_client.py` — IMAP connection (copied from legacy `interwall-email-automation`)
 - 3 parsers — MediaMarktSaturn, Bol.com, Boulanger (all handle SALES only)
 - `sale_writer.py` — resolves SKU→EAN, calls `process_sale()` DB function
 - `email_log.py` — crash-safe dedup (pending→processed flow)
@@ -110,7 +110,7 @@ The email poller (`apps/api/email_poller/`) is fully implemented:
 1. **IMAP credentials** — need `.env` file with:
    ```
    IMAP_SERVER=imap.hostnet.nl
-   IMAP_EMAIL=info@omiximo.nl
+   IMAP_EMAIL=info@interwall.nl
    IMAP_PASSWORD=<actual password>
    ```
 
@@ -138,13 +138,13 @@ The email poller (`apps/api/email_poller/`) is fully implemented:
 ```
 
 ### Legacy Email System Reference
-The original system lives at `omiximo-email-automation/` with:
+The original system lives at `interwall-email-automation/` with:
 - Same 3 parsers (source of truth — copied into `apps/api/email_poller/parsers/`)
 - Component extraction logic (`src/utils/component_extractor.py`) — parses CPU/GPU/RAM/SSD from SKU strings
 - RAM stick mapping (16GB → 2x 8GB sticks)
 - SKU generator (`src/utils/sku_generator.py`)
 - InvenTree client (replaced by direct PostgreSQL)
-- `.env.example` with IMAP server details (imap.hostnet.nl, info@omiximo.nl)
+- `.env.example` with IMAP server details (imap.hostnet.nl, info@interwall.nl)
 - `shared_config/fixed_elements.json` — commission rates, fixed components
 
 ---
@@ -206,7 +206,7 @@ docker compose up -d
 # 2. Create .env for email poller (when ready)
 cat > .env << 'EOF'
 IMAP_SERVER=imap.hostnet.nl
-IMAP_EMAIL=info@omiximo.nl
+IMAP_EMAIL=info@interwall.nl
 IMAP_PASSWORD=<password>
 IMAP_FOLDER=INBOX
 POSTGRES_PASSWORD=interwall_dev_secret

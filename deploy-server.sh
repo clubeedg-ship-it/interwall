@@ -52,7 +52,7 @@ docker volume ls --format '{{.Name}}' | grep -i supabase | xargs -r docker volum
 # Remove old inventree volumes
 docker volume ls --format '{{.Name}}' | grep -i inventree | xargs -r docker volume rm 2>/dev/null || true
 # Remove interwall postgres volume for fresh seed
-docker volume rm omiximo_pgdata 2>/dev/null || true
+docker volume rm interwall_pgdata 2>/dev/null || true
 echo "  Done."
 
 # ── 3. Create .env ────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ docker compose up -d
 # Wait for healthy DB
 echo -n "  Waiting for database"
 for i in $(seq 1 30); do
-    if docker exec omiximo-postgres pg_isready -U interwall -d interwall &>/dev/null; then
+    if docker exec interwall-postgres pg_isready -U interwall -d interwall &>/dev/null; then
         echo " ready."
         break
     fi
@@ -115,10 +115,10 @@ docker compose ps --format "    {{.Name}}: {{.Status}}" 2>/dev/null
 # Database counts
 echo ""
 echo "  Database:"
-PRODUCTS=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM products;" 2>/dev/null)
-COMPS=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM ean_compositions;" 2>/dev/null)
-ALIASES=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM sku_aliases;" 2>/dev/null)
-SHELVES=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM shelves;" 2>/dev/null)
+PRODUCTS=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM products;" 2>/dev/null)
+COMPS=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM ean_compositions;" 2>/dev/null)
+ALIASES=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM sku_aliases;" 2>/dev/null)
+SHELVES=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM shelves;" 2>/dev/null)
 echo "    Products: $PRODUCTS"
 echo "    Compositions: $COMPS"
 echo "    SKU aliases: $ALIASES"
@@ -154,5 +154,5 @@ echo "  The email poller checks the inbox every 60s."
 echo "  Sales will process once component stock is added."
 echo ""
 echo "  Remaining legacy containers on this machine:"
-docker ps --format "    {{.Names}} ({{.Image}})" | grep -v omiximo || echo "    None"
+docker ps --format "    {{.Names}} ({{.Image}})" | grep -v interwall || echo "    None"
 echo ""

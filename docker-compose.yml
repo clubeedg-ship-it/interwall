@@ -1,11 +1,11 @@
-# Omiximo Inventory OS — Docker Compose Stack
+# Interwall Inventory OS — Docker Compose Stack
 # 3 containers: postgres (data), api (FastAPI + email poller), nginx (frontend + proxy)
 
 services:
 
   postgres:
     image: postgres:15-alpine
-    container_name: omiximo-postgres
+    container_name: interwall-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: interwall
@@ -21,11 +21,11 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - omiximo_network
+      - interwall_network
 
   api:
     build: ./apps/api
-    container_name: omiximo-api
+    container_name: interwall-api
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://interwall:${POSTGRES_PASSWORD:-interwall_dev_secret}@postgres:5432/interwall
@@ -38,27 +38,27 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - omiximo_network
+      - interwall_network
 
   nginx:
     image: nginx:alpine
-    container_name: omiximo-nginx
+    container_name: interwall-nginx
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-1441}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./inventory-omiximo/frontend:/usr/share/nginx/html:ro
+      - ./inventory-interwall/frontend:/usr/share/nginx/html:ro
     depends_on:
       - api
     networks:
-      - omiximo_network
+      - interwall_network
 
 volumes:
   pgdata:
-    name: omiximo_pgdata
+    name: interwall_pgdata
 
 networks:
-  omiximo_network:
-    name: omiximo_network
+  interwall_network:
+    name: interwall_network
     driver: bridge

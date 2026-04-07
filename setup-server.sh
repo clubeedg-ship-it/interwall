@@ -43,7 +43,7 @@ docker compose down 2>/dev/null || true
 
 # Remove old database volume for fresh start
 echo "Removing old database volume (fresh seed)..."
-docker volume rm omiximo_pgdata 2>/dev/null || true
+docker volume rm interwall_pgdata 2>/dev/null || true
 
 # Build and start
 echo ""
@@ -55,7 +55,7 @@ docker compose up -d
 echo ""
 echo "Waiting for database..."
 for i in $(seq 1 30); do
-    if docker exec omiximo-postgres pg_isready -U interwall -d interwall &>/dev/null; then
+    if docker exec interwall-postgres pg_isready -U interwall -d interwall &>/dev/null; then
         echo "Database ready."
         break
     fi
@@ -72,19 +72,19 @@ docker compose ps --format "{{.Name}} ({{.Status}})" | tr '\n' ', '
 echo ""
 
 # Check products
-PRODUCT_COUNT=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM products;")
+PRODUCT_COUNT=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM products;")
 echo "Products: $PRODUCT_COUNT"
 
 # Check compositions
-COMP_COUNT=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM ean_compositions;")
+COMP_COUNT=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM ean_compositions;")
 echo "Compositions: $COMP_COUNT"
 
 # Check SKU aliases
-ALIAS_COUNT=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM sku_aliases;")
+ALIAS_COUNT=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM sku_aliases;")
 echo "SKU aliases: $ALIAS_COUNT"
 
 # Check user
-USER=$(docker exec omiximo-postgres psql -U interwall -d interwall -t -A -c "SELECT username FROM users LIMIT 1;")
+USER=$(docker exec interwall-postgres psql -U interwall -d interwall -t -A -c "SELECT username FROM users LIMIT 1;")
 echo "Login user: $USER / admin123"
 
 # Check API health

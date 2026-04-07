@@ -1,7 +1,7 @@
-Omiximo Inventory Management System — Project Specification
+Interwall Inventory Management System — Project Specification
 Purpose and Vision
 
-The existing inventory‑omiximo prototype was built quickly on top of an external backend (InvenTree API) and a plugin for email automation. It relies heavily on client‑side storage for configuration, causing data loss across devices and limited extensibility. This project aims to rebuild the system from the ground up as a stand‑alone, enterprise‑grade inventory management platform for small‑to‑medium manufacturing and assembly businesses. The refactor will unify all features into a single codebase, incorporate multi‑tenant support, and provide intuitive dashboards and automation to streamline operations.
+The existing inventory‑interwall prototype was built quickly on top of an external backend (InvenTree API) and a plugin for email automation. It relies heavily on client‑side storage for configuration, causing data loss across devices and limited extensibility. This project aims to rebuild the system from the ground up as a stand‑alone, enterprise‑grade inventory management platform for small‑to‑medium manufacturing and assembly businesses. The refactor will unify all features into a single codebase, incorporate multi‑tenant support, and provide intuitive dashboards and automation to streamline operations.
 
 The new system will allow businesses to manage raw materials and assembled kits, automatically track purchases and sales via email parsing, compute reorder points, and analyse profitability — all within a secure, multi‑tenant environment.
 
@@ -9,12 +9,12 @@ High‑Level Objectives
 Unify and internalise all functionality – Eliminate dependence on external backends and plugins. The system should implement its own backend for inventory, configuration and email ingestion, removing the dual‑storage architecture that causes sync inconsistencies.
 Support multiple tenants – Organisations should have isolated data with the ability to manage users and roles. The database will include a tenant_id column on all multi‑tenant tables and enforce row‑level security (RLS) to restrict queries to the current tenant. Users may belong to multiple organisations through a memberships table.
 Replicate and improve the intuitive warehouse UI – Keep the popular “wall” grid of shelves and zones, the orbball sidebar and blurred backgrounds, but implement them using a modern React/Next.js stack. The UI should visually indicate reorder points using colour coding (green/yellow/red) based on stock relative to reorder thresholds.
-Automate inventory transactions – Introduce a built‑in email ingestion service to read purchase and sales confirmation emails from configured mailboxes, extract product identifiers (EANs), quantities, prices, dates and marketplaces, and create corresponding orders in the system. This replaces the separate omiximo-email-automation plugin.
+Automate inventory transactions – Introduce a built‑in email ingestion service to read purchase and sales confirmation emails from configured mailboxes, extract product identifiers (EANs), quantities, prices, dates and marketplaces, and create corresponding orders in the system. This replaces the separate interwall-email-automation plugin.
 Allow kit (Bill‑of‑Materials) definitions – Users should define kits (e.g., a finished product comprises multiple components plus fixed costs). When a kit is sold, the system automatically decrements the stock of its component parts.
 Compute reorder points and JIT alerts – Implement the reorder point formula: ROP = Demand During Lead Time + Safety Stock. Demand during lead time is Average Daily Sales × Lead Time, and safety stock is derived from order and lead‑time variability. When inventory falls below the ROP, the system should flag the product for replenishment.
 Generate profitability and stock value dashboards – Provide analytical dashboards comparing cost prices against sold prices, summarising profit per product, kit, marketplace and time period. Show total stock value across warehouses.
 Ensure security, performance and maintainability – Use secure authentication, follow best practices for database policies, design with scalability in mind and write maintainable TypeScript code with tests.
-Reuse existing code intelligently – The repository will contain both the original inventory‑omiximo and omiximo-email-automation directories. Identify reusable modules (e.g., UI components, email parsing logic) and migrate or adapt them into the new codebase where appropriate.
+Reuse existing code intelligently – The repository will contain both the original inventory‑interwall and interwall-email-automation directories. Identify reusable modules (e.g., UI components, email parsing logic) and migrate or adapt them into the new codebase where appropriate.
 Scope of Work
 1. Core Backend and Database
 Set up Supabase or equivalent PostgreSQL backend with multi‑tenant architecture. Define tables for tenants, users (managed by Clerk or similar), memberships, warehouses, zones, shelves, products, stocks, kits, kit_components, purchase orders, purchase items, sales orders, sales items, email messages and email mapping rules.
@@ -31,11 +31,11 @@ Profit and stock value computation – For each sale, compute cost of goods sold
 Audit logging – Record all inventory transactions (receipts, sales, adjustments), kit updates, reorder events and configuration changes in an audit table. Ensure this table is included in RLS policies but may be accessible to administrators for cross‑tenant reporting.
 3. Email Ingestion and Automation
 Inbox connection – Support IMAP/SMTP connection to user‑configured mailboxes. Tenants can specify email credentials and mapping rules for different marketplaces (e.g., Amazon, eBay). Store these configurations in an email_mappings table.
-Parsing engine – Use natural language processing or pattern matching to extract data from incoming emails: order reference, product codes (EAN/SKU), quantities, unit prices, total cost, order date and marketplace. Use the existing omiximo-email-automation logic as a starting point and integrate its AI classifier into the new service. Provide a review queue for low‑confidence extractions.
+Parsing engine – Use natural language processing or pattern matching to extract data from incoming emails: order reference, product codes (EAN/SKU), quantities, unit prices, total cost, order date and marketplace. Use the existing interwall-email-automation logic as a starting point and integrate its AI classifier into the new service. Provide a review queue for low‑confidence extractions.
 Order creation – Create purchase or sales orders and associated line items when emails are parsed. If the order references a kit product, automatically handle kit consumption. Link each created order to the original email for traceability.
 Scheduled polling and notifications – Implement scheduled tasks (cron jobs) that poll mailboxes periodically. Provide notification settings per tenant for success/failure events. Include metrics on processed emails and error rates in admin dashboards.
 4. Frontend and User Experience
-Framework – Use Next.js and React (with TypeScript). Leverage Tailwind CSS and the shadcn/ui component library. Create a coherent design system (spacing, typography, colours) to match the current Omiximo look but implement it with modern, maintainable code. Use server components where appropriate for improved performance.
+Framework – Use Next.js and React (with TypeScript). Leverage Tailwind CSS and the shadcn/ui component library. Create a coherent design system (spacing, typography, colours) to match the current Interwall look but implement it with modern, maintainable code. Use server components where appropriate for improved performance.
 Responsive design – Ensure the UI works on desktop, tablet and mobile devices. Implement barcode scanning using device cameras for quick product lookup and stock operations.
 Navigation – Provide pages for Dashboard, Inventory, Orders, Kits, Email Automation, Settings and Reports. The orbball sidebar and blur effect from the existing prototype should be reproduced.
 Inventory wall – Visualise shelves as a grid; each shelf card shows the product name, current quantity, reorder point and a colour-coded status. Clicking a shelf opens details and actions (move stock, record sale, adjust quantities). Users can drag and drop products to rearrange their location.
@@ -46,11 +46,11 @@ Dashboards – Visual dashboards with charts and tables for profit analysis, sto
 Admin features – Tenants with admin role can manage users, assign roles, adjust system settings (email configuration, reorder calculation schedules) and view audit logs.
 5. Reuse of Existing Repositories
 
-Both omiximo‑inventory and omiximo‑email-automation directories will be available. The new system should:
+Both interwall‑inventory and interwall‑email-automation directories will be available. The new system should:
 
-Extract reusable UI components and styling from inventory-omiximo, such as the orbball sidebar, shelf grid layout and modal dialogs. Refactor these into a modern component library compatible with Next.js and shadcn/ui.
+Extract reusable UI components and styling from inventory-interwall, such as the orbball sidebar, shelf grid layout and modal dialogs. Refactor these into a modern component library compatible with Next.js and shadcn/ui.
 Reuse business logic for barcode scanning, FIFO calculations and kit handling as a foundation. The logic currently resides in front‑end code and Python scripts; migrate algorithms into TypeScript for the new backend/API and adapt them to the new schema.
-Incorporate email parsing routines from the omiximo-email-automation plugin. Extract the AI classification model or heuristics used to recognise order emails and integrate them into the new email ingestion service. Replace any direct file/database access with calls to the new backend.
+Incorporate email parsing routines from the interwall-email-automation plugin. Extract the AI classification model or heuristics used to recognise order emails and integrate them into the new email ingestion service. Replace any direct file/database access with calls to the new backend.
 Analyse data flow issues documented in the original system (e.g., unsynced localStorage, inconsistent sales data) and ensure the new design addresses them by using a single source of truth (the database) and proper caching strategies.
 6. Non‑Functional Requirements
 Security – Enforce RLS and never expose service keys to the client. Use secure storage for email credentials and secrets. Rate‑limit API endpoints and validate all inputs to prevent injection attacks.
@@ -62,7 +62,7 @@ User experience – Provide friendly error messages, empty states, loading indic
 Database schema and migration scripts implementing the multi‑tenant model with RLS policies and triggers for kit consumption and FIFO cost calculation.
 API layer or edge functions exposing CRUD operations for all domain entities, reorder point evaluation and email ingestion endpoints.
 Email ingestion service capable of connecting to external mailboxes, parsing emails and creating orders, with a configuration UI and review queue.
-Next.js application with responsive pages for all major features (inventory wall, orders, kits, email settings, dashboards, admin). Include a reusable component library reflecting Omiximo’s aesthetic.
+Next.js application with responsive pages for all major features (inventory wall, orders, kits, email settings, dashboards, admin). Include a reusable component library reflecting Interwall’s aesthetic.
 Profitability and stock value dashboards with filters and date ranges.
 Documentation covering system architecture, setup instructions, database schema, API usage and development guidelines. Include a runbook for deploying the system to production (e.g., using Docker and environment variables).
 Test suite ensuring correct behaviour of core features (stock movements, kit consumption, reorder alerts, email parsing). Use CI to run tests on each commit.

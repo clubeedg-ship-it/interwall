@@ -166,7 +166,7 @@ def specs_match(email_specs, ean_specs):
 def main():
     # Get failed emails with their original SKU and description
     result = subprocess.run(
-        ['docker', 'exec', 'omiximo-postgres', 'psql', '-U', 'interwall', '-d', 'interwall',
+        ['docker', 'exec', 'interwall-postgres', 'psql', '-U', 'interwall', '-d', 'interwall',
          '-t', '-A', '-c',
          """SELECT json_agg(json_build_object(
              'order_nr', parsed_data->>'order_number',
@@ -182,7 +182,7 @@ def main():
 
     # Get all composite EANs from DB (non-setup variants only)
     result2 = subprocess.run(
-        ['docker', 'exec', 'omiximo-postgres', 'psql', '-U', 'interwall', '-d', 'interwall',
+        ['docker', 'exec', 'interwall-postgres', 'psql', '-U', 'interwall', '-d', 'interwall',
          '-t', '-A', '-c',
          "SELECT json_agg(json_build_object('ean', ean, 'name', name)) FROM products WHERE is_composite = TRUE AND name NOT LIKE '%(Setup)%'"],
         capture_output=True, text=True

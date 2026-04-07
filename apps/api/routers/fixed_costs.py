@@ -1,5 +1,5 @@
 """
-Fixed costs CRUD endpoints for Omiximo Inventory OS.
+Fixed costs CRUD endpoints for Interwall Inventory OS.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel

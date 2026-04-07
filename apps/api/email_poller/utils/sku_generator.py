@@ -1,5 +1,5 @@
 """
-Universal SKU Generator for Omiximo sales.
+Universal SKU Generator for Interwall sales.
 
 Generates consistent SKUs across all marketplaces using the pattern:
   OMX-{MARKETPLACE}-{CPU}-{RAM}-{STORAGE}-{SEQUENCE}
@@ -46,7 +46,7 @@ class SKUGenerator:
     SKU Format: OMX-{MARKETPLACE}-{CPU}-{RAM}-{STORAGE}-{SEQ}
 
     Where:
-    - OMX: Omiximo prefix
+    - OMX: Interwall prefix
     - MARKETPLACE: 3-letter code (BOL, MMS, BOU)
     - CPU: R7, R5, I7, I5, etc.
     - RAM: 8, 16, 32 (GB)

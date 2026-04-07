@@ -1,8 +1,8 @@
-# Omiximo Inventory OS — Minimal MVP Specification
+# Interwall Inventory OS — Minimal MVP Specification
 
 ## Purpose
 
-Strip the existing Omiximo system down to its core value loop and make it work reliably with real persistence. The current prototype runs on InvenTree as a headless backend and stores critical business data in browser localStorage. This MVP removes both dependencies: InvenTree goes away, localStorage is eliminated for all business data, and the system talks directly to its own PostgreSQL database.
+Strip the existing Interwall system down to its core value loop and make it work reliably with real persistence. The current prototype runs on InvenTree as a headless backend and stores critical business data in browser localStorage. This MVP removes both dependencies: InvenTree goes away, localStorage is eliminated for all business data, and the system talks directly to its own PostgreSQL database.
 
 **Single sentence:** Emails drive stock in and out via EAN compositions; the profit engine calculates margins from FIFO purchase costs plus fixed costs; the wall and scanner are the physical sync layer.
 

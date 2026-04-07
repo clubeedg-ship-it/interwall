@@ -1,5 +1,5 @@
 """
-Session-based authentication for Omiximo Inventory OS.
+Session-based authentication for Interwall Inventory OS.
 Single user. Password stored as bcrypt hash in users table.
 Session signed with itsdangerous via Starlette SessionMiddleware.
 """

@@ -1,5 +1,5 @@
 """
-Products CRUD endpoints for Omiximo Inventory OS.
+Products CRUD endpoints for Interwall Inventory OS.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel

@@ -1,5 +1,5 @@
 """
-Omiximo Inventory OS — FastAPI Application
+Interwall Inventory OS — FastAPI Application
 Single-user inventory management backend.
 """
 import os
@@ -19,6 +19,7 @@ from routers.profit import router as profit_router
 from routers.stock_lots import router as stock_lots_router
 from routers.categories import router as categories_router
 from routers.shelves import router as shelves_router
+from routers.vat_rates import router as vat_rates_router
 from email_poller.poller import poll_once
 
 scheduler = BackgroundScheduler()
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Omiximo Inventory OS",
+    title="Interwall Inventory OS",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -51,7 +52,7 @@ app = FastAPI(
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET"],
-    session_cookie="omiximo_session",
+    session_cookie="interwall_session",
     https_only=False,  # False for local Docker dev; set True in production
     same_site="lax",
 )
@@ -66,3 +67,4 @@ app.include_router(profit_router)
 app.include_router(stock_lots_router)
 app.include_router(categories_router)
 app.include_router(shelves_router)
+app.include_router(vat_rates_router)

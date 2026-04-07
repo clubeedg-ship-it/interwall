@@ -1,5 +1,5 @@
 """
-Stock lots endpoints for Omiximo Inventory OS.
+Stock lots endpoints for Interwall Inventory OS.
 Manual stock-IN via write_purchase from email_poller.
 """
 from fastapi import APIRouter, Depends, HTTPException
