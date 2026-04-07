@@ -119,14 +119,29 @@ echo "  VAT rates:"
 docker exec "$PG" psql -U interwall -d interwall -c "SELECT marketplace, country, rate FROM vat_rates ORDER BY marketplace;"
 
 echo ""
+echo "  Triggering email poll to process pending sales..."
+# Try the API endpoint first, fall back to restart
+curl -s -c /tmp/iw.txt -X POST http://localhost:1441/api/auth/login -d 'username=admin&password=admin123' > /dev/null 2>&1
+POLL=$(curl -s -b /tmp/iw.txt -X POST http://localhost:1441/api/poll-now 2>/dev/null)
+if echo "$POLL" | grep -q "ok"; then
+    echo "  Poll triggered. Processing sales in background..."
+    echo "  Waiting 15 seconds for processing..."
+    sleep 15
+    TXNS=$(docker exec "$PG" psql -U interwall -d interwall -t -A -c "SELECT COUNT(*) FROM transactions WHERE type='sale';")
+    echo "  Transactions created: $TXNS"
+else
+    echo "  Could not trigger poll via API. The poller will run at 8:00 and 20:00."
+    echo "  Or click 'Update Sales' in the UI."
+fi
+
+echo ""
 echo "==========================================="
 echo " RESET COMPLETE"
 echo "==========================================="
 echo ""
 echo "  Stock is set to March 31, 2026 physical count."
-echo "  All emails reset to pending — the poller will"
-echo "  reprocess them within 60 seconds, creating real"
-echo "  transactions with correct FIFO COGS."
+echo "  Poller schedule: 8:00 and 20:00 daily."
+echo "  Click 'Update Sales' in the Profitability page for manual trigger."
 echo ""
 echo "  Monitor: docker compose logs -f api"
 echo ""

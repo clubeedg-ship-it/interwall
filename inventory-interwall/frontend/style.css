@@ -2251,6 +2251,34 @@ template {
     /* consistent size */
 }
 
+.btn-update-sales {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg);
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-update-sales:hover {
+    background: var(--accent);
+    color: #fff;
+}
+.btn-update-sales:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+.btn-update-sales svg {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+}
+
 /* Record Sale Modal */
 .modal-record-sale {
     max-width: 560px;

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 import db
 from auth import router as auth_router
@@ -29,11 +30,19 @@ scheduler = BackgroundScheduler()
 async def lifespan(app: FastAPI):
     """Initialize DB pool and email poller on startup; close on shutdown."""
     db.init_pool()
+    # Run email poller twice a day: 8:00 and 20:00
     scheduler.add_job(
-        poll_once, 'interval', seconds=60,
+        poll_once, CronTrigger(hour='8,20', minute=0),
         id='email_poll',
         max_instances=1,
         coalesce=True,
+    )
+    # Also run once on startup (after 10s delay to let DB settle)
+    scheduler.add_job(
+        poll_once, 'date',
+        id='email_poll_startup',
+        run_date=None,  # runs immediately
+        max_instances=1,
     )
     scheduler.start()
     yield
@@ -56,6 +65,18 @@ app.add_middleware(
     https_only=False,  # False for local Docker dev; set True in production
     same_site="lax",
 )
+
+# Manual poll trigger
+from fastapi import Depends
+from auth import require_session
+import threading
+
+@app.post("/api/poll-now")
+def trigger_poll(session=Depends(require_session)):
+    """Manually trigger the email poller. Runs in background thread."""
+    thread = threading.Thread(target=poll_once, daemon=True)
+    thread.start()
+    return {"ok": True, "message": "Email poll started"}
 
 # Routers
 app.include_router(auth_router)
