@@ -2256,18 +2256,20 @@ template {
     align-items: center;
     gap: var(--space-sm);
     padding: var(--space-sm) var(--space-lg);
-    background: transparent;
+    background: var(--glass-bg, rgba(0, 80, 102, 0.3));
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
-    color: var(--accent);
+    color: #fff;
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 200ms ease;
+    align-self: flex-start;
+    height: fit-content;
 }
 .btn-update-sales:hover {
     background: var(--accent);
-    color: #fff;
+    box-shadow: 0 0 15px var(--accent-glow);
 }
 .btn-update-sales:disabled {
     opacity: 0.5;
