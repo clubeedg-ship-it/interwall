@@ -328,6 +328,47 @@ const api = {
                 parent: data.parent || null
             })
         });
+    },
+
+    // =========================================================================
+    // Profit & Fixed-Cost Canonical Reads (T-C02d)
+    //
+    // These are the session-authenticated, server-authoritative sources for
+    // transaction, summary, and fixed-cost data. The frontend must not
+    // re-derive or mutate these values from localStorage (D-025, D-040).
+    // =========================================================================
+
+    /**
+     * Canonical transaction list from /api/profit/transactions.
+     * @param {Object} [params] - { limit, offset }
+     * @returns {Promise<Array>} Transaction rows (immutable economics)
+     */
+    async getTransactions(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.limit != null) qs.set('limit', String(params.limit));
+        if (params.offset != null) qs.set('offset', String(params.offset));
+        const q = qs.toString();
+        return this.request(`/api/profit/transactions${q ? `?${q}` : ''}`);
+    },
+
+    /**
+     * Canonical profit summary from /api/profit/summary.
+     * @param {Object} [params] - { period: 'day' | 'week' | 'month' }
+     * @returns {Promise<Array>} Summary rows grouped by period + marketplace
+     */
+    async getProfitSummary(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.period) qs.set('period', params.period);
+        const q = qs.toString();
+        return this.request(`/api/profit/summary${q ? `?${q}` : ''}`);
+    },
+
+    /**
+     * Canonical fixed-cost rows from /api/fixed-costs.
+     * @returns {Promise<Array>} Rows {id, name, value, is_percentage, updated_at}
+     */
+    async getFixedCosts() {
+        return this.request('/api/fixed-costs');
     }
 };
 

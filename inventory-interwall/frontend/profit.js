@@ -293,71 +293,38 @@ const PROFIT_CONFIG = {
 // Fixed Components Configuration
 // =============================================================================
 const fixedComponentsConfig = {
-    STORAGE_KEY: 'interwall_fixed_components',
-
-    // Default fixed components (empty on first load)
-    DEFAULTS: [],
-
     components: [],
 
     /**
-     * Initialize fixed components config - BACKEND IS SOURCE OF TRUTH
-     * Only falls back to localStorage if backend unavailable
+     * Initialize fixed components config from the canonical backend source.
+     * T-C02d: browser must not be authoritative (D-040). The row shape
+     * exposed by /api/fixed-costs is {id, name, value, is_percentage, ...}
+     * which does not carry BOM part metadata (partId/quantity/sku); see
+     * open_questions in T-C02d REPORT. If no backend source is available,
+     * components stays empty — no localStorage fallback.
      */
     async init() {
-        // Try backend first (server-authoritative)
-        const loaded = await this.loadFromBackend();
-        if (!loaded) {
-            // Backend unavailable, fall back to localStorage
-            this.loadFromLocalStorage();
-        }
-    },
-
-    async loadFromBackend() {
         try {
-            const data = await backendConfigSync.loadFromBackend();
-            if (data && data.fixed_components !== undefined) {
-                console.log('✅ Loaded fixed components from backend:', data.fixed_components);
-                this.components = data.fixed_components || [];
-                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.components)); // Cache locally
-                return true;
-            }
+            const rows = await api.getFixedCosts();
+            this.components = (Array.isArray(rows) ? rows : [])
+                .filter(r => r && r.partId != null)
+                .map(r => ({
+                    id: r.id,
+                    partId: r.partId,
+                    partName: r.partName || r.name || '',
+                    sku: r.sku || '',
+                    quantity: r.quantity || 1,
+                    enabled: r.enabled !== false,
+                }));
         } catch (e) {
-            console.warn('Could not load fixed components from backend:', e);
-        }
-        return false;
-    },
-
-    loadFromLocalStorage() {
-        try {
-            const stored = localStorage.getItem(this.STORAGE_KEY);
-            if (stored) {
-                this.components = JSON.parse(stored);
-            } else {
-                // First time - use defaults (empty)
-                this.components = JSON.parse(JSON.stringify(this.DEFAULTS));
-                this.save();
-            }
-        } catch (e) {
-            console.error('Failed to load fixed components config:', e);
+            console.warn('Could not load fixed components from /api/fixed-costs:', e.message);
             this.components = [];
         }
     },
 
-    // Legacy alias for backwards compatibility
-    load() {
-        this.loadFromLocalStorage();
-    },
-
-    save() {
-        try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.components));
-            // Sync to backend for email automation
-            backendConfigSync.syncComponents(this.components);
-        } catch (e) {
-            console.error('Failed to save fixed components config:', e);
-        }
-    },
+    // No persistence endpoint for BOM-style fixed components; mutations
+    // stay in memory until a canonical backend source exists.
+    save() { /* no-op */ },
 
     getAll() {
         return this.components.filter(c => c.enabled);
@@ -723,7 +690,9 @@ const costEditor = {
 // =============================================================================
 const profitState = {
     transactions: [],
-    totalMargin: 0,
+    // totalMargin is derived on render from `transactions` (canonical from
+    // /api/profit/transactions). Do not re-introduce a client-authoritative
+    // mirror — D-025/D-040.
     inventoryValue: 0,
     currentScope: 'month', // week | month | year | custom
     cashFlowScope: 'today',
@@ -1442,16 +1411,11 @@ const recordSale = {
         if (isEditMode && existingTx) {
             const txIndex = profitState.transactions.findIndex(t => t.orderId === orderId);
             if (txIndex !== -1) {
-                profitState.totalMargin -= existingTx.margin;
-                profitState.totalMargin += transaction.margin;
                 profitState.transactions[txIndex] = transaction;
             }
         } else {
             profitState.transactions.unshift(transaction);
-            profitState.totalMargin += transaction.margin;
         }
-
-        this.saveTransactions();
 
         if (!isEditMode) {
             await this.syncToInvenTree(transaction);
@@ -1511,8 +1475,7 @@ const recordSale = {
             
             // Store the InvenTree SO ID in the transaction
             transaction.soId = soPk;
-            this.saveTransactions();
-            
+
             console.log(`✅ Synced ${transaction.components.length} line items to SO-${soPk}`);
         } catch (e) {
             console.error('Failed to sync to InvenTree:', e);
@@ -1523,23 +1486,6 @@ const recordSale = {
     async getStockQty(stockId) {
         const data = await api.request(`/stock/${stockId}/`);
         return data.quantity || 0;
-    },
-
-    saveTransactions() {
-        localStorage.setItem('interwall_transactions', JSON.stringify(profitState.transactions));
-        localStorage.setItem('interwall_totalMargin', profitState.totalMargin.toString());
-    },
-
-    loadTransactions() {
-        const saved = localStorage.getItem('interwall_transactions');
-        const margin = localStorage.getItem('interwall_totalMargin');
-
-        if (saved) {
-            profitState.transactions = JSON.parse(saved);
-        }
-        if (margin) {
-            profitState.totalMargin = parseFloat(margin);
-        }
     },
 
     confirmDeleteSale(orderId) {
@@ -1652,14 +1598,8 @@ const recordSale = {
             }
         }
 
-        // Remove transaction from list
+        // Remove transaction from list (totalMargin re-derives on render)
         profitState.transactions.splice(txIndex, 1);
-
-        // Update total margin
-        profitState.totalMargin -= tx.margin;
-
-        // Save updated transactions
-        this.saveTransactions();
 
         // Refresh UI
         profitEngine.render();
@@ -1737,17 +1677,9 @@ const profitEngine = {
         // Initialize Profit Config module (dedicated config popup)
         profitConfig.init();
 
-        // Load transactions from API (database is source of truth)
+        // Load transactions from canonical API (D-040 — server is source of truth)
         const apiTxns = await this.loadTransactionsFromAPI(100);
-        if (apiTxns.length > 0) {
-            profitState.transactions = apiTxns.map(tx => this.mapApiTransaction(tx));
-        } else {
-            // Fallback: load from localStorage if API returns empty
-            recordSale.loadTransactions();
-        }
-
-        // Recalculate total margin from all transactions
-        profitState.totalMargin = profitState.transactions.reduce((sum, tx) => sum + (tx.margin || 0), 0);
+        profitState.transactions = (apiTxns || []).map(tx => this.mapApiTransaction(tx));
 
         // Calculate initial inventory value from API
         await this.calculateInventoryValue();
@@ -1757,180 +1689,6 @@ const profitEngine = {
 
         // Render UI
         this.render();
-    },
-
-    /**
-     * Fetch Sales Orders from InvenTree (created by email automation)
-     * and merge them into the transactions list
-     */
-    async fetchInvenTreeSalesOrders() {
-        if (!CONFIG.API_TOKEN) {
-            console.log('❌ No API token, skipping InvenTree SO fetch');
-            return;
-        }
-
-        try {
-            console.log('🔄 Fetching Sales Orders from InvenTree...');
-            const response = await api.request('/order/so/?limit=100');
-            console.log('📦 SO API response:', response);
-            
-            if (!response) {
-                console.log('❌ No response from SO API');
-                return;
-            }
-            
-            // Handle both array and {results: [...]} format
-            const salesOrders = response.results || response;
-            if (!Array.isArray(salesOrders)) {
-                console.log('❌ Unexpected SO response format:', typeof salesOrders);
-                return;
-            }
-            
-            console.log(`✅ Fetched ${salesOrders.length} Sales Orders from InvenTree`);
-
-            for (const so of salesOrders) {
-                // Check if already in transactions (by customer_reference as orderId)
-                const orderId = so.customer_reference || so.reference;
-                const existingTxIndex = profitState.transactions.findIndex(t => t.orderId === orderId);
-                
-                // If exists and is from InvenTree, skip (already synced)
-                // If exists but is local-only, update it with InvenTree data
-                if (existingTxIndex !== -1) {
-                    const existingTx = profitState.transactions[existingTxIndex];
-                    if (existingTx.source === 'inventree' && existingTx.soId === so.pk) {
-                        // Already have this InvenTree order, skip
-                        continue;
-                    }
-                    // Local transaction exists - will be updated below with InvenTree data
-                    console.log(`📝 Updating local transaction ${orderId} with InvenTree data`);
-                }
-
-                // Fetch line items for this SO
-                const linesResp = await api.request(`/order/so-line/?order=${so.pk}&limit=50`);
-                const lines = linesResp?.results || [];
-
-                // Build components list with costs from InvenTree parts
-                const components = [];
-                let totalComponentCost = 0;
-
-                for (const line of lines) {
-                    if (!line.part) continue;
-                    
-                    // Fetch part details for name
-                    const partResp = await api.request(`/part/${line.part}/`);
-                    const qty = line.quantity || 1;
-                    
-                    // Get cost from line item notes (FIFO_COST:xxx.xx format)
-                    // This is the actual cost captured at sale time
-                    let cost = 0;
-                    const notes = line.notes || '';
-                    const fifoMatch = notes.match(/FIFO_COST:([\d.]+)/);
-                    if (fifoMatch) {
-                        cost = parseFloat(fifoMatch[1]) || 0;
-                    } else {
-                        // Fallback: try internal-price if no FIFO cost captured
-                        try {
-                            const priceResp = await api.request(`/part/internal-price/?part=${line.part}`);
-                            const prices = Array.isArray(priceResp) ? priceResp : priceResp?.results || [];
-                            if (prices.length > 0) {
-                                cost = (prices[0].price || 0) * qty;
-                            }
-                        } catch (e) {
-                            console.warn(`Could not fetch price for part ${line.part}`);
-                        }
-                    }
-                    
-                    components.push({
-                        partId: line.part,
-                        partName: partResp?.name || `Part ${line.part}`,
-                        quantity: qty,
-                        unitCost: qty > 0 ? cost / qty : 0,  // Calculate unit cost from total
-                        totalCost: cost,
-                        notes: notes.replace(/\s*\|\s*FIFO_COST:[\d.]+/, '')  // Clean notes for display
-                    });
-                    totalComponentCost += cost;
-                }
-
-                // Calculate costs using current config
-                const salePrice = parseFloat(so.total_price) || 0;
-                const fixedCosts = costConfig.calculateAll(salePrice, totalComponentCost);
-                const totalCost = totalComponentCost + fixedCosts.total;
-                const margin = salePrice - totalCost;
-
-                // Get commission rate for breakdown
-                const commissionCost = costConfig.get('commission');
-                const commissionRate = commissionCost ? commissionCost.value / 100 : 0.062;
-                const commissionAmount = salePrice * commissionRate;
-                const overheadCost = costConfig.get('overhead');
-                const overhead = overheadCost ? overheadCost.value : 0;
-
-                // Transform components to expected format
-                const txComponents = components.map(c => ({
-                    partId: c.partId,
-                    partName: c.partName,
-                    qty: c.quantity,
-                    cost: c.totalCost,  // 'cost' not 'totalCost'
-                    isFixed: c.notes?.includes('Fixed:') || false,
-                    batchesUsed: []  // Not tracked for InvenTree imports
-                }));
-
-                // Create transaction record (matching expected format for renderTransactions)
-                const transaction = {
-                    orderId: orderId,
-                    date: so.creation_date,
-                    productName: so.description?.split('|')[0]?.trim() || `Order ${orderId}`,
-                    sale: salePrice,           // 'sale' not 'salePrice'
-                    cost: totalCost,           // 'cost' not 'totalCost'
-                    margin: margin,
-                    marginPercent: salePrice > 0 ? (margin / salePrice * 100) : 0,
-                    components: txComponents,   // Use transformed components
-                    // costBreakdown for rendering
-                    costBreakdown: {
-                        components: totalComponentCost,
-                        commission: commissionAmount,
-                        commissionRate: commissionRate,
-                        staticOverhead: overhead
-                    },
-                    source: 'inventree',
-                    soReference: so.reference,
-                    soId: so.pk,
-                    status: so.status_text
-                };
-
-                // Add or update transaction
-                if (existingTxIndex !== -1) {
-                    // Update existing local transaction with InvenTree data
-                    profitState.transactions[existingTxIndex] = transaction;
-                    console.log(`✅ Updated transaction ${orderId} from InvenTree`);
-                } else {
-                    // Add new transaction from InvenTree
-                    profitState.transactions.push(transaction);
-                    console.log(`✅ Added new transaction ${orderId} from InvenTree`);
-                }
-            }
-
-            // Sort transactions by date (newest first)
-            profitState.transactions.sort((a, b) => 
-                new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp)
-            );
-
-            console.log(`Total transactions after merge: ${profitState.transactions.length}`);
-        } catch (e) {
-            console.warn('Failed to fetch InvenTree Sales Orders:', e);
-        }
-    },
-
-    async loadSummaryFromAPI(period = 'month') {
-        try {
-            const resp = await fetch(`/api/profit/summary?period=${period}`, {
-                credentials: 'same-origin'
-            });
-            if (!resp.ok) return [];
-            return await resp.json();
-        } catch (e) {
-            console.warn('Could not load profit summary:', e.message);
-            return [];
-        }
     },
 
     async loadValuationFromAPI() {
@@ -1948,11 +1706,7 @@ const profitEngine = {
 
     async loadTransactionsFromAPI(limit = 50, offset = 0) {
         try {
-            const resp = await fetch(`/api/profit/transactions?limit=${limit}&offset=${offset}`, {
-                credentials: 'same-origin'
-            });
-            if (!resp.ok) return [];
-            return await resp.json();
+            return await api.getTransactions({ limit, offset });
         } catch (e) {
             console.warn('Could not load transactions:', e.message);
             return [];
@@ -2027,10 +1781,7 @@ const profitEngine = {
                     // Wait a few seconds then reload transactions
                     setTimeout(async () => {
                         const apiTxns = await this.loadTransactionsFromAPI(100);
-                        if (apiTxns.length > 0) {
-                            profitState.transactions = apiTxns.map(tx => this.mapApiTransaction(tx));
-                            profitState.totalMargin = profitState.transactions.reduce((sum, tx) => sum + (tx.margin || 0), 0);
-                        }
+                        profitState.transactions = (apiTxns || []).map(tx => this.mapApiTransaction(tx));
                         this.render();
                         updateSalesBtn.disabled = false;
                         updateSalesBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Update Sales';
@@ -2367,8 +2118,17 @@ const profitEngine = {
         const cashFlowEl = document.getElementById('cashFlowValue');
         const heroInvEl = document.getElementById('heroInventoryValue');
 
-        // Today's Margin
-        const todayMargin = profitState.totalMargin; // Simplified for MVP (should filter by today)
+        // Today's Margin — derived from the canonical transactions list
+        // (/api/profit/transactions via getTransactions). Sums each tx's
+        // stored `margin` so rendered sale values always match the
+        // immutable server-side profit (D-025, D-040). Labelled "Today's
+        // Margin" for UI continuity; current implementation sums across
+        // the loaded window ("Simplified for MVP"), matching the
+        // profit-summary-truth Playwright contract.
+        const todayMargin = profitState.transactions.reduce(
+            (sum, tx) => sum + (parseFloat(tx.margin) || 0),
+            0,
+        );
         if (marginEl) {
             marginEl.textContent = `${todayMargin >= 0 ? '' : '-'}€${Math.abs(todayMargin).toFixed(2)}`;
             marginEl.className = `value ${todayMargin >= 0 ? 'positive' : 'negative'}`;

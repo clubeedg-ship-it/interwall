@@ -1,0 +1,52 @@
+task_id: T-C02d
+status: done
+
+summary: |
+  Stripped browser authority over profit economics from profit.js:
+  deleted the three localStorage business keys + their save/load
+  sites, removed fetchInvenTreeSalesOrders (D-025 repricer), dropped
+  profitState.totalMargin mutations on add/edit/delete, and added
+  getTransactions/getProfitSummary/getFixedCosts helpers on api.js.
+  Today's Margin now derives on render from the canonical
+  /api/profit/transactions payload, preserving the existing
+  profit-summary-truth contract.
+
+files_changed:
+  - inventory-interwall/frontend/profit.js
+  - inventory-interwall/frontend/api.js
+  - inventory-interwall/frontend/t_c02d_storage_verify.mjs
+
+tests:
+  - file: inventory-interwall/frontend/t_c02d_storage_verify.mjs
+    runner: node inventory-interwall/frontend/t_c02d_storage_verify.mjs
+    result: pass
+    final_line: "T-C02d storage verify: PASS"
+  - file: inventory-interwall/e2e/tests/profit-summary-truth.spec.ts
+    runner: cd inventory-interwall/e2e && INTERWALL_E2E_USER=admin INTERWALL_E2E_PASS=admin123 npx playwright test tests/profit-summary-truth.spec.ts
+    result: pass
+    final_line: "1 passed (2.0s)"
+
+decisions_cited:
+  - D-025
+  - D-040
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+adversarial_review:
+  - "fixedComponentsConfig now sources from /api/fixed-costs, but the endpoint returns cost rows (name/value/is_percentage) not BOM rows (partId/quantity/sku). The mapping filters on partId so components resolves to []; the editor UI can still add entries at runtime, but they are not persisted (save() is a no-op) and reload-empty. Flagged as an open question — the task explicitly said 'swap the source to getFixedCosts()' and forbade inventing a fallback."
+  - "Today's Margin derives by summing parseFloat(tx.margin) over profitState.transactions. That remains a reduction over client-side state, but the array is a cache of the immutable /api/profit/transactions payload (mapApiTransaction copies the server profit into tx.margin verbatim), so it is not client-authoritative. The existing profit-summary-truth Playwright spec enforces this exact contract and still passes."
+  - "recordSale.submit still pushes a locally-constructed transaction into profitState.transactions for instant UI feedback before the server round-trip completes, so the optimistic row will show client-computed margin until the next init() refresh replaces the cache with canonical rows. No localStorage write is involved, but this is the residual seam where the UI briefly reflects a non-authoritative margin."
+
+open_questions:
+  - "fixedComponentsConfig was told to read from getFixedCosts(), but /api/fixed-costs exposes VAT/commission/overhead rows — not the BOM fixed-component shape (partId/quantity/sku) that the editor UI writes. With localStorage removed and no canonical endpoint for BOM fixed components, the list always resolves to empty on load. Confirm whether (a) a new backend endpoint is expected, (b) the BOM-fixed-component concept is being deprecated, or (c) the editor/render should be retired together with the storage key."
+  - "The working tree already contained uncommitted edits to apps/api/main.py, inventory-interwall/frontend/wall.js, and inventory-interwall/frontend/zone-config.js, plus two untracked apps/api files (routers/zones.py, tests/t_C03_zones_endpoints.py), at the start of this run — all appear to belong to an in-flight T-C03 zones packet. Those files are outside T-C02d scope and were not modified here; noting in case the coach needs to reconcile overlapping packets."
+
+next_ready: true
