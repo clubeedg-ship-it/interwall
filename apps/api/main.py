@@ -28,6 +28,9 @@ from routers.stock_lots import router as stock_lots_router
 from routers.categories import router as categories_router
 from routers.shelves import router as shelves_router
 from routers.vat_rates import router as vat_rates_router
+from routers.item_groups import router as item_groups_router
+from routers.builds import router as builds_router
+from routers.external_xref import router as external_xref_router
 from email_poller.poller import poll_once
 
 scheduler = BackgroundScheduler()
@@ -96,3 +99,6 @@ app.include_router(stock_lots_router)
 app.include_router(categories_router)
 app.include_router(shelves_router)
 app.include_router(vat_rates_router)
+app.include_router(item_groups_router)
+app.include_router(builds_router)
+app.include_router(external_xref_router)
