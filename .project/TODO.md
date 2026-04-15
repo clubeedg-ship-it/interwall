@@ -46,12 +46,16 @@ D-097 supersedes D-030. Stream B rewritten as polling-first.
 BOL-CONTRACT.md from T-B00 is pending commit on the server — agent
 reported SHA as "pending". Needs manual commit + push before T-B01.
 
-Blocking T-B01: close Q2-Q7 in BOL-CONTRACT.md §6 (offer.reference
-null-handling, RSA key format, 299s token mid-run refresh, dedupe
-key shape, change-interval overlap window).
+T-B00 blockers CLOSED 2026-04-15:
+- Q2: offer.reference primary, product.ean fallback.
+- Q3: .env file for OAuth2 creds (BOL_CLIENT_ID, BOL_CLIENT_SECRET).
+- Q4: per-item commission from API overrides percentage → D-098.
+- Q5: sale_price = totalPrice/quantity (discounts absorbed) → D-099.
+- Q6: order_ref = "bol-{orderId}-{orderItemId}", one txn row per item.
+- Q7: FBB skipped entirely, P-14 parked.
 
-Next session after blockers close: T-B01 — Bol.com order poller
-(APScheduler + OAuth2 + ingestion_events INSERT + call process_bom_sale).
+Next: T-B01 — Bol.com order poller. Tier 1 gate (correctness-critical,
+touches money). Fresh session. Primer drafted in coaching notes.
 
 ---
 
@@ -418,6 +422,12 @@ Next session after blockers close: T-B01 — Bol.com order poller
 ### `P-11` — Builds page search by composition fingerprint
 - Users should filter builds by item_groups they contain, to attach new marketplace codes to existing builds quickly
 - Address in Stream C
+
+### `P-14` — FBB (Fulfilled by Bol) order ingestion
+- Current poller filters `fulfilment-method=FBR` only (D-099 context)
+- FBB orders are shipped from bol.com's warehouse; we don't hold that stock
+- If the business adopts FBB: revenue tracking needed without stock deduction
+- Revisit when actually required
 
 ### `P-13` — Bol.com shipment-tracking webhook receiver
 - Optional feature for customer comms / SLA visibility

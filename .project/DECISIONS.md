@@ -498,6 +498,46 @@
   `.project/BOL-CONTRACT.md` for the full event catalogue, signature
   scheme details, and open questions.
 
+### D-098 — Per-marketplace commission overrides the configured percentage
+- **Date:** 2026-04-15
+- **Decision:** When ingestion provides an exact commission value per
+  order item (as the Bol.com API does), `process_bom_sale` uses that
+  value directly. The `fixed_costs.commission_pct` lookup remains as
+  the fallback for paths that don't provide an exact value (the
+  Mirakl email parser, which only gets a net figure).
+- **Rationale:** Bol.com reports the exact commission charged per
+  order item. Computing it from a configured percentage would double
+  the work and risk drift from bol.com's actual deduction. Per-item
+  accuracy trumps uniformity.
+- **Implementation:** add an optional `p_commission_override NUMERIC`
+  parameter to `process_bom_sale`. When non-null, skip the percentage
+  lookup and use the override. When null, use `fixed_costs` as today.
+- **Rejected alternative:** ignore the API value and always use the
+  percentage — masks the real per-item economics.
+- **Reversibility:** High (parameter is additive; callers that don't
+  pass it get old behaviour).
+
+### D-099 — Discounts absorbed into effective `sale_price`
+- **Date:** 2026-04-15
+- **Decision:** When an ingestion source reports a line-item discount
+  (Bol.com `orderItems[].discounts[]`), the poller computes
+  `sale_price = totalPrice / quantity` (post-discount effective per-unit
+  price) and writes that to `transactions.sale_price`. The discount
+  detail is retained in `ingestion_events.raw_payload` for audit but
+  does not get its own column in `transactions`.
+- **Rationale:** Profit must reflect actual revenue received. Pre-discount
+  price overstates revenue. Storing discounts as a separate column adds
+  schema surface for an edge case the operator doesn't report on today.
+  If discount analytics become a requirement later, they can be computed
+  from raw_payload without a migration.
+- **Rejected alternatives:**
+  - Store `unitPrice` unchanged — overstates profit by the discount
+    amount.
+  - Add `transactions.discount_amount` column — premature generalization;
+    wire when needed.
+- **Reversibility:** High (can add a discount column later; historical
+  data stays in raw_payload).
+
 ---
 
 ## Superseded decisions
