@@ -1,0 +1,52 @@
+task_id: T-E01
+status: done
+
+summary: |
+  Bootstrapped a Playwright TypeScript harness under inventory-interwall/e2e/
+  with package.json, playwright.config.ts, .gitignore, README, and two smoke
+  specs (app-loads + health-endpoint) plus a DOM-vs-canonical parts-stock
+  spec. Ran against the live stack at http://localhost:1441; 2 passed, 1
+  skipped (parts-stock-truth — /api/products and /api/profit/valuation
+  return 401 without session auth, so the test skips cleanly pending a
+  test-auth strategy).
+
+files_changed:
+  - inventory-interwall/e2e/package.json
+  - inventory-interwall/e2e/playwright.config.ts
+  - inventory-interwall/e2e/tests/smoke.spec.ts
+  - inventory-interwall/e2e/tests/parts-stock-truth.spec.ts
+  - inventory-interwall/e2e/.gitignore
+  - inventory-interwall/e2e/README.md
+
+tests:
+  - file: inventory-interwall/e2e/tests/smoke.spec.ts
+    runner: cd inventory-interwall/e2e && npx playwright test
+    result: pass
+    final_line: "2 passed (2.9s)"
+  - file: inventory-interwall/e2e/tests/parts-stock-truth.spec.ts
+    runner: cd inventory-interwall/e2e && npx playwright test
+    result: pass
+    final_line: "1 skipped — /api/products 401 without auth; skip path taken as allowed by packet"
+
+decisions_cited: []
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: test
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+adversarial_review:
+  - Parts-stock-truth test currently skips rather than asserting — a real DOM-vs-canonical check still has to be wired once the harness gets session auth (cookie injection or a fixture login). Until then the harness cannot catch stock-rendering regressions on the catalog.
+  - Selectors in parts-stock-truth assume data-ean / .part-card / .stock class hooks that may not exist in catalog DOM; the test skips on missing data-ean but a richer selector-audit is needed once the stack has seeded parts and auth.
+  - Harness runs with workers=1 against a shared stack, so any test that mutates state will leak into sibling tests; packet only adds read-only smoke, but the pattern will need per-test seed/reset once feature specs land.
+
+open_questions:
+  - How should e2e authenticate against /api/products and /api/profit/valuation? Options: share a test session cookie via env var, storageState fixture produced by a login spec, or a backend test-only auth bypass. Recommend storageState + dedicated test user.
+  - Should the harness own `docker compose up -d` / readiness probing, or stay assume-stack-is-up? Current design assumes up; a future packet could add a global-setup that waits on /api/health/ping.
+
+next_ready: true
