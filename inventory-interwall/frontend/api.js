@@ -124,32 +124,44 @@ const api = {
     },
 
     /**
-     * Get stock items for a part with allocation data
-     * @param {number} partId - Part ID
-     * @returns {Promise<Array>} Stock items with allocated quantities
+     * Canonical stock snapshot from v_part_stock via /api/profit/valuation.
+     * Returns Map<ean, {in_stock, total_value}>.
      */
-    async getStockWithAllocation(partId) {
-        const data = await this.request(`/stock/?part=${partId}&include_variants=true`);
-        return data.results || data;
+    async getPartStockSnapshot() {
+        const rows = await this.request('/api/profit/valuation');
+        const map = new Map();
+        (Array.isArray(rows) ? rows : []).forEach(r => {
+            map.set(r.ean, {
+                in_stock: parseFloat(r.total_qty) || 0,
+                total_value: parseFloat(r.total_value) || 0,
+            });
+        });
+        return map;
     },
 
     /**
-     * Calculate available stock (total - allocated)
-     * @param {number} partId - Part ID
-     * @returns {Promise<Object>} { total, allocated, available }
+     * Products merged with canonical stock snapshot.
+     * Returns array of {id, ean, name, sku, is_composite, minimum_stock, in_stock}.
      */
-    async getAvailableStock(partId) {
-        const stock = await this.getStockWithAllocation(partId);
-        const totals = stock.reduce((acc, s) => {
-            acc.total += s.quantity || 0;
-            acc.allocated += s.allocated || 0;
-            return acc;
-        }, { total: 0, allocated: 0 });
-
-        return {
-            ...totals,
-            available: totals.total - totals.allocated
-        };
+    async getProductsWithStock(searchParams) {
+        const params = searchParams || new URLSearchParams();
+        if (!params.has('composite')) params.set('composite', 'false');
+        const [products, stockMap] = await Promise.all([
+            this.request(`/api/products?${params}`),
+            this.getPartStockSnapshot(),
+        ]);
+        return (Array.isArray(products) ? products : []).map(p => {
+            const stock = stockMap.get(p.ean);
+            return {
+                pk: p.id,
+                name: p.name,
+                IPN: p.sku || '',
+                ean: p.ean,
+                is_composite: p.is_composite,
+                in_stock: stock ? stock.in_stock : 0,
+                minimum_stock: p.minimum_stock || 0,
+            };
+        });
     },
 
     /**

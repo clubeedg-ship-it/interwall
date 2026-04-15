@@ -118,12 +118,8 @@ const alerts = {
         this.lowStockItems = [];
 
         try {
-            // Optimized: Fetch all parts that track stock and compare with minimum
-            // Since we can't easily filter "low stock" on backend without custom filter,
-            // we fetch a lightweight list of parts (e.g., limit 1000) and check locally.
-            // This is 1 request vs N requests.
-            const response = await api.getParts({ limit: 2000 }); // Reasonable limit for now
-            const parts = response.results || [];
+            // Canonical stock from v_part_stock via getProductsWithStock (D-041)
+            const parts = await api.getProductsWithStock();
 
             parts.forEach(part => {
                 const minStock = parseFloat(part.minimum_stock) || 0;
@@ -131,7 +127,6 @@ const alerts = {
 
                 const inStock = parseFloat(part.in_stock) || 0;
 
-                // Also update cache while we are here
                 state.parts.set(part.pk, part);
 
                 if (inStock < minStock) {

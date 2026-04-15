@@ -102,18 +102,7 @@ const catalog = {
             const params = new URLSearchParams();
             if (search) params.set('q', search);
             params.set('composite', 'false');
-            const products = await api.request(`/api/products?${params}`);
-
-            // Normalize to catalog state format
-            const newParts = (Array.isArray(products) ? products : []).map(p => ({
-                pk: p.id,
-                name: p.name,
-                IPN: p.sku || '',
-                ean: p.ean,
-                is_composite: p.is_composite,
-                in_stock: 0,
-                minimum_stock: p.minimum_stock || 0,
-            }));
+            const newParts = await api.getProductsWithStock(params);
 
             state.catalog.count = newParts.length;
             state.catalog.next = null; // No pagination yet
