@@ -227,6 +227,16 @@ fit as a concise note here.
   verified locally with:
   - `docker compose exec -T api python -m pytest /app/tests/t_C01_profit_immutability.py -v --tb=short`
   - `node inventory-interwall/frontend/t_c01_noop_edit_verify.mjs`
+- `T-B03` preserved local artifact is now landed on branch as
+  `.project/B03-RELIABILITY.md`, together with the helper scripts
+  `apps/api/scripts/bol_reliability_local_run.py` and
+  `apps/api/scripts/bol_reliability_report.py`.
+- `T-B03` is still not production-complete: the landed report is a
+  synthetic local reliability run, useful as branch truth and tooling,
+  not as live overlap validation.
+- `T-C00` should not be landed as-is. The preserved audit is stale
+  against current `v2` because it still lists `shelf-config.js` as
+  active runtime after `T-C02e` removed it.
 - Cold-rebuild truth surfaced during `T-C01`: the `T-B04` replay had
   depended on preserved local files not yet landed on `v2`.
   `apps/api/ingestion_worker.py`, `apps/api/sql/12_ingestion_event_attempts.sql`,
@@ -240,11 +250,11 @@ fit as a concise note here.
   total fetched in/out; profit/margin; inventory valuation; JIT reorder
   logic; FIFO behavior; product location; builds →
   `build_components`. Login is explicitly de-prioritized for now.
-- Short-memory signal for next coach: `T-C01` is now replayed/verified.
-  Remaining pre-E2E cleanup is to reconcile `T-B03` / `T-C00`. After
-  that, it is E2E time. Use local Playwright to truth the browser
-  against backend invariants before calling the system trusted for
-  day-to-day use.
+- Short-memory signal for next coach: `T-C01` is now replayed/verified,
+  and the `T-B03` artifact is landed. Remaining pre-E2E cleanup is to
+  refresh `T-C00` against current `v2`. After that, it is E2E time. Use
+  local Playwright to truth the browser against backend invariants
+  before calling the system trusted for day-to-day use.
 - Branch cleanup completed after the `T-B04` replay:
   - main checkout is clean on `v2`
   - stale `.claude/worktrees/*` were archived under

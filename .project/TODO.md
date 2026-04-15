@@ -46,9 +46,9 @@ Stream B: T-B00 + T-B01 DONE.
 
 Stream B: T-B02 + T-B05 DONE 2026-04-15 (`d48ccce`).
 
-Stream B: `T-B03` local reliability artifact preserved under
-`/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/B03-RELIABILITY.md`,
-but not yet landed on `v2`.
+Stream B: `T-B03` local reliability artifact landed on `v2` as a
+historical local report, but the task still needs real-world validation
+before it can be treated as production-complete.
 
 Stream B: `T-B04` DONE 2026-04-15 (`b103920`).
 
@@ -66,10 +66,11 @@ Stream C: `T-C02` is already sliced on `v2`:
 - `T-C02d` DONE 2026-04-15 (`0e6442d`)
 - `T-C02e` DONE 2026-04-15 (`fc81d28`)
 
-Next: **Resolve preserved branch-truth artifacts**. Decide whether
-`T-B03` and `T-C00` should be landed as-is or refreshed against current
-`v2`. After that, move into Playwright-backed E2E/browser truthing for
-cross-page numeric coherence before any deployment-readiness signoff.
+Next: **Resolve the remaining preserved branch-truth artifact**.
+`T-C00` is still preserved off-branch and stale against current `v2`,
+so it needs a refresh rather than an as-is landing. After that, move
+into Playwright-backed E2E/browser truthing for cross-page numeric
+coherence before any deployment-readiness signoff.
 
 ---
 
@@ -128,9 +129,13 @@ cross-page numeric coherence before any deployment-readiness signoff.
 - Log discrepancies: orders seen by one path and not the other,
   timing differences, field mismatches.
 - Output: reliability report as `.project/B03-RELIABILITY.md`.
-- Local development report exists at
-  `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/B03-RELIABILITY.md`,
-  but it has not been landed on `v2` after the branch sync.
+- Historical local development report is now landed at
+  `.project/B03-RELIABILITY.md`, together with helper scripts
+  `apps/api/scripts/bol_reliability_local_run.py` and
+  `apps/api/scripts/bol_reliability_report.py`.
+- It is still not sufficient to mark `T-B03` production-complete,
+  because the report is synthetic local validation rather than a live
+  overlap window.
 - deps: `T-B02`
 
 ### `T-B04` — Retire Bol.com email path (DONE 2026-04-15, b103920)
@@ -171,6 +176,9 @@ cross-page numeric coherence before any deployment-readiness signoff.
 - Local audit file exists at
   `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/C00-UI-STATE-AUDIT.md`,
   but it has not been landed on `v2` after the branch sync.
+- The preserved audit is stale against current `v2` because it still
+  treats `shelf-config.js` as active runtime despite `T-C02e` removing
+  it from active runtime.
 - Can run in parallel with Stream A
 - deps: none
 
