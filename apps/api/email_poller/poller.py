@@ -81,7 +81,7 @@ def retry_pending():
             with conn.cursor() as cur:
                 cur.execute(
                     """SELECT id, parsed_data, marketplace, raw_body
-                       FROM emails
+                       FROM ingestion_events
                        WHERE status IN ('pending', 'failed')
                          AND parsed_data IS NOT NULL
                          AND (parsed_data->>'order_number') IS NOT NULL"""

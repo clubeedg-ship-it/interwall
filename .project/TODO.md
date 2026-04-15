@@ -33,11 +33,8 @@
 
 ## Now (next up)
 
-Pick one and start:
-
+- `T-A00` — Schema audit of current `init.sql` — blocks all of Stream A ← **START HERE**
 - `T-X01` — Resolve clean-state cleanup (bash command + deletion list) — blocks nothing technically but unblocks peace of mind
-- `T-A00` — Session B: schema audit of current `init.sql` — blocks all of Stream A
-- `T-Q01 … T-Q05` — Answer the five open questions below — blocks A and C design confirmation
 
 ---
 
@@ -95,13 +92,21 @@ Pick one and start:
 - Migration script: keep reversible for one release window
 - deps: `T-A00` (audit first), `T-A01` (same migration file)
 
-### `T-A03` — Backfill from legacy `ean_compositions` (TODO)
+### `T-A03` — Backfill from legacy `ean_compositions` + trivial builds for all sellable products (TODO)
 - One-shot idempotent script: `apps/api/sql/05_item_groups_backfill.sql`
 - Each `component_ean` → singleton `item_group` + `item_group_member`
 - Each `parent_ean` → `build` + `build_components` rows
+- **Every sellable product without an existing build** gets a trivial auto-generated build (`is_auto_generated = TRUE`) with one component pointing at a singleton item_group containing just that product (D-018)
+- **Migrate `sku_aliases`** rows: for each (marketplace_sku, product_ean, marketplace), ensure a trivial build exists for the target EAN (via D-018), then insert a matching `external_item_xref` row (D-019)
 - `ON CONFLICT DO NOTHING` throughout
-- Verify: count(distinct parent_ean) == count(builds); count(distinct component_ean) == count(item_groups); count(ean_compositions) == count(build_components)
+- Verify: every product with stock_lots has a reachable build; count(sku_aliases) == count(new external_item_xref rows from migration); count(distinct parent_ean) + count(auto-generated builds) == count(builds)
 - deps: `T-A01`
+
+### `T-A03a` — Retire `sku_aliases` writes (TODO)
+- After T-A03 backfill is verified, update email poller to stop writing to `sku_aliases`
+- All new SKU resolution writes go to `external_item_xref` only (D-019)
+- `sku_aliases` table stays readable (D-010) but receives no new inserts
+- deps: `T-A03`, `T-A08`
 
 ### `T-A04` — `deduct_fifo_for_group` PL/pgSQL function (TODO)
 - Signature: `(item_group_id UUID, qty INT) RETURNS TABLE (stock_lot_id, product_id, qty_taken, unit_cost)`
@@ -266,35 +271,22 @@ Pick one and start:
 
 ---
 
-## Open questions (must be closed before the dependent task)
+## Closed questions
 
-### `T-Q01` — Direct-sale products path confirmation
-- Question: do monitors / mini-PCs / anything sold as a single product work via the legacy `process_sale` fallback without special-casing?
-- Expected answer: yes
-- Needed before: `T-A08`
-- How to verify: end-to-end test after A-08; if broken, decide "create one-line trivial build per direct-sellable product" vs. "extend sale_writer with an explicit direct-sale branch"
+### `T-Q01` — Direct-sale products path confirmation → CLOSED 2026-04-15
+- Answer: **No** — legacy `process_sale` silently records zero COGS and no stock deduction for non-composite products. Fixed by D-018: every sellable product gets a trivial auto-generated build, making `process_bom_sale` the only sale code path. Scope absorbed into T-A03.
 
-### `T-Q02` — Bol.com Subscription event catalog
-- Question: does the v10 Subscription API cover new order, shipment, cancellation, payment?
-- Needed before: `T-B01`
-- How to verify: `T-B00` subagent research
+### `T-Q02` — Bol.com Subscription event catalog → DEFERRED to T-B00
+- Will be resolved by subagent research when Stream B starts. Not blocking Stream A.
 
-### `T-Q03` — Shelf-setup flow — mandatory vs pending allowed
-- Question: when creating a new Part, can the user skip shelf assignment (with a pending-setup badge) or is it mandatory?
-- Recommendation: allow pending with explicit visual state; mandatory friction too high for realistic onboarding
-- Needed before: `T-C07`
-- Decide: confirm recommendation, log as D-1XX
+### `T-Q03` — Shelf-setup flow — mandatory vs pending allowed → CLOSED 2026-04-15
+- Answer: allow pending with explicit "needs setup" badge. Logged as D-088.
 
-### `T-Q04` — JIT colour gradient breakpoints
-- Question: exact breakpoints (as fraction of reorder point?) and colours
-- Needed before: `T-C03`
-- Suggestion: 5 bands (far-above, above, at, below, critical) with user-editable hex
-- Decide: confirm band count + colours, log in DECISIONS
+### `T-Q04` — JIT colour gradient breakpoints → CLOSED 2026-04-15
+- Answer: 5 bands (critical/low/at/healthy/over) as fraction of reorder point, user-editable hex. Logged as D-089.
 
-### `T-Q05` — InvenTree v1.2 FIFO-to-COGS smoke test
-- Question: has FIFO-per-lot-COGS quietly improved post-1.0?
-- Not a blocker for any task
-- Output: one note that the stay-custom decision is still right, or reopen if InvenTree now does the full loop
+### `T-Q05` — InvenTree v1.2 FIFO-to-COGS smoke test → CLOSED 2026-04-15
+- Answer: skipped. Stay-custom decision stands. Logged as D-093.
 
 ---
 

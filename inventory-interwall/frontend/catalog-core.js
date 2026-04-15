@@ -112,7 +112,7 @@ const catalog = {
                 ean: p.ean,
                 is_composite: p.is_composite,
                 in_stock: 0,
-                minimum_stock: p.default_reorder_point || 0,
+                minimum_stock: p.minimum_stock || 0,
             }));
 
             state.catalog.count = newParts.length;

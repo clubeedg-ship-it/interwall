@@ -3,7 +3,7 @@
 
 DELETE FROM transactions;
 DELETE FROM stock_lots;
-UPDATE emails SET status = 'pending', processed_at = NULL WHERE status IN ('processed', 'failed');
+UPDATE ingestion_events SET status = 'pending', processed_at = NULL WHERE status IN ('processed', 'failed');
 
 INSERT INTO stock_lots (product_id, quantity, unit_cost, marketplace, received_at) VALUES
     ((SELECT id FROM products WHERE ean = 'COMP-MOBO-AM4'), 71, 69.00, 'stock-count', '2026-03-31'::timestamptz),
@@ -34,4 +34,4 @@ DELETE FROM fixed_costs WHERE name = 'vat';
 
 -- Verify
 SELECT p.name, sl.quantity FROM stock_lots sl JOIN products p ON p.id = sl.product_id WHERE sl.quantity > 0 ORDER BY p.name;
-SELECT COUNT(*) AS pending_emails FROM emails WHERE status = 'pending';
+SELECT COUNT(*) AS pending_events FROM ingestion_events WHERE status = 'pending';

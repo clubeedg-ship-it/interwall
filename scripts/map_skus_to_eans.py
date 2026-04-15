@@ -175,7 +175,7 @@ def main():
              'marketplace', marketplace,
              'orig_sku', substring(raw_body from 'Interne referentie[^:]*:\\s*([A-Za-z0-9-]+)'),
              'description', substring(raw_body from 'Beschrijving[^:]*:\\s*([^<\\r\\n]+)')
-         )) FROM emails WHERE status = 'failed'"""],
+         )) FROM ingestion_events WHERE status = 'failed'"""],
         capture_output=True, text=True
     )
     emails = json.loads(result.stdout.strip())

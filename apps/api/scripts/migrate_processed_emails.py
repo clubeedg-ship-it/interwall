@@ -36,7 +36,7 @@ def run():
             for msg_id in records:
                 try:
                     cur.execute(
-                        """INSERT INTO emails (message_id, status, processed_at)
+                        """INSERT INTO ingestion_events (message_id, status, processed_at)
                            VALUES (%s, 'processed', NOW())
                            ON CONFLICT (message_id) DO NOTHING""",
                         (msg_id,)
