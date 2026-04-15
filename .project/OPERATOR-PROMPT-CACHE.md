@@ -69,3 +69,27 @@ Accept only if branch truth, report, and diff all agree.
 If accepted, update `.project/TODO.md` and `.project/COACH-HANDOFF.md`.
 If not accepted, write `.project/operator-runs/T-XXX/REVIEW.md`.
 ```
+
+---
+
+## 4. Coach batch-review prompt
+
+```text
+Review the completed Interwall operator packets for:
+- `T-XXX`
+- `T-YYY`
+
+Check for each packet:
+- `.project/operator-runs/T-XXX/REPORT.yaml`
+- the actual git diff
+- the packet scope
+- the named tests
+
+Then:
+- accept or reject each packet
+- identify cross-packet conflicts or missed dependencies
+- write one consolidated fix plan if rework is needed
+- propose the next packet or packet queue
+
+Do not rely on chat summaries alone.
+```

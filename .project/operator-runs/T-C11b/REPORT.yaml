@@ -1,0 +1,46 @@
+task_id: T-C11b
+status: done
+
+summary: |
+  Wrapped remaining dynamic fields in profit.js (renderCostBreakdown,
+  profitConfig.renderCosts/renderComponents, renderComponentsList,
+  renderFixedComponents, and the applyStoredDatabaseBreakdown cost
+  container that showEdit reuses) through sanitize(). Swapped
+  labels.js printBulk to per-item insertAdjacentHTML to drop the
+  joined-map innerHTML pattern. Added t_c11b_sanitize_verify.mjs.
+
+files_changed:
+  - inventory-interwall/frontend/profit.js
+  - inventory-interwall/frontend/labels.js
+  - inventory-interwall/frontend/t_c11b_sanitize_verify.mjs
+
+tests:
+  - file: inventory-interwall/frontend/t_c11b_sanitize_verify.mjs
+    runner: node inventory-interwall/frontend/t_c11b_sanitize_verify.mjs
+    result: pass
+    final_line: "33 passed, 0 failed"
+
+decisions_cited:
+  - D-046
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+adversarial_review:
+  - Historical chart is a Chart.js canvas (renderChart) not an innerHTML sink; verify asserts the function body never writes .innerHTML, but a future refactor that replaces Chart.js with HTML tables would bypass this guard.
+  - recordSale.showEdit form prefill uses .value (safe DOM setter) for productName / orderId / salePrice, so no sanitize() wrap is needed on the inputs themselves; the risk lives in the cost breakdown container reused via applyStoredDatabaseBreakdown, which is now wrapped.
+  - sanitize() on numeric fields (cost.value, comp.quantity, bd.vatRate, inStock) is defensive — values are typed via parseFloat/parseInt upstream, but config rows can carry strings from localStorage so wrapping avoids drift.
+
+open_questions:
+  - PROMPT.md named "renderHistoricalChart" and "renderCostSplitChart"; the v2 runtime exposes renderChart (Chart.js on canvas) and renderCostBreakdown. Verified both — the chart path has no innerHTML surface; the cost-breakdown path is now fully sanitized. Coach should confirm the mapping is what T-C11b intended.
+  - PROMPT.md described recordSale.showEdit as writing dynamic values into innerHTML. In the current code it only uses .value/.textContent for form prefill, so the real innerHTML sink triggered by showEdit is applyStoredDatabaseBreakdown's dynamicCostsContainer — that is the container that got sanitize() wraps.
+  - Pre-existing working-tree changes to .project/COACH-START-PROMPT.md and .project/OPERATOR-PROMPT-CACHE.md were present before this run and left untouched; git diff --name-only HEAD therefore lists them alongside the three expected frontend files.
+
+next_ready: true
