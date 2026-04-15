@@ -35,6 +35,8 @@ services:
       IMAP_EMAIL: ${IMAP_EMAIL:-}
       IMAP_PASSWORD: ${IMAP_PASSWORD:-}
       IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
+    volumes:
+      - ./apps/api/tests:/app/tests:ro
     depends_on:
       postgres:
         condition: service_healthy

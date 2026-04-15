@@ -8,3 +8,8 @@ pydantic==2.11.3
 python-multipart==0.0.20
 APScheduler==3.11.0
 imapclient>=2.3.1
+
+# Test dependencies (kept in main requirements for single-image simplicity)
+httpx==0.28.1
+pytest==8.3.5
+pytest-asyncio==0.26.0
