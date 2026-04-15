@@ -25,10 +25,6 @@ const backendConfigSync = {
     syncCosts(costs) {
         // no-op: costConfig.save() calls PUT /api/fixed-costs/{id} directly
     },
-
-    syncComponents(components) {
-        // no-op: fixedComponents concept removed (fixed_costs table is source of truth)
-    },
 };
 
 // =============================================================================
@@ -290,269 +286,6 @@ const PROFIT_CONFIG = {
 };
 
 // =============================================================================
-// Fixed Components Configuration
-// =============================================================================
-const fixedComponentsConfig = {
-    components: [],
-
-    /**
-     * Initialize fixed components config from the canonical backend source.
-     * T-C02d: browser must not be authoritative (D-040). The row shape
-     * exposed by /api/fixed-costs is {id, name, value, is_percentage, ...}
-     * which does not carry BOM part metadata (partId/quantity/sku); see
-     * open_questions in T-C02d REPORT. If no backend source is available,
-     * components stays empty — no localStorage fallback.
-     */
-    async init() {
-        try {
-            const rows = await api.getFixedCosts();
-            this.components = (Array.isArray(rows) ? rows : [])
-                .filter(r => r && r.partId != null)
-                .map(r => ({
-                    id: r.id,
-                    partId: r.partId,
-                    partName: r.partName || r.name || '',
-                    sku: r.sku || '',
-                    quantity: r.quantity || 1,
-                    enabled: r.enabled !== false,
-                }));
-        } catch (e) {
-            console.warn('Could not load fixed components from /api/fixed-costs:', e.message);
-            this.components = [];
-        }
-    },
-
-    // No persistence endpoint for BOM-style fixed components; mutations
-    // stay in memory until a canonical backend source exists.
-    save() { /* no-op */ },
-
-    getAll() {
-        return this.components.filter(c => c.enabled);
-    },
-
-    getAllIncludingDisabled() {
-        return this.components;
-    },
-
-    get(id) {
-        return this.components.find(c => c.id === id);
-    },
-
-    add(component) {
-        // Generate unique ID if not provided
-        if (!component.id) {
-            component.id = `fixcomp_${Date.now().toString(36)}`;
-        }
-        component.enabled = component.enabled !== false;
-        this.components.push(component);
-        this.save();
-        return component;
-    },
-
-    update(id, updates) {
-        const comp = this.get(id);
-        if (comp) {
-            Object.assign(comp, updates);
-            this.save();
-            return true;
-        }
-        return false;
-    },
-
-    remove(id) {
-        const index = this.components.findIndex(c => c.id === id);
-        if (index !== -1) {
-            this.components.splice(index, 1);
-            this.save();
-            return true;
-        }
-        return false;
-    },
-
-    toggle(id) {
-        const comp = this.get(id);
-        if (comp) {
-            comp.enabled = !comp.enabled;
-            this.save();
-            return true;
-        }
-        return false;
-    }
-};
-
-// =============================================================================
-// Fixed Components Editor Module
-// =============================================================================
-const fixedComponentsEditor = {
-    currentCompId: null,
-
-    init() {
-        const modal = document.getElementById('fixedCompEditModal');
-        const closeBtn = document.getElementById('fixedCompEditClose');
-        const cancelBtn = document.getElementById('fixedCompEditCancel');
-        const deleteBtn = document.getElementById('fixedCompDeleteBtn');
-        const form = document.getElementById('fixedCompEditForm');
-        const addBtn = document.getElementById('btnAddFixedComponent');
-
-        if (closeBtn) closeBtn.addEventListener('click', () => this.hide());
-        if (cancelBtn) cancelBtn.addEventListener('click', () => this.hide());
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) this.hide();
-            });
-        }
-        if (form) form.addEventListener('submit', (e) => this.submit(e));
-        if (deleteBtn) deleteBtn.addEventListener('click', () => this.deleteComponent());
-        if (addBtn) addBtn.addEventListener('click', () => this.showAdd());
-    },
-
-    async populatePartSelect() {
-        try {
-            const select = document.getElementById('fixedCompPartSelect');
-            if (!select) {
-                console.error('❌ fixedCompPartSelect element not found');
-                return;
-            }
-
-            select.innerHTML = '<option value="">Loading parts...</option>';
-
-            // Fetch ALL parts directly from API (don't rely on state which may be incomplete)
-            const response = await api.getParts({ limit: 500 });
-            const parts = response.results || response || [];
-            
-            select.innerHTML = '<option value="">Select a part...</option>';
-            
-            // Sort alphabetically
-            parts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-            
-            // Check for duplicate names and warn
-            const nameCount = {};
-            parts.forEach(p => {
-                const name = p.name || 'Unknown';
-                nameCount[name] = (nameCount[name] || 0) + 1;
-            });
-            const duplicateNames = Object.keys(nameCount).filter(n => nameCount[n] > 1);
-            if (duplicateNames.length > 0) {
-                console.warn('⚠️ Duplicate part names found:', duplicateNames);
-            }
-            
-            parts.forEach(part => {
-                const opt = document.createElement('option');
-                opt.value = part.pk;
-                // FIX: Include SKU/IPN to distinguish parts with same name
-                const sku = part.IPN || `PK-${part.pk}`;
-                const isDuplicate = nameCount[part.name || 'Unknown'] > 1;
-                // Show SKU prominently if name is duplicated, otherwise show after name
-                opt.textContent = isDuplicate
-                    ? `[${sku}] ${part.name || 'Unknown'} (${part.in_stock ?? 0} in stock)`
-                    : `${part.name || 'Unknown'} (${sku}) - ${part.in_stock ?? 0} in stock`;
-                select.appendChild(opt);
-                
-                // Also update state cache
-                if (window.state?.parts) {
-                    window.state.parts.set(part.pk, part);
-                }
-            });
-            
-            console.log(`✅ Populated ${parts.length} parts in fixed component dropdown`);
-        } catch (e) {
-            console.error('❌ Error in populatePartSelect:', e);
-            const select = document.getElementById('fixedCompPartSelect');
-            if (select) {
-                select.innerHTML = '<option value="">Error loading parts</option>';
-            }
-        }
-    },
-
-    async showAdd() {
-        this.currentCompId = null;
-        document.getElementById('fixedCompEditTitle').textContent = 'Add Fixed Component';
-        await this.populatePartSelect();
-        document.getElementById('fixedCompPartSelect').value = '';
-        document.getElementById('fixedCompQty').value = '1';
-        document.getElementById('fixedCompEnabled').checked = true;
-        document.getElementById('fixedCompEditId').value = '';
-        document.getElementById('fixedCompDeleteBtn').style.display = 'none';
-
-        document.getElementById('fixedCompEditModal').classList.add('active');
-    },
-
-    async showEdit(compId) {
-        const comp = fixedComponentsConfig.get(compId);
-        if (!comp) return;
-
-        this.currentCompId = compId;
-        document.getElementById('fixedCompEditTitle').textContent = 'Edit Fixed Component';
-        await this.populatePartSelect();
-        document.getElementById('fixedCompPartSelect').value = comp.partId;
-        document.getElementById('fixedCompQty').value = comp.quantity;
-        document.getElementById('fixedCompEnabled').checked = comp.enabled;
-        document.getElementById('fixedCompEditId').value = compId;
-        document.getElementById('fixedCompDeleteBtn').style.display = 'block';
-
-        document.getElementById('fixedCompEditModal').classList.add('active');
-    },
-
-    hide() {
-        document.getElementById('fixedCompEditModal').classList.remove('active');
-        this.currentCompId = null;
-    },
-
-    async submit(e) {
-        e.preventDefault();
-
-        const partId = parseInt(document.getElementById('fixedCompPartSelect').value);
-        const quantity = parseInt(document.getElementById('fixedCompQty').value) || 1;
-        const enabled = document.getElementById('fixedCompEnabled').checked;
-
-        if (!partId) {
-            toast.show('Please select a part', 'error');
-            return;
-        }
-
-        // Get part data from state (includes name which is used as SKU in automation)
-        const part = state.parts.get(partId);
-        const partName = part ? part.name : `Part #${partId}`;
-        // SKU: Use IPN if available, otherwise use part name (matches automation config like "8GB RAM")
-        const sku = part?.IPN || part?.name || partName;
-
-        if (this.currentCompId) {
-            // Update existing
-            fixedComponentsConfig.update(this.currentCompId, { partId, partName, sku, quantity, enabled });
-            toast.show(`Fixed component "${partName}" updated`, 'success');
-        } else {
-            // Check if part already exists as fixed component
-            const existing = fixedComponentsConfig.components.find(c => c.partId === partId);
-            if (existing) {
-                toast.show(`"${partName}" is already a fixed component`, 'error');
-                return;
-            }
-
-            // Add new (include SKU for email automation)
-            fixedComponentsConfig.add({ partId, partName, sku, quantity, enabled });
-            toast.show(`Fixed component "${partName}" added`, 'success');
-        }
-
-        this.hide();
-        recordSale.renderFixedComponents();
-    },
-
-    deleteComponent() {
-        if (!this.currentCompId) return;
-
-        const comp = fixedComponentsConfig.get(this.currentCompId);
-        if (!comp) return;
-
-        if (confirm(`Remove "${comp.partName}" from fixed components?`)) {
-            fixedComponentsConfig.remove(this.currentCompId);
-            toast.show(`Fixed component "${comp.partName}" removed`, 'success');
-            this.hide();
-            recordSale.renderFixedComponents();
-        }
-    }
-};
-
-// =============================================================================
 // Cost Editor Module
 // =============================================================================
 const costEditor = {
@@ -698,7 +431,6 @@ const profitState = {
     cashFlowScope: 'today',
     currentSubView: 'main', // main | inventory
     components: [], // Components added to current sale (manual)
-    fixedComponents: [], // Fixed components auto-included in every sale
     stockCache: new Map() // partId -> stock items for FIFO
 };
 
@@ -706,7 +438,6 @@ const profitState = {
 // Record Sale Module
 // =============================================================================
 const recordSale = {
-    fixedComponentsCost: 0, // Track fixed components cost separately
     currentEditOrderId: null, // Track if we're editing an existing sale
     currentEditSource: null,
 
@@ -734,7 +465,6 @@ const recordSale = {
     applyStoredDatabaseBreakdown(tx) {
         const bd = tx.costBreakdown || {};
         const manualCostEl = document.getElementById('componentsCostDisplay');
-        const fixedCostEl = document.getElementById('fixedComponentsCostDisplay');
         const totalCostEl = document.getElementById('totalCostDisplay');
         const salePriceEl = document.getElementById('salePriceDisplay');
         const marginEl = document.getElementById('marginDisplay');
@@ -742,7 +472,6 @@ const recordSale = {
         const oldMarginPreview = document.getElementById('saleMarginPreview');
 
         if (manualCostEl) manualCostEl.textContent = `€${(bd.manualComponents || 0).toFixed(2)}`;
-        if (fixedCostEl) fixedCostEl.textContent = `€0.00`;
         if (totalCostEl) totalCostEl.textContent = `€${tx.cost.toFixed(2)}`;
         if (salePriceEl) salePriceEl.textContent = `€${tx.sale.toFixed(2)}`;
         if (marginEl) {
@@ -763,9 +492,6 @@ const recordSale = {
                 bd.staticOverhead > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Overhead <span class="cost-badge">€${bd.staticOverhead.toFixed(0)}</span></span><span class="cost-value">€${bd.staticOverhead.toFixed(2)}</span></div>` : '',
             ].join('');
         }
-
-        const fixedCompContainer = document.getElementById('fixedComponentsContainer');
-        if (fixedCompContainer) fixedCompContainer.innerHTML = '';
     },
 
     init() {
@@ -829,7 +555,6 @@ const recordSale = {
         document.getElementById('salePrice').value = '';
         profitState.components = [];
         profitState.stockCache.clear();
-        this.fixedComponentsCost = 0;
 
         // Refresh parts data to get current stock levels
         // This ensures the dropdown shows accurate in_stock values
@@ -842,9 +567,6 @@ const recordSale = {
 
         // Clear components list
         this.renderComponentsList();
-
-        // Render fixed components and calculate their costs
-        await this.renderFixedComponents();
 
         this.updateCostDisplay();
 
@@ -887,7 +609,6 @@ const recordSale = {
                 batchesUsed: [],
                 isEdit: true,
             }));
-            this.fixedComponentsCost = 0;
 
             this.renderComponentsList();
             this.applyStoredDatabaseBreakdown(tx);
@@ -901,11 +622,8 @@ const recordSale = {
         this.setDatabaseEditReadonly(false);
         profitState.components = [];
         profitState.stockCache.clear();
-        this.fixedComponentsCost = 0;
 
-        const manualComponents = (tx.components || []).filter(c => !c.isFixed);
-
-        for (const comp of manualComponents) {
+        for (const comp of (tx.components || [])) {
             profitState.components.push({
                 partId: comp.partId,
                 partName: comp.partName,
@@ -918,7 +636,6 @@ const recordSale = {
 
         await this.populatePartsDropdown();
         this.renderComponentsList();
-        await this.renderFixedComponents();
         this.updateCostDisplay();
 
         modal.classList.add('active');
@@ -1085,100 +802,6 @@ const recordSale = {
         });
     },
 
-    /**
-     * Render and calculate fixed components
-     * These are automatically included in every sale
-     */
-    async renderFixedComponents() {
-        const container = document.getElementById('fixedComponentsContainer');
-        if (!container) return;
-
-        const fixedComps = fixedComponentsConfig.getAllIncludingDisabled();
-        profitState.fixedComponents = [];
-        this.fixedComponentsCost = 0;
-
-        if (fixedComps.length === 0) {
-            container.innerHTML = `
-                <div class="fixed-components-empty">
-                    No fixed components configured
-                </div>
-            `;
-            return;
-        }
-
-        let html = '';
-        let hasWarnings = false;
-
-        for (const comp of fixedComps) {
-            const part = state.parts.get(comp.partId);
-            const inStock = part ? (part.in_stock ?? 0) : 0;
-            const hasEnoughStock = inStock >= comp.quantity;
-            const disabledClass = comp.enabled ? '' : 'fixed-comp-disabled';
-            const warningClass = (!hasEnoughStock && comp.enabled) ? 'fixed-comp-warning' : '';
-
-            let fifoCost = 0;
-            let stockStatus = '';
-
-            if (comp.enabled) {
-                if (hasEnoughStock) {
-                    // Calculate FIFO cost for this fixed component
-                    const fifoResult = await this.calculateFifoCost(comp.partId, comp.quantity);
-                    if (fifoResult.success) {
-                        fifoCost = fifoResult.totalCost;
-                        this.fixedComponentsCost += fifoCost;
-
-                        // Store for submission
-                        profitState.fixedComponents.push({
-                            partId: comp.partId,
-                            partName: comp.partName,
-                            qty: comp.quantity,
-                            fifoCost: fifoCost,
-                            batchesUsed: fifoResult.batchesUsed,
-                            isFixed: true
-                        });
-
-                        stockStatus = `<span class="fixed-comp-stock ok">${sanitize(inStock)} in stock</span>`;
-                    } else {
-                        stockStatus = `<span class="fixed-comp-stock warning">Insufficient stock</span>`;
-                        hasWarnings = true;
-                    }
-                } else {
-                    stockStatus = `<span class="fixed-comp-stock warning">Need ${sanitize(comp.quantity)}, have ${sanitize(inStock)}</span>`;
-                    hasWarnings = true;
-                }
-            } else {
-                stockStatus = `<span class="fixed-comp-stock disabled">Disabled</span>`;
-            }
-
-            html += `
-                <div class="fixed-component-item ${disabledClass} ${warningClass}"
-                     onclick="fixedComponentsEditor.showEdit('${sanitize(comp.id)}')"
-                     title="Click to edit">
-                    <div class="fixed-comp-info">
-                        <span class="fixed-comp-name">${sanitize(comp.partName)}</span>
-                        <span class="fixed-comp-qty">× ${sanitize(comp.quantity)}</span>
-                    </div>
-                    <div class="fixed-comp-right">
-                        ${stockStatus}
-                        <span class="fixed-comp-cost">€${fifoCost.toFixed(2)}</span>
-                        <svg class="fixed-comp-edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </div>
-                </div>
-            `;
-        }
-
-        container.innerHTML = html;
-
-        // Update the fixed components cost display
-        const fixedCostDisplay = document.getElementById('fixedComponentsCostDisplay');
-        if (fixedCostDisplay) {
-            fixedCostDisplay.textContent = `€${this.fixedComponentsCost.toFixed(2)}`;
-        }
-    },
-
     updateCostDisplay() {
         this.renderCostBreakdown();
         this.updateCostBreakdown();
@@ -1229,9 +852,7 @@ const recordSale = {
 
         // Get current values
         const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
-        const manualComponentsCost = this.calculateManualComponentsCost();
-        const fixedComponentsCost = this.fixedComponentsCost;
-        const totalComponentsCost = manualComponentsCost + fixedComponentsCost;
+        const totalComponentsCost = this.calculateManualComponentsCost();
 
         // Calculate all dynamic costs
         const costBreakdown = costConfig.calculateAll(salePrice, totalComponentsCost);
@@ -1246,13 +867,11 @@ const recordSale = {
 
         // Update breakdown display elements
         const manualCostEl = document.getElementById('componentsCostDisplay');
-        const fixedCostEl = document.getElementById('fixedComponentsCostDisplay');
         const totalCostEl = document.getElementById('totalCostDisplay');
         const salePriceEl = document.getElementById('salePriceDisplay');
         const marginEl = document.getElementById('marginDisplay');
 
-        if (manualCostEl) manualCostEl.textContent = `€${manualComponentsCost.toFixed(2)}`;
-        if (fixedCostEl) fixedCostEl.textContent = `€${fixedComponentsCost.toFixed(2)}`;
+        if (manualCostEl) manualCostEl.textContent = `€${totalComponentsCost.toFixed(2)}`;
         if (totalCostEl) totalCostEl.textContent = `€${totalCost.toFixed(2)}`;
         if (salePriceEl) salePriceEl.textContent = `€${salePrice.toFixed(2)}`;
 
@@ -1280,14 +899,10 @@ const recordSale = {
     },
 
     calculateComponentsCost() {
-        // Manual components cost
-        const manualCost = profitState.components.reduce((sum, c) => sum + c.fifoCost, 0);
-        // Fixed components cost (already calculated in renderFixedComponents)
-        return manualCost + this.fixedComponentsCost;
+        return profitState.components.reduce((sum, c) => sum + c.fifoCost, 0);
     },
 
     calculateManualComponentsCost() {
-        // Only manual components, not fixed
         return profitState.components.reduce((sum, c) => sum + c.fifoCost, 0);
     },
 
@@ -1321,10 +936,7 @@ const recordSale = {
         const totalCost = componentsCost + costBreakdown.total;
         const margin = salePrice - totalCost;
 
-        const allComponents = [
-            ...profitState.components,
-            ...(profitState.fixedComponents || [])
-        ];
+        const allComponents = [...profitState.components];
 
         if (allComponents.length === 0) {
             toast.show('Please add at least one component', 'error');
@@ -1381,7 +993,6 @@ const recordSale = {
                 partName: c.partName,
                 qty: c.qty,
                 cost: c.fifoCost,
-                isFixed: c.isFixed || false,
                 batchesUsed: (c.batchesUsed || []).map(b => ({
                     stockId: b.stockId,
                     qty: b.qty,
@@ -1394,7 +1005,6 @@ const recordSale = {
             margin: margin,
             costBreakdown: {
                 manualComponents: this.calculateManualComponentsCost(),
-                fixedComponents: this.fixedComponentsCost,
                 components: componentsCost,
                 additionalCosts: costBreakdown.items.map(item => ({
                     id: item.id,
@@ -1464,7 +1074,7 @@ const recordSale = {
                     part: comp.partId,
                     quantity: comp.qty,
                     sale_price: transaction.sale / transaction.components.length, // Distribute price
-                    notes: `FIFO_COST:${comp.cost.toFixed(2)}${comp.isFixed ? ' | FIXED' : ''}`
+                    notes: `FIFO_COST:${comp.cost.toFixed(2)}`
                 };
                 
                 await api.request('/order/so-line/', {
@@ -1635,7 +1245,6 @@ const profitEngine = {
             partName: c.component_name,
             qty: c.quantity,
             cost: c.cost || 0,
-            isFixed: false,
         }));
         return {
             dbId: tx.id,
@@ -1653,7 +1262,6 @@ const profitEngine = {
                 commission: commEntry ? commEntry.amount : 0,
                 commissionRate: commEntry ? commEntry.value / 100 : 0,
                 staticOverhead: overEntry ? overEntry.amount : 0,
-                fixedComponents: 0,
                 vat: vatEntry ? vatEntry.amount : 0,
                 vatRate: vatRate,
                 vatCountry: vatCountry,
@@ -1666,10 +1274,6 @@ const profitEngine = {
         // Initialize cost configuration (await - backend is source of truth)
         await costConfig.init();
         costEditor.init();
-
-        // Initialize fixed components configuration (await - backend is source of truth)
-        await fixedComponentsConfig.init();
-        fixedComponentsEditor.init();
 
         // Initialize Record Sale module
         recordSale.init();
@@ -2283,8 +1887,8 @@ const profitEngine = {
                 <div class="transaction-details">
                     <strong>Components Used:</strong>
                     ${tx.components.map(c => `
-                        <div class="batch-used ${c.isFixed ? 'batch-fixed' : ''}">
-                            <span class="part">${sanitize(c.partName)} × ${sanitize(c.qty)}${c.isFixed ? ' <span class="fixed-badge">FIXED</span>' : ''}</span>
+                        <div class="batch-used">
+                            <span class="part">${sanitize(c.partName)} × ${sanitize(c.qty)}</span>
                             <span class="batch-info">€${c.cost.toFixed(2)}</span>
                         </div>
                     `).join('')}
@@ -2339,7 +1943,6 @@ const profitConfig = {
 
     render() {
         this.renderCosts();
-        this.renderComponents();
         this.updateSyncStatus();
     },
 
@@ -2378,31 +1981,6 @@ const profitConfig = {
         }).join('');
     },
 
-    renderComponents() {
-        const container = document.getElementById('configFixedComponentsList');
-        if (!container) return;
-
-        const components = fixedComponentsConfig.getAllIncludingDisabled();
-        
-        if (components.length === 0) {
-            container.innerHTML = '<div class="config-empty">No fixed components configured</div>';
-            return;
-        }
-
-        container.innerHTML = components.map(comp => {
-            const disabledClass = comp.enabled ? '' : 'disabled';
-            return `
-                <div class="config-item ${disabledClass}" onclick="profitConfig.editComponent('${sanitize(comp.id)}')">
-                    <div class="config-item-info">
-                        <div class="config-item-name">${sanitize(comp.partName)}</div>
-                        <div class="config-item-detail">SKU: ${sanitize(comp.sku || 'N/A')}</div>
-                    </div>
-                    <div class="config-item-value">× ${sanitize(comp.quantity)}</div>
-                </div>
-            `;
-        }).join('');
-    },
-
     addCost() {
         this.hide();
         costEditor.showAdd();
@@ -2411,16 +1989,6 @@ const profitConfig = {
     editCost(costId) {
         this.hide();
         costEditor.showEdit(costId);
-    },
-
-    addComponent() {
-        this.hide();
-        fixedComponentsEditor.showAdd();
-    },
-
-    editComponent(compId) {
-        this.hide();
-        fixedComponentsEditor.showEdit(compId);
     },
 
     updateSyncStatus() {
@@ -2440,6 +2008,4 @@ window.profitEngine = profitEngine;
 window.recordSale = recordSale;
 window.costConfig = costConfig;
 window.costEditor = costEditor;
-window.fixedComponentsConfig = fixedComponentsConfig;
-window.fixedComponentsEditor = fixedComponentsEditor;
 window.profitConfig = profitConfig;
