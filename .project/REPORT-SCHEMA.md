@@ -124,69 +124,8 @@ A report is DEVIATED when:
 
 ---
 
-## Exemplar — T-A05 actual report, schemafied
+## Worked example
 
-    task_id: T-A05
-    tier: 1
-    status: done
-
-    commits:
-      - sha: 665be4e
-        purpose: implementation
-        paths:
-          - apps/api/sql/08_process_bom_sale.sql
-        message: "feat(backend): add process_bom_sale atomic sale function"
-      - sha: 147f512
-        purpose: test
-        paths:
-          - apps/api/tests/t_A05_process_bom_sale.sql
-        message: "test(backend): 6 cases for process_bom_sale"
-      - sha: 3b65501
-        purpose: chore
-        paths:
-          - apps/api/sql/07_deduct_fifo_for_group.sql
-        message: "chore(backend): commit T-A04 function that was uncommitted"
-      - sha: df737aa
-        purpose: doc
-        paths:
-          - CLAUDE.md
-        message: "chore(repo): enforce test-commit discipline and document DB access"
-
-    tests:
-      file: apps/api/tests/t_A05_process_bom_sale.sql
-      runner: "docker compose exec -T postgres psql -U interwall -d interwall -f /app/tests/t_A05_process_bom_sale.sql"
-      cases_total: 6
-      cases_passed: 6
-      cases_failed: 0
-      final_line: "T-A05 ALL TESTS PASSED"
-
-    decisions_cited: [D-018, D-019, D-022, D-025, D-026, D-027, D-087]
-    decisions_added: []
-    decisions_challenged: []
-
-    scope_boundary_checks:
-      touched_legacy: false
-      touched_adjacent_tasks: false
-      introduced_runtime_deps: false
-      introduced_test_deps: false
-      files_outside_scope: []
-
-    cold_rebuild_survival:
-      verified: null                       # T-A05 added no deps, no new loaded files
-      command: null
-      result: null
-
-    adversarial_review:
-      - "Concurrent sales on the same item_group — deduct_fifo_for_group uses SELECT FOR UPDATE so strict serialization holds (D-021)."
-      - "Floating-point drift in cogs computation — used NUMERIC throughout, no cast to DOUBLE PRECISION."
-      - "Partially-successful multi-line sale — covered by Case 2; rollback verified."
-      addressed:
-        - none — all three were already handled by design
-
-    protocol_deviations: []
-
-    notes_to_human:
-      - "T-A04 function was uncommitted until this session; committed as 3b65501."
-      - "T-A04 test file remains at apps/api/sql/07_test_deduct_fifo.sql — pre-discipline location. Relocation tracked as cleanup before T-A06."
-
-    next_ready: true
+A full T-A05 report schemafied per the above lives in
+`.project/PRIMER-EXEMPLARS.md` alongside the matching primer. Load
+on demand when verifying a report or drafting a primer.
