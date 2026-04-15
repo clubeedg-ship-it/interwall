@@ -124,17 +124,33 @@ movement, COGS, and ledger writes.
 
 ## Plan / execute workflow
 
-Work is tracked across `.project/` files — all auto-imported below.
-Rules in PROCESS.md. Primer shape in PRIMER-TEMPLATE.md. Done-report
-shape in REPORT-SCHEMA.md. Worked examples (primer + report) live
-on-demand in `.project/PRIMER-EXEMPLARS.md`. External design refs
-(ERPNext / Tryton / Bol.com / GS1) in `.project/REFERENCES.md`.
+You are coach + executor in one. Develop in sandbox; push directly to
+v2. Heavy grep / multi-file reads / docker-exec test runs are
+delegated to a Sonnet on the server terminal via the file-based
+dispatch in `.project/HANDOFFS.md`. Read that file before dispatching
+the first task of a session.
+
+Project context files live in `.project/` and are NOT auto-imported.
+Load on demand, in this order, only when the task needs them:
+
+- `.project/TODO.md` — next actions; load first each session
+- `.project/DECISIONS.md` — D-### log; load when a task cites D-###s
+  or when appending a new one
+- `.project/PROCESS.md` — gating tiers, review checklist, DB access
+  commands
+- `.project/PRIMER-TEMPLATE.md` — primer shape (when drafting a
+  server prompt)
+- `.project/REPORT-SCHEMA.md` — YAML report shape (when verifying)
+- `.project/PLAN.md` — mission + scope (rarely needed mid-task)
+- `.project/REFERENCES.md` — ERPNext / Tryton / Bol.com / GS1 refs
+- `.project/PRIMER-EXEMPLARS.md` — worked T-A05 example
+- `.project/BOL-CONTRACT.md` — Bol.com API catalogue
+- `.project/TODO-ARCHIVE.md` — historical DONE entries
+- `.project/RETROSPECTIVES.md` — end-of-stream patches
 
 Before non-trivial work (>1 file or >30 lines), confirm the target
-is in TODO.md. If not, add it and tell the user. Every architectural
-choice appends a new `D-NNN` to DECISIONS.md with one-line rationale
-— append-only; reversals create new entries that cite the superseded
-ID.
+is in TODO.md. Every architectural choice appends a new `D-NNN` to
+DECISIONS.md — append-only; reversals cite the superseded ID.
 
 ## Commit & branch discipline
 
@@ -164,9 +180,6 @@ edit it. Silent drift is worse than staleness.
 
 ## Imports
 
-@.project/PLAN.md
-@.project/DECISIONS.md
-@.project/TODO.md
-@.project/PROCESS.md
-@.project/PRIMER-TEMPLATE.md
-@.project/REPORT-SCHEMA.md
+No auto-imports. Load `.project/*.md` on demand per the list above.
+Keeps the KV-cached prefix small; per-task context lives in the
+first message of each turn.
