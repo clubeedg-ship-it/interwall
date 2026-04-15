@@ -33,8 +33,7 @@
 
 ## Now (next up)
 
-T-A01 DONE. T-A02 DONE.
-Next: T-A03 backfill (Tier 1 manual gate + test discipline).
+T-A03 DONE. Next: T-A04 deduct_fifo_for_group — fresh session.
 
 ---
 
@@ -92,7 +91,7 @@ Next: T-A03 backfill (Tier 1 manual gate + test discipline).
 - Migration script: keep reversible for one release window
 - deps: `T-A00` (audit first), `T-A01` (same migration file)
 
-### `T-A03` — Backfill from legacy `ean_compositions` + trivial builds for all sellable products (TODO)
+### `T-A03` — Backfill from legacy `ean_compositions` + trivial builds for all sellable products → DONE 2026-04-15
 - One-shot idempotent script: `apps/api/sql/05_item_groups_backfill.sql`
 - Each `component_ean` → singleton `item_group` + `item_group_member`
 - Each `parent_ean` → `build` + `build_components` rows
@@ -325,6 +324,15 @@ Next: T-A03 backfill (Tier 1 manual gate + test discipline).
 
 ### `P-09` — Full-stack-orchestration plugin evaluation
 - See `T-X05`. Decision not yet logged
+
+### `P-10` — Trivial-to-composite build conversion UX
+- When operator wants to turn a direct-sale product into a multi-component build: create a new BLD-NNN build, don't mutate the trivial auto-generated one
+- Pattern A: new build replaces the trivial; trivial is deactivated (not deleted, per D-010)
+- Address in Stream C (Builds page, T-C08)
+
+### `P-11` — Builds page search by composition fingerprint
+- Users should filter builds by item_groups they contain, to attach new marketplace codes to existing builds quickly
+- Address in Stream C
 
 ---
 
