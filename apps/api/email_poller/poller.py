@@ -8,23 +8,51 @@ parses them, logs them to the emails table, and triggers sale processing.
 APScheduler config (max_instances=1, coalesce=True) is set in main.py, not here.
 """
 
+import json
 import os
 import logging
 from email_poller.parsers import MediaMarktSaturnParser, BolComParser, BoulangerParser
 from db import get_conn
-from email_poller.email_log import is_already_processed, log_email, update_email_status
-from email_poller.sale_writer import write_sale
+from email_poller.email_log import is_already_processed
+from ingestion_worker import process_ingestion_event
 from email_poller.imap_client import IMAPClient
 
 logger = logging.getLogger("email_poller")
 
-PARSERS = [MediaMarktSaturnParser(), BolComParser(), BoulangerParser()]
+ENABLE_BOL_EMAIL_FALLBACK = "ENABLE_BOL_EMAIL_FALLBACK"
+
+PARSERS = [
+    ("mediamarktsaturn", MediaMarktSaturnParser()),
+    ("bolcom", BolComParser()),
+    ("boulanger", BoulangerParser()),
+]
 
 MARKETPLACE_SENDERS = {
     "mediamarktsaturn": "noreply@mmsmarketplace.mediamarktsaturn.com",
     "bolcom": "automail@bol.com",
     "boulanger": "marketplace.boulanger@boulanger.com",
 }
+
+
+def _bol_email_fallback_enabled() -> bool:
+    value = os.environ.get(ENABLE_BOL_EMAIL_FALLBACK, "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _active_marketplaces() -> list[str]:
+    marketplaces = ["mediamarktsaturn", "boulanger"]
+    if _bol_email_fallback_enabled():
+        marketplaces.insert(1, "bolcom")
+    return marketplaces
+
+
+def _active_marketplace_senders() -> dict[str, str]:
+    return {name: MARKETPLACE_SENDERS[name] for name in _active_marketplaces()}
+
+
+def _active_parsers():
+    active = set(_active_marketplaces())
+    return [parser for name, parser in PARSERS if name in active]
 
 
 def poll_once(fetch_all=False):
@@ -54,7 +82,7 @@ def poll_once(fetch_all=False):
     try:
         with IMAPClient() as client:
             client.select_inbox()
-            for name, sender in MARKETPLACE_SENDERS.items():
+            for name, sender in _active_marketplace_senders().items():
                 try:
                     email_ids = client.search_from_sender(sender, unseen_only=unseen_only)
                     logger.info(f"{name}: {len(email_ids)} emails to process")
@@ -73,16 +101,15 @@ def poll_once(fetch_all=False):
 
 
 def retry_pending():
-    """Retry all emails with status='pending' or 'failed' that have parsed_data.
-    Re-extracts the original marketplace SKU from raw_body for alias lookup."""
-    import re
+    """Retry all pending/failed email ingestion rows through the shared worker."""
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, parsed_data, marketplace, raw_body
+                    """SELECT id
                        FROM ingestion_events
                        WHERE status IN ('pending', 'failed')
+                         AND source = 'email'
                          AND parsed_data IS NOT NULL
                          AND (parsed_data->>'order_number') IS NOT NULL"""
                 )
@@ -93,51 +120,44 @@ def retry_pending():
 
         logger.info(f"Retrying {len(rows)} pending/failed emails")
         for row in rows:
-            email_id = str(row['id'])
-            pd = row['parsed_data']
-            raw = row.get('raw_body', '') or ''
-
-            # Extract the ORIGINAL marketplace SKU from raw body
-            # MediaMarkt: "Interne referentie: DB-R5061" or "Interne referentie</b>: OMX-..."
-            orig_sku = None
-            m = re.search(r'Interne referentie[^:]*:\s*([A-Za-z0-9_. /-]+)', raw)
-            if m:
-                orig_sku = m.group(1).strip()
-
-            # Bol.com: product name in subject, no separate SKU field
-            # Boulanger: "Référence interne: SKU"
-            if not orig_sku:
-                m = re.search(r'[Rr]éférence interne[^:]*:\s*([A-Za-z0-9_. /-]+)', raw)
-                if m:
-                    orig_sku = m.group(1).strip()
-
-            # Fall back to generated SKU from parsed_data
-            generated_sku = pd.get('sku', '')
-            sku_to_try = orig_sku or generated_sku
-            if not sku_to_try:
-                continue
-
-            marketplace = row['marketplace'] or ''
-
-            class RetryOrder:
-                pass
-            order = RetryOrder()
-            order.sku = orig_sku or ''
-            order.generated_sku = generated_sku
-            order.marketplace = marketplace
-            order.order_number = pd.get('order_number', '')
-            order.price = float(pd.get('price', 0))
-            order.quantity = int(pd.get('quantity', 1))
-            order.raw_email_body = raw
-
-            try:
-                txn_id = write_sale(order, email_id)
-                update_email_status(email_id, "processed")
-                logger.info(f"Retry success: order={order.order_number} sku={orig_sku} txn={txn_id}")
-            except Exception as e:
-                logger.debug(f"Retry still failing for {order.order_number} (sku={orig_sku}): {e}")
+            process_ingestion_event(str(row["id"]))
     except Exception as e:
         logger.error(f"Retry cycle error: {e}", exc_info=True)
+
+
+def _insert_email_event(
+    message_id: str,
+    email_data: dict,
+    marketplace: str,
+    parsed_data: dict,
+    status: str,
+    error_message: str | None = None,
+) -> str:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO ingestion_events (
+                       message_id, sender, subject, marketplace, parsed_type,
+                       raw_body, parsed_data, confidence, status, source,
+                       processed_at, error_message
+                   ) VALUES (
+                       %s, %s, %s, %s, 'sale', %s, %s, %s, %s, 'email',
+                       CASE WHEN %s = 'processed' THEN NOW() ELSE NULL END, %s
+                   ) RETURNING id""",
+                (
+                    message_id,
+                    email_data.get("from", ""),
+                    email_data.get("subject", ""),
+                    marketplace,
+                    email_data.get("body", ""),
+                    json.dumps(parsed_data),
+                    0.9 if parsed_data else 0.0,
+                    status,
+                    status,
+                    error_message,
+                ),
+            )
+            return str(cur.fetchone()["id"])
 
 
 def _process_one(email_data: dict):
@@ -146,30 +166,36 @@ def _process_one(email_data: dict):
     if not message_id or is_already_processed(message_id):
         return
 
-    parser = next((p for p in PARSERS if p.can_parse(email_data)), None)
+    parser = next((p for p in _active_parsers() if p.can_parse(email_data)), None)
     if not parser:
         return
 
     order = parser.parse(email_data)
     if not order or not order.is_valid():
-        log_email(
-            message_id, email_data.get("from", ""),
-            email_data.get("subject", ""), "unknown", "sale",
-            email_data.get("body", ""), {}, 0.0, "failed"
+        _insert_email_event(
+            message_id,
+            email_data,
+            "unknown",
+            {},
+            "failed",
+            error_message="Email parser returned no valid order",
         )
         return
 
-    email_id = log_email(
-        message_id, email_data.get("from", ""), email_data.get("subject", ""),
-        order.marketplace, "sale", order.raw_email_body,
+    email_id = _insert_email_event(
+        message_id,
+        {
+            **email_data,
+            "body": order.raw_email_body,
+        },
+        order.marketplace,
         {"order_number": order.order_number, "sku": order.get_sku(),
          "price": order.price, "quantity": order.quantity},
-        0.9, "processed"
+        "pending",
     )
 
-    try:
-        txn_id = write_sale(order, email_id)
-        logger.info(f"Sale processed: order={order.order_number} txn={txn_id}")
-    except Exception as e:
-        logger.error(f"Sale processing failed for {order.order_number}: {e}")
-        update_email_status(email_id, "failed")
+    result = process_ingestion_event(email_id)
+    if result == "processed":
+        logger.info(f"Sale processed: order={order.order_number} event={email_id}")
+    else:
+        logger.error("Sale processing failed for %s: status=%s", order.order_number, result)

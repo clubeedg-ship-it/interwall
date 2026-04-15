@@ -1,0 +1,1128 @@
+diff --git a/.project/HANDOFFS.md b/.project/HANDOFFS.md
+index 22e6ac2..42bc569 100644
+--- a/.project/HANDOFFS.md
++++ b/.project/HANDOFFS.md
+@@ -1,9 +1,9 @@
+ # Interwall — Handoff Protocol
+ 
+-Read this only when dispatching work to server Sonnet or resuming from a
++Read this only when dispatching bounded operator work or resuming from a
+ returned report.
+ 
+-This file is intentionally narrower than `ORCHESTRATOR.md`.
++This file is intentionally narrower than `.project/COACH-HANDOFF.md`.
+ 
+ ---
+ 
+@@ -11,7 +11,7 @@ This file is intentionally narrower than `ORCHESTRATOR.md`.
+ 
+ Handoffs exist for one thing:
+ 
+-- move a bounded execution task from the main agent to the server agent
++- move a bounded execution task from the coach to the operator
+   with minimal context loss
+ 
+ Handoffs are not the place to restate the whole rebuild.
+@@ -23,7 +23,7 @@ Handoffs are not the place to restate the whole rebuild.
+ Create a primer only when all three are true:
+ 
+ 1. the task is already designed well enough to execute
+-2. the task benefits from server-side work or a cheaper model
++2. the task benefits from delegation
+ 3. the task has a clear finish line you can verify from a returned report
+ 
+ If design is still moving, do not hand off yet.
+@@ -38,12 +38,14 @@ Each primer should fit this structure:
+ 
+ Always include:
+ 
+-    # T-XXX primer
+-    # Run on server with:
+-    #   claude --dangerously-skip-permissions --model claude-sonnet-4-6 \
+-    #     < .project/handoffs/T-XXX-primer.md
+-    # Report to: .project/handoffs/T-XXX-report.yaml
+-    # When done: git add -A && git commit -m "chore(handoff): T-XXX report" && git push origin HEAD:v2
++    You are the operator for Interwall in `/Users/ottogen/interwall` on branch `v2`.
++    Task group:
++    - T-XXX
++    ...
++    Report:
++    - Return only YAML per `.project/REPORT-SCHEMA.md`
++    Stop rule:
++    - After report, stop
+ 
+ ### Body
+ 
+@@ -66,7 +68,7 @@ or router registration.
+ 
+ ## 4. What to include
+ 
+-Include only the facts the server agent actually needs:
++Include only the facts the operator actually needs:
+ 
+ - exact file paths
+ - function names and signatures
+@@ -118,9 +120,8 @@ This matters more than background prose.
+ 
+ ## 7. Report contract
+ 
+-Every dispatched task returns:
+-
+-- `.project/handoffs/T-XXX-report.yaml`
++Every dispatched task returns YAML in chat following
++`.project/REPORT-SCHEMA.md`.
+ 
+ The report must be structured enough to verify:
+ 
+@@ -157,7 +158,7 @@ Examples of bad batching:
+ 
+ ## 9. Recovery
+ 
+-### Server agent ran out of context, diff still exists
++### Operator session ran out of context, diff still exists
+ 
+ Write a finisher primer:
+ 
+@@ -185,14 +186,21 @@ Instead:
+ 
+ ---
+ 
+-## 10. Practical guidance for this repo
++## 10. Branch discipline
++
++- All active Interwall work happens in:
++  - `/Users/ottogen/interwall`
++- All active Interwall work happens on:
++  - `v2`
++- Do not create, use, or recommend `.claude/worktrees/`
++- Do not split operator work onto side branches
+ 
+-For Interwall right now:
++## 11. Practical guidance for this repo
+ 
+ - Stream B backend execution is a good handoff candidate.
+ - Stream C design prep is mostly a main-agent job.
+ - Large UI rebuilds should not be delegated until the main agent has
+-  narrowed the design enough that the server agent is implementing,
++  narrowed the design enough that the operator is implementing,
+   not inventing.
+ 
+ That is the line between useful delegation and expensive confusion.
+diff --git a/.project/MAIN-AGENT-PRIMER-SOURCE.md b/.project/MAIN-AGENT-PRIMER-SOURCE.md
+index bf7b427..4cd8745 100644
+--- a/.project/MAIN-AGENT-PRIMER-SOURCE.md
++++ b/.project/MAIN-AGENT-PRIMER-SOURCE.md
+@@ -1,79 +1,6 @@
+-# Interwall — Agent Context
++# Deprecated
+ 
+-Single-tenant PC-assembly operations backbone. Solo engineer. Core
+-value: marketplace sale → FIFO-across-item-group deduction → real
+-profit in DB with audit trail.
++Coach session state, carryover findings, and workflow guardrails now
++live in `.project/COACH-HANDOFF.md`.
+ 
+-## Stack & paths
+-
+-- `apps/api/` — FastAPI + psycopg2 + APScheduler (single process)
+-- `apps/api/sql/init.sql` — Postgres schema + PL/pgSQL
+-- `apps/api/email_poller/` — IMAP poller
+-- `inventory-interwall/frontend/` — vanilla JS SPA
+-- `nginx/`, `docker-compose.yml` — 3 containers: postgres, api, nginx
+-- Not used without asking: `apps/web/`, `supabase/`
+-
+-## Dev
+-
+-- `docker compose up -d` — start
+-- Host port **1441** (system nginx fronts `interwall.abbamarkt.nl`);
+-  use `http://localhost:1441/...` — `localhost` alone hits system nginx
+-- DB: `docker compose exec -T postgres psql -U interwall -d interwall`
+-
+-## Vocabulary (locked — do not invent synonyms)
+-
+-| Code | UI label | Meaning |
+-|---|---|---|
+-| `products` | Parts | Catalog with EANs |
+-| `stock_lots` | Batches | Physical received lots |
+-| `item_groups` | Models | Substitute pool ("any RTX 3050") |
+-| `builds` + `build_components` | Builds | Recipes, keyed by `build_code` |
+-| `external_item_xref` | SKU mapping | Marketplace SKU → `build_code` |
+-| `stock_ledger_entries` | Batch history | Per-movement audit |
+-| `shelves` / `zones` / `warehouses` | Wall | `Zone-Column-Level-Bin` |
+-
+-## Critical invariants (break these → data corruption)
+-
+-- NEVER modify `transactions.cogs` / `transactions.profit` after initial write (D-025)
+-- Every sale has ≥1 `stock_ledger_entries` row (D-017)
+-- FIFO pools across item_group, not EAN (D-020)
+-- `SELECT FOR UPDATE`, never `SKIP LOCKED` (D-021)
+-- `process_bom_sale` is single-transaction atomic (D-022)
+-- DB is single source of truth; frontend renders, never recomputes (D-040, D-041)
+-- Additive migrations; `ean_compositions` + `process_sale()` stay (D-010, D-024)
+-- `sanitize()` on every `innerHTML` with user data (D-046)
+-- No hardcoded business values — DB or named config table (D-045)
+-- Forward-compat columns ship unwired (D-015)
+-
+-## Operating model
+-
+-You are coach + executor. Develop in sandbox; push directly to `v2`.
+-Delegate heavy work (multi-file implementation, test suites, docker
+-exec chains, deep research) to Sonnet 4.6 on the server via files in
+-`.project/handoffs/` — protocol in `.project/HANDOFFS.md`, read once
+-per session when dispatching.
+-
+-Per-task context lives in the first user message of the session or
+-in the dispatched primer file. Do NOT dump `.project/*.md` into
+-context proactively — load on demand, one file at a time, only when
+-the task needs it.
+-
+-## Context files (load on demand, never auto-import)
+-
+-`.project/TODO.md` (next actions) · `DECISIONS.md` (D-### log,
+-append-only) · `PROCESS.md` (gating tiers) · `PRIMER-TEMPLATE.md` ·
+-`REPORT-SCHEMA.md` · `PLAN.md` · `REFERENCES.md` (ERPNext / Tryton /
+-Bol / GS1) · `PRIMER-EXEMPLARS.md` · `BOL-CONTRACT.md` ·
+-`TODO-ARCHIVE.md` · `RETROSPECTIVES.md` · `HANDOFFS.md`
+-
+-## Commit & safety
+-
+-- Imperative commit messages, stream prefix (`feat(backend):`,
+-  `chore(process):`). One logical change per commit.
+-- Never push to `main` without explicit ask. Never `--force`. Never
+-  `--no-verify`. Never open a PR unless asked.
+-- Destructive ops (`rm -rf`, `DROP`, `reset --hard`) — confirm first
+-  unless pre-authorised this session.
+-- Append-only DECISIONS.md; reversals cite superseded ID.
+-- Read-once per file per session; extract needed facts into scratch
+-  at top of working file.
++Keep this file only as a redirect for stale references.
+diff --git a/.project/ORCHESTRATOR.md b/.project/ORCHESTRATOR.md
+index a328e14..a1c4c16 100644
+--- a/.project/ORCHESTRATOR.md
++++ b/.project/ORCHESTRATOR.md
+@@ -1,228 +1,10 @@
+-# Interwall — Orchestrator Workflow
++# Deprecated
+ 
+-Read this once at session start. This is the working loop for the main
+-agent on `v2`.
++Workflow authority moved to `.project/COACH-HANDOFF.md`.
+ 
+-Related files:
+-- `CLAUDE.md` — minimal always-loaded invariants
+-- `.project/TODO.md` — execution order and current focus
+-- `.project/DECISIONS.md` — locked design calls and software choice
+-- `.project/HANDOFFS.md` — only read when dispatching to server Sonnet
+-- `.project/PROCESS.md` — durable gates and review standards
++Keep this file only as a redirect for stale references.
+ 
+-Do not preload the whole `.project/` tree. Load only the file needed for
+-the task in front of you.
+-
+----
+-
+-## 1. Current project reality
+-
+-Interwall is no longer in exploration mode.
+-
+-- Stream A backend foundation is substantially defined / landed.
+-- Stream B ingestion is the active backend track.
+-- Stream C UI rebuild is the next large track.
+-- The highest-value context is design and software cherry-picking in
+-  `DECISIONS.md`, then the next executable work in `TODO.md`.
+-
+-The old coach/operator ritual created more context traffic than useful
+-work. The default model is now:
+-
+-- one senior main agent
+-- one active branch: `v2`
+-- one active worktree:
+-  `/Users/ottogen/interwall/.claude/worktrees/gracious-dewdney`
+-- optional delegation to server Sonnet only when the task is genuinely
+-  expensive or long-running
+-
+----
+-
+-## 2. Session start
+-
+-    cd /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney
+-    git status -sb
+-    sed -n '1,80p' .project/TODO.md
+-
+-Then decide what kind of session this is:
+-
+-- design / planning
+-- direct implementation
+-- delegated implementation
+-- verification / cleanup
+-
+-Do NOT read `PLAN.md`, `DECISIONS.md`, `PROCESS.md`, and templates by
+-default. Pull only the one you need.
+-
+----
+-
+-## 3. Default operating loop
+-
+-1. Read `TODO.md` "Now" and the target task entry.
+-2. Load only the design entries that constrain that task from
+-   `DECISIONS.md`.
+-3. Inspect code with CLI.
+-4. Decide: do it here, or dispatch.
+-5. If doing it here: implement, test, commit.
+-6. If dispatching: write a small primer per `HANDOFFS.md`, then verify
+-   the return.
+-
+-The main agent is both coach and executor. Delegation is a tool, not the
+-default posture.
+-
+----
+-
+-## 4. When to work directly
+-
+-Work directly in the main session when the task is any of:
+-
+-- design shaping or software/tool choice
+-- doc cleanup, handoff cleanup, TODO/DECISIONS maintenance
+-- one-file or obvious multi-file changes
+-- work where the code inspection is cheap and the test loop is local
+-- anything where the main difficulty is judgment, not typing
+-
+-This includes most planning around Stream B and nearly all sequencing /
+-design prep for Stream C.
+-
+----
+-
+-## 5. When to dispatch
+-
+-Dispatch to server Sonnet only when at least one is true:
+-
+-- the task needs long docker / DB / rebuild execution on the real server
+-- the task is mostly bounded implementation with clear acceptance checks
+-- the task spans enough files that local context would get polluted
+-- the task is batchable execution work after design is already settled
+-
+-Do NOT dispatch:
+-
+-- tiny fixes
+-- design discussions
+-- DECISIONS / TODO edits
+-- primer-writing itself
+-- any task whose main risk is choosing the right design
+-
+-If the task still contains design uncertainty, the main agent resolves
+-that first. Sonnet should execute settled work, not discover the plan.
+-
+----
+-
+-## 6. Model strategy
+-
+-Use models by role, not by habit.
+-
+-### Main agent
+-
+-Use the strongest model available for:
+-
+-- design decisions
+-- architecture and software cherry-picking
+-- sequencing work across streams
+-- reviewing returned work
+-- writing the first serious handoff for a task cluster
+-
+-This is the scarce-but-high-leverage spend.
+-
+-### Server Sonnet
+-
+-Use a faster / cheaper execution model for:
+-
+-- implementing already-specified backend tasks
+-- running server-native tests and rebuild checks
+-- writing bounded multi-file diffs
+-- returning structured verification
+-
+-This is the cheap typing / testing / iteration engine.
+-
+-### Practical rule
+-
+-Do not run "two seniors" by default.
+-
+-If the coach already knows what to do, adding a second senior operator
+-usually duplicates reasoning cost. The sweet spot for this repo is:
+-
+-- one senior coach/main agent
+-- zero or one fast execution agent
+-
+-Only use a second senior pass for milestone review, risky migrations, or
+-when a returned implementation conflicts with the intended design.
+-
+----
+-
+-## 7. Handoff standard
+-
+-Primers must be short and factual.
+-
+-A good primer contains:
+-
+-- task sentence
+-- scope fence
+-- exact facts to extract
+-- only the relevant D-### summaries
+-- acceptance checks
+-- exact report path
+-
+-A bad primer contains:
+-
+-- full project history
+-- whole-doc dumps
+-- 10-file read-once manifests
+-- design debate that the main agent should have settled first
+-
+-If a primer exceeds what a competent engineer would need to start the
+-task, it is too big.
+-
+----
+-
+-## 8. Branch and worktree discipline
+-
+-- `v2` is the only active write branch for rebuild work.
+-- `gracious-dewdney` is the active worktree.
+-- repo root `main` is reference only unless explicitly needed.
+-- stale Claude worktrees are historical context, not active workflow.
+-
+-Before any git operation that matters, confirm you are in:
+-
+-    /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney
+-
+----
+-
+-## 9. Context discipline
+-
+-The failure mode to avoid is context rot caused by restating the system.
+-
+-Rules:
+-
+-- keep `CLAUDE.md` minimal
+-- do not dump `.project/*.md` into first messages
+-- let `TODO.md` point to the next task
+-- let `DECISIONS.md` carry durable design choices
+-- let primers carry only task-local execution context
+-- create handoffs only at real boundaries: session pause, dispatch, or
+-  blocked state
+-
+-If a handoff is trying to reconstruct the entire project, the workflow
+-has already failed upstream.
+-
+----
+-
+-## 10. Recommended workflow from here
+-
+-For the next phase of this repo:
+-
+-1. Main agent drives Stream B design and task batching.
+-2. Server Sonnet executes only the bounded Stream B implementation tasks.
+-3. Main agent prepares Stream C by tightening design choices and
+-   reducing ambiguity before any large UI execution run.
+-4. Use handoffs sparingly and make them task-cluster oriented, not
+-   atomic-task oriented.
+-
+-Current bias:
+-
+-- design here
+-- execute there
+-- verify here
+-
+-That is enough structure for this rebuild without recreating GSD in
+-markdown.
++Current rule:
++- one checkout: `/Users/ottogen/interwall`
++- one branch: `v2`
++- no `.claude/worktrees/`
+diff --git a/.project/TODO.md b/.project/TODO.md
+index 301337e..25fb2ff 100644
+--- a/.project/TODO.md
++++ b/.project/TODO.md
+@@ -42,14 +42,35 @@ Completed tasks and closed questions live in `TODO-ARCHIVE.md`
+ 
+ Stream A: COMPLETE 2026-04-15 (f095131). Retrospective landed (b0c8e07).
+ 
+-Stream B: T-B00 + T-B01 DONE. BOL-CONTRACT.md lives on server
+-(pending commit — agent reported SHA as "pending"; needs manual
+-commit + push before any future Bol.com work that cites it as
+-authority).
++Stream B: T-B00 + T-B01 DONE.
+ 
+-Next: **T-B02 + T-B05 batched** (Tier 2, Sonnet). Unified ingestion
+-pipeline worker + dead-letter handling. Shared module, scopes don't
+-overlap. Primer not yet drafted.
++Stream B: T-B02 + T-B05 DONE 2026-04-15 (`d48ccce`).
++
++Stream B: `T-B03` local reliability artifact preserved at
++`.project/B03-RELIABILITY.md`, but not yet landed on `v2`.
++
++Stream B: `T-B04` DONE 2026-04-15 in the current `v2` checkout
++(replayed locally, verified with `t_B04_email_poller_fallback.py`;
++commit still pending).
++
++Stream C: `T-C00` local audit artifact preserved at
++`.project/C00-UI-STATE-AUDIT.md`, but not yet landed on `v2`.
++
++Stream C: `T-C01` was accepted locally before sync, but its code is not
++present on the synced branch. Replay required before it can be marked
++DONE.
++
++Stream C: `T-C02` is already sliced on `v2`:
++- `T-C02a` DONE 2026-04-15 (`3ce3be2`)
++- `T-C02b` DONE 2026-04-15 (`cf66019`)
++- `T-C02d` DONE 2026-04-15 (`0e6442d`)
++- `T-C02e` DONE 2026-04-15 (`fc81d28`)
++
++Next: **Replay remaining unlanded accepted work**. Finish `T-C01`, then
++re-evaluate whether `T-B03` and `T-C00` should be landed as-is or
++refreshed against current `v2`. After the replay/landing pass, shift to
++Playwright-backed E2E/browser truthing for cross-page numeric
++coherence before any deployment-readiness signoff.
+ 
+ ---
+ 
+@@ -92,34 +113,38 @@ overlap. Primer not yet drafted.
+ 
+ ---
+ 
+-## Stream B — Marketplace ingestion (active)
++## Stream B — Marketplace ingestion
+ 
+-### `T-B02` — Unified ingestion pipeline (TODO)
++### `T-B02` — Unified ingestion pipeline (DONE 2026-04-15, d48ccce)
+ - Single worker consumes rows from `ingestion_events` regardless of
+   source (email / bolcom_api / future webhook) per D-032.
+ - Status states: `pending` / `processed` / `failed` / `dead_letter`
+   per D-034.
+ - deps: `T-B01`
+ 
+-### `T-B03` — Parallel-run Bol.com email vs API polling (TODO)
++### `T-B03` — Parallel-run Bol.com email vs API polling (TODO, local artifact preserved)
+ - Run both for one week (or a volume-based threshold of ~50 orders,
+   whichever first — calendar duration is not the gate per
+   development-milestone principle).
+ - Log discrepancies: orders seen by one path and not the other,
+   timing differences, field mismatches.
+ - Output: reliability report as `.project/B03-RELIABILITY.md`.
++- Local development report exists, but it has not been landed on `v2`
++  after the branch sync.
+ - deps: `T-B02`
+ 
+-### `T-B04` — Retire Bol.com email path (TODO)
++### `T-B04` — Retire Bol.com email path (DONE 2026-04-15, local checkout verified)
+ - After T-B03 shows API polling is reliable (zero missed orders over
+   the comparison window).
+ - Email poller stops matching Bol.com senders; IMAP remains for
+   MediaMarktSaturn and Boulanger (D-031).
+ - Keep the code path for emergency fallback behind a feature flag
+   (disabled by default).
++- Replayed into the current `v2` checkout and verified with
++  `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -v --tb=short`.
+ - deps: `T-B03`
+ 
+-### `T-B05` — Dead-letter handling (TODO)
++### `T-B05` — Dead-letter handling (DONE 2026-04-15, d48ccce)
+ - Events that fail repeatedly move to `dead_letter` state (D-034).
+ - Health page surfaces count + reasons via the existing v_health_*
+   views (extend if needed).
+@@ -136,17 +161,19 @@ overlap. Primer not yet drafted.
+ 
+ ## Stream C — UI rebuild
+ 
+-### `T-C00` — UI state audit (TODO)
++### `T-C00` — UI state audit (TODO, local artifact preserved)
+ - Inventory every `localStorage` read/write in `inventory-interwall/frontend/`
+ - Inventory every client-side recomputation of a business number
+   (margin, stock, profit)
+ - Inventory every `innerHTML` assignment with dynamic data (for
+   sanitize() coverage)
+ - Output: audit doc with bug origin per page
++- Local audit file exists, but it has not been landed on `v2` after the
++  branch sync.
+ - Can run in parallel with Stream A
+ - deps: none
+ 
+-### `T-C01` — Immutable transaction fields + margin-bug fix (TODO)
++### `T-C01` — Immutable transaction fields + margin-bug fix (TODO, replay required)
+ - Backend: confirm `transactions.cogs` / `transactions.profit` are
+   written at sale time and never updated (D-025). Already the case
+   after A-05 lands.
+@@ -154,15 +181,39 @@ overlap. Primer not yet drafted.
+   recorded-sale card, sale-edit view
+ - Test: open sale, edit, save without changes → margin identical to
+   first render
++- Accepted locally before branch sync, but the synced `v2` checkout
++  does not currently contain the implementation. Reapply from the
++  preserved patch before marking done.
+ - deps: `T-A05`, `T-C00`
+ 
+-### `T-C02` — Single-source-of-truth refactor (TODO)
++### `T-C02` — Single-source-of-truth refactor (IN PROGRESS, sliced)
+ - Every stock/count/margin number rendered in the UI comes from a
+   canonical endpoint
+ - Delete business-data use of localStorage; keep only UI prefs (D-040)
+ - Parts page uses `v_part_stock`; Profit/Valuation uses same view (D-041)
+ - deps: `T-A06`, `T-C00`, `T-C01`
+ 
++#### `T-C02a` — Catalog + low-stock canonical stock (DONE 2026-04-15, 3ce3be2)
++- `catalog-core.js` uses `getProductsWithStock`
++- `ui.js` uses the same canonical snapshot for low-stock checks
++- Legacy `getAvailableStock()` and `getStockWithAllocation()` retired
++
++#### `T-C02b` — Wall + bin-info canonical shelf occupancy (DONE 2026-04-15, cf66019)
++- `v_shelf_occupancy` + `GET /api/shelves/occupancy`
++- `wall.js` and `bin-info-modal.js` consume canonical occupancy data
++
++#### `T-C02c` — Handshake FIFO pick/receive (TODO)
++- `handshake.js` still needs to move off browser-authored FIFO / stock authority
++- deps: `T-C02b`
++
++#### `T-C02d` — Shelf capacity from DB (DONE 2026-04-15, 0e6442d)
++- Capacity writes moved to `PATCH /api/shelves/{shelf_id}`
++- `bin-info-modal.js` reads capacity from backend-backed shelf data
++
++#### `T-C02e` — Shelf split_fifo/single_bin localStorage → DB (DONE 2026-04-15, fc81d28)
++- Shelf settings now flow through DB + `PATCH /api/shelves/{shelf_id}`
++- `shelf-config.js` removed from active runtime
++
+ ### `T-C03` — Wall page: reliable rendering, no hardcoded grid (TODO)
+ - Remove all hardcoded shelf dimensions (D-045)
+ - Zone/Column/Level/Bin layout driven entirely by DB rows
+diff --git a/.project/handoffs/T-B02-primer.md b/.project/handoffs/T-B02-primer.md
+index 13d58f0..3be6d51 100644
+--- a/.project/handoffs/T-B02-primer.md
++++ b/.project/handoffs/T-B02-primer.md
+@@ -1,20 +1,20 @@
+-# T-B02 + T-B05 primer (Tier 2, Sonnet 4.6)
++# T-B02 + T-B05 primer (historical example)
+ # Desktop-dispatched 2026-04-15
+-# Run on server with:
+-#   claude --model claude-sonnet-4-6 < .project/handoffs/T-B02-primer.md
+-# Report to: .project/handoffs/T-B02-report.yaml
+-# When done: git add -A && git commit -m "chore(handoff): T-B02 report" && git push origin HEAD:v2
++# Historical note:
++# - do not reuse this header as workflow authority
++# - active workflow now uses exactly one checkout: /Users/ottogen/interwall
++# - active workflow now uses exactly one branch: v2
++# - operators return YAML in chat; they do not create side branches or
++#   separate report files by default
+ 
+ ## Identity
+ 
+-You are the Interwall server-side Sonnet. You write code, run tests in
+-docker compose, and push commits to branch `v2`. You have no prior
+-context beyond this primer plus files you choose to read. You are
+-one of two or three Tier 2 tasks that may batch in this session, but
+-this primer dispatches a single batched pair: T-B02 and T-B05.
++You are the Interwall operator. You write code and run tests in the
++single canonical checkout. You have no prior context beyond this primer
++plus files you choose to read. This primer dispatches a single batched
++pair: T-B02 and T-B05.
+ 
+-Repo root: current working directory. Branch: `v2`. All commits land
+-on `v2`; never push to `main`, never `--force`, never `--no-verify`.
++Repo root: `/Users/ottogen/interwall`. Branch: `v2`.
+ 
+ ## Task
+ 
+@@ -357,7 +357,7 @@ Commit sequence (suggested, one logical change each):
+ 
+ Final command:
+ 
+-    git push origin HEAD:v2
++    # historical only; do not use side-branch or separate-report workflow
+ 
+ ## Stop conditions
+ 
+diff --git a/AGENTS.md b/AGENTS.md
+index ccae560..1c14b7b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,122 +1,118 @@
+-# Interwall — Codex Agent Guide
+-
+-This file is for fresh Codex sessions working in the active rebuild
+-worktree.
+-
+-Active worktree:
+-
+-    /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney
+-
+-Active branch:
+-
+-    v2
+-
+-Do not orchestrate from repo-root `main` unless explicitly asked.
+-
+----
+-
+-## Role
+-
+-You are the main orchestrator for this rebuild.
+-
+-Default posture:
+-
+-- resolve design and sequencing locally
+-- inspect code with CLI first
+-- implement directly when the task is small or judgment-heavy
+-- delegate only bounded execution work to server Sonnet via
+-  `.project/handoffs/`
+-
+-Do not recreate a coach/operator hierarchy inside Codex. One strong main
+-agent is the default.
+-
+----
+-
+-## First files to read
+-
+-At session start, read only:
+-
+-1. `CLAUDE.md`
+-2. `.project/ORCHESTRATOR.md`
+-3. `.project/TODO.md`
+-
+-Then load only the file needed for the task:
+-
+-- `.project/DECISIONS.md` for design locks
+-- `.project/HANDOFFS.md` for server delegation
+-- `.project/PROCESS.md` for gating / verification
++# Interwall — Agent Guide
++
++Active repo:
++`/Users/ottogen/interwall`
++
++Single allowed checkout:
++`/Users/ottogen/interwall`
++
++Single allowed write branch:
++`v2`
++
++## Branch discipline
++
++- All agents working on Interwall use exactly one branch: `v2`
++- All agents work from exactly one checkout: `/Users/ottogen/interwall`
++- Do not create, use, or recommend `.claude/worktrees/`
++- Do not create side branches for task work
++- Do not spread concurrent agent work across multiple checkouts
++- Before starting substantive work, confirm:
++  - `pwd` is `/Users/ottogen/interwall`
++  - `git branch --show-current` is `v2`
++
++## Roles
++
++Two-session model:
++
++- `coach`
++  - owns context, sequencing, and design
++  - loads only task-relevant docs and code
++  - decides direct execution vs delegation
++  - prepares the operator's first message
++  - reviews returned reports
++  - updates planning files and commits meaningful progress
++  - after accepting a task report, updates `.project/TODO.md` status and
++    the "Now (next up)" pointer before closing the task
++
++- `operator`
++  - receives a bounded task group
++  - implements only that task group
++  - runs required tests
++  - returns a structured report
++  - stops after reporting
++
++## Startup
++
++Read only:
++1. `AGENTS.md`
++2. `.project/TODO.md`
++
++Then load only what the task needs:
++- `.project/DECISIONS.md` for relevant design locks
++- `.project/HANDOFFS.md` for delegation rules
++- `.project/REPORT-SCHEMA.md` for return format
++- `.project/COACH-HANDOFF.md` for coach workflow state, session carryover,
++  and close-session notes
+ - `.project/PLAN.md` only for high-level direction
+ 
+ Do not dump the full `.project/` tree into context.
+ 
+----
+-
+-## Current project state
+-
+-- Stream A backend foundation is largely defined / landed
+-- Stream B ingestion is the active execution track
+-- Stream C UI rebuild is the next major track
+-- The most important durable context is in `DECISIONS.md`
+-- The most important execution context is in `TODO.md`
+-
+-Near-term priority:
+-
+-- prepare and/or execute `T-B02` + `T-B05`
+-- keep workflow docs and handoffs lean
+-- reduce context rot before large Stream C work begins
+-
+----
+-
+-## Working rules
+-
+-- Work only inside the active `v2` worktree unless explicitly told otherwise.
+-- Use CLI search (`rg`, `sed`, `wc`, `git log -S`) to recover context.
+-- Treat `DECISIONS.md` as the design lockfile.
+-- Treat `TODO.md` as the next-action queue.
+-- Keep `PLAN.md` high-level; do not reintroduce stale open-question logs there.
+-- Keep primers short and factual.
+-- Never push to `main`.
+-
+----
++## CLI-first discovery
+ 
+-## Delegation rule
++Before broad reading, prefer:
++- `rg`
++- `rg --files`
++- `wc -l`
++- `sed -n`
++- `git log -S`
+ 
+-Delegate to server Sonnet only when the task is already designed and
+-benefits from:
++Use docs selectively after locating the exact files and symbols involved.
+ 
+-- real server execution
+-- long-running test / rebuild loops
+-- bounded multi-file coding with clear acceptance checks
++## Task unit
+ 
+-Do not delegate unresolved design.
++Default execution unit:
++- one `T-XXX`
+ 
+----
++Allowed exception:
++- one tightly coupled task pair like `T-B02 + T-B05`
+ 
+-## When editing workflow docs
++Never use:
++- "continue Stream B"
++- "keep going until blocked"
++- open-ended execution scopes
+ 
+-Keep the stack simple:
++## Documentation usage
+ 
+-- `CLAUDE.md` = minimal invariants
+-- `.project/ORCHESTRATOR.md` = how the main agent works
+-- `.project/HANDOFFS.md` = how server delegation works
+-- `.project/PROCESS.md` = gates and review standards
+-- `.project/TODO.md` = current work
+-- `.project/DECISIONS.md` = design history
++- `TODO.md`: next-action queue
++- `DECISIONS.md`: design lockfile
++- `PLAN.md`: high-level direction only
++- `COACH-HANDOFF.md`: single coach-side workflow/state/hygiene file
++- `HANDOFFS.md`: delegation protocol only
++- `REPORT-SCHEMA.md`: operator return contract
+ 
+-Avoid adding new meta-docs unless one replaces confusion with clarity.
++## Task closure
+ 
+----
++Coach closes a task only after all of the following are true:
++- returned report reviewed and accepted
++- `.project/TODO.md` updated to reflect the accepted task status
++- "Now (next up)" updated if the accepted task changes the queue head
++- any task-required planning/report artifact is written or verified
+ 
+-## Session objective
++## Handoff health
+ 
+-Preserve momentum without rebuilding context every turn.
++A healthy handoff has:
++- one bounded task group
++- explicit scope fence
++- exact files/symbols to inspect
++- exact tests to run
++- explicit stop-after-report rule
++- no duplication of stable `AGENTS.md` content
++- no full project-history dump
+ 
+-The correct shape for this repo is:
++## Stop condition
+ 
+-- design here
+-- execute here when cheap
+-- execute on server when bounded and worth it
+-- verify here
++Coach:
++- stop after context-state summary, execution decision, and operator first message
+ 
+-If a workflow change increases ceremony more than speed or clarity, do
+-not adopt it.
++Operator:
++- stop after implementation, tests, and structured report
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 5b28346..e765489 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -29,5 +29,29 @@ history · shelf address = `Zone-Column-Level-Bin` (e.g. `A-02-3-B`)
+   `http://localhost:1441/...` not bare `localhost`.
+ - DB shell: `docker compose exec -T postgres psql -U interwall -d interwall`
+ 
++## Workflow
++
++- `AGENTS.md` defines the coach/operator workflow and task-unit rules.
++- Use efficient CLI discovery first: `rg`, `rg --files`, `wc -l`,
++  `sed -n`, `git log -S`.
++- Load `.project/` docs on demand only when the task needs them.
++- Use `.project/COACH-HANDOFF.md` as the single coach-side handoff /
++  workflow-state file when saving session findings or resuming coach
++  work.
++- When coach work accepts a task as done, update `.project/TODO.md`
++  immediately before considering the task closed. This includes the
++  task status line and the "Now (next up)" pointer when the queue head
++  changes.
++
++## Branch discipline
++
++- All Interwall work happens on exactly one branch: `v2`
++- All Interwall work happens in exactly one checkout:
++  `/Users/ottogen/interwall`
++- Do not create, use, or recommend `.claude/worktrees/`
++- Do not split agents across multiple local branches or checkouts
++- Before substantive work, confirm `pwd` is `/Users/ottogen/interwall`
++  and `git branch --show-current` is `v2`
++
+ Full context (plan, decisions, process, templates) lives under
+ `.project/` — load on demand only when the task needs it.
+diff --git a/apps/api/email_poller/poller.py b/apps/api/email_poller/poller.py
+index 171a16b..be1a985 100644
+--- a/apps/api/email_poller/poller.py
++++ b/apps/api/email_poller/poller.py
+@@ -8,17 +8,24 @@ parses them, logs them to the emails table, and triggers sale processing.
+ APScheduler config (max_instances=1, coalesce=True) is set in main.py, not here.
+ """
+ 
++import json
+ import os
+ import logging
+ from email_poller.parsers import MediaMarktSaturnParser, BolComParser, BoulangerParser
+ from db import get_conn
+-from email_poller.email_log import is_already_processed, log_email, update_email_status
+-from email_poller.sale_writer import write_sale
++from email_poller.email_log import is_already_processed
++from ingestion_worker import process_ingestion_event
+ from email_poller.imap_client import IMAPClient
+ 
+ logger = logging.getLogger("email_poller")
+ 
+-PARSERS = [MediaMarktSaturnParser(), BolComParser(), BoulangerParser()]
++ENABLE_BOL_EMAIL_FALLBACK = "ENABLE_BOL_EMAIL_FALLBACK"
++
++PARSERS = [
++    ("mediamarktsaturn", MediaMarktSaturnParser()),
++    ("bolcom", BolComParser()),
++    ("boulanger", BoulangerParser()),
++]
+ 
+ MARKETPLACE_SENDERS = {
+     "mediamarktsaturn": "noreply@mmsmarketplace.mediamarktsaturn.com",
+@@ -27,6 +34,27 @@ MARKETPLACE_SENDERS = {
+ }
+ 
+ 
++def _bol_email_fallback_enabled() -> bool:
++    value = os.environ.get(ENABLE_BOL_EMAIL_FALLBACK, "")
++    return value.strip().lower() in {"1", "true", "yes", "on"}
++
++
++def _active_marketplaces() -> list[str]:
++    marketplaces = ["mediamarktsaturn", "boulanger"]
++    if _bol_email_fallback_enabled():
++        marketplaces.insert(1, "bolcom")
++    return marketplaces
++
++
++def _active_marketplace_senders() -> dict[str, str]:
++    return {name: MARKETPLACE_SENDERS[name] for name in _active_marketplaces()}
++
++
++def _active_parsers():
++    active = set(_active_marketplaces())
++    return [parser for name, parser in PARSERS if name in active]
++
++
+ def poll_once(fetch_all=False):
+     """
+     Single poll cycle — fetch emails from all marketplace senders,
+@@ -54,7 +82,7 @@ def poll_once(fetch_all=False):
+     try:
+         with IMAPClient() as client:
+             client.select_inbox()
+-            for name, sender in MARKETPLACE_SENDERS.items():
++            for name, sender in _active_marketplace_senders().items():
+                 try:
+                     email_ids = client.search_from_sender(sender, unseen_only=unseen_only)
+                     logger.info(f"{name}: {len(email_ids)} emails to process")
+@@ -73,16 +101,15 @@ def poll_once(fetch_all=False):
+ 
+ 
+ def retry_pending():
+-    """Retry all emails with status='pending' or 'failed' that have parsed_data.
+-    Re-extracts the original marketplace SKU from raw_body for alias lookup."""
+-    import re
++    """Retry all pending/failed email ingestion rows through the shared worker."""
+     try:
+         with get_conn() as conn:
+             with conn.cursor() as cur:
+                 cur.execute(
+-                    """SELECT id, parsed_data, marketplace, raw_body
++                    """SELECT id
+                        FROM ingestion_events
+                        WHERE status IN ('pending', 'failed')
++                         AND source = 'email'
+                          AND parsed_data IS NOT NULL
+                          AND (parsed_data->>'order_number') IS NOT NULL"""
+                 )
+@@ -93,83 +120,82 @@ def retry_pending():
+ 
+         logger.info(f"Retrying {len(rows)} pending/failed emails")
+         for row in rows:
+-            email_id = str(row['id'])
+-            pd = row['parsed_data']
+-            raw = row.get('raw_body', '') or ''
+-
+-            # Extract the ORIGINAL marketplace SKU from raw body
+-            # MediaMarkt: "Interne referentie: DB-R5061" or "Interne referentie</b>: OMX-..."
+-            orig_sku = None
+-            m = re.search(r'Interne referentie[^:]*:\s*([A-Za-z0-9_. /-]+)', raw)
+-            if m:
+-                orig_sku = m.group(1).strip()
+-
+-            # Bol.com: product name in subject, no separate SKU field
+-            # Boulanger: "Référence interne: SKU"
+-            if not orig_sku:
+-                m = re.search(r'[Rr]éférence interne[^:]*:\s*([A-Za-z0-9_. /-]+)', raw)
+-                if m:
+-                    orig_sku = m.group(1).strip()
+-
+-            # Fall back to generated SKU from parsed_data
+-            generated_sku = pd.get('sku', '')
+-            sku_to_try = orig_sku or generated_sku
+-            if not sku_to_try:
+-                continue
+-
+-            marketplace = row['marketplace'] or ''
+-
+-            class RetryOrder:
+-                pass
+-            order = RetryOrder()
+-            order.sku = orig_sku or ''
+-            order.generated_sku = generated_sku
+-            order.marketplace = marketplace
+-            order.order_number = pd.get('order_number', '')
+-            order.price = float(pd.get('price', 0))
+-            order.quantity = int(pd.get('quantity', 1))
+-            order.raw_email_body = raw
+-
+-            try:
+-                txn_id = write_sale(order, email_id)
+-                update_email_status(email_id, "processed")
+-                logger.info(f"Retry success: order={order.order_number} sku={orig_sku} txn={txn_id}")
+-            except Exception as e:
+-                logger.debug(f"Retry still failing for {order.order_number} (sku={orig_sku}): {e}")
++            process_ingestion_event(str(row["id"]))
+     except Exception as e:
+         logger.error(f"Retry cycle error: {e}", exc_info=True)
+ 
+ 
++def _insert_email_event(
++    message_id: str,
++    email_data: dict,
++    marketplace: str,
++    parsed_data: dict,
++    status: str,
++    error_message: str | None = None,
++) -> str:
++    with get_conn() as conn:
++        with conn.cursor() as cur:
++            cur.execute(
++                """INSERT INTO ingestion_events (
++                       message_id, sender, subject, marketplace, parsed_type,
++                       raw_body, parsed_data, confidence, status, source,
++                       processed_at, error_message
++                   ) VALUES (
++                       %s, %s, %s, %s, 'sale', %s, %s, %s, %s, 'email',
++                       CASE WHEN %s = 'processed' THEN NOW() ELSE NULL END, %s
++                   ) RETURNING id""",
++                (
++                    message_id,
++                    email_data.get("from", ""),
++                    email_data.get("subject", ""),
++                    marketplace,
++                    email_data.get("body", ""),
++                    json.dumps(parsed_data),
++                    0.9 if parsed_data else 0.0,
++                    status,
++                    status,
++                    error_message,
++                ),
++            )
++            return str(cur.fetchone()["id"])
++
++
+ def _process_one(email_data: dict):
+     """Process a single email: dedup, parse, log, and trigger sale processing."""
+     message_id = email_data.get("message_id", "")
+     if not message_id or is_already_processed(message_id):
+         return
+ 
+-    parser = next((p for p in PARSERS if p.can_parse(email_data)), None)
++    parser = next((p for p in _active_parsers() if p.can_parse(email_data)), None)
+     if not parser:
+         return
+ 
+     order = parser.parse(email_data)
+     if not order or not order.is_valid():
+-        log_email(
+-            message_id, email_data.get("from", ""),
+-            email_data.get("subject", ""), "unknown", "sale",
+-            email_data.get("body", ""), {}, 0.0, "failed"
++        _insert_email_event(
++            message_id,
++            email_data,
++            "unknown",
++            {},
++            "failed",
++            error_message="Email parser returned no valid order",
+         )
+         return
+ 
+-    email_id = log_email(
+-        message_id, email_data.get("from", ""), email_data.get("subject", ""),
+-        order.marketplace, "sale", order.raw_email_body,
++    email_id = _insert_email_event(
++        message_id,
++        {
++            **email_data,
++            "body": order.raw_email_body,
++        },
++        order.marketplace,
+         {"order_number": order.order_number, "sku": order.get_sku(),
+          "price": order.price, "quantity": order.quantity},
+-        0.9, "processed"
++        "pending",
+     )
+ 
+-    try:
+-        txn_id = write_sale(order, email_id)
+-        logger.info(f"Sale processed: order={order.order_number} txn={txn_id}")
+-    except Exception as e:
+-        logger.error(f"Sale processing failed for {order.order_number}: {e}")
+-        update_email_status(email_id, "failed")
++    result = process_ingestion_event(email_id)
++    if result == "processed":
++        logger.info(f"Sale processed: order={order.order_number} event={email_id}")
++    else:
++        logger.error("Sale processing failed for %s: status=%s", order.order_number, result)

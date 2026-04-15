@@ -1,0 +1,24 @@
+## v2...origin/v2
+ M .project/HANDOFFS.md
+ M .project/MAIN-AGENT-PRIMER-SOURCE.md
+ M .project/ORCHESTRATOR.md
+ M .project/TODO.md
+ M .project/handoffs/T-B02-primer.md
+ M AGENTS.md
+ M CLAUDE.md
+ M apps/api/email_poller/poller.py
+?? .claude/
+?? .project/B03-RELIABILITY.md
+?? .project/C00-UI-STATE-AUDIT.md
+?? .project/COACH-HANDOFF.md
+?? .project/branch-freeze-2026-04-15/
+?? .project/reconcile-backup-2026-04-15/
+?? apps/api/email_poller/sku_matcher.py
+?? apps/api/ingestion_worker.py
+?? apps/api/scripts/bol_reliability_local_run.py
+?? apps/api/scripts/bol_reliability_report.py
+?? apps/api/sql/12_ingestion_event_attempts.sql
+?? apps/api/tests/t_B02_B05_ingestion_worker.py
+?? apps/api/tests/t_B04_email_poller_fallback.py
+?? inventory-interwall/frontend/t_c01_noop_edit_verify.mjs
+?? tests/

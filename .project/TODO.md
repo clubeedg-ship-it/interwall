@@ -42,14 +42,35 @@ Completed tasks and closed questions live in `TODO-ARCHIVE.md`
 
 Stream A: COMPLETE 2026-04-15 (f095131). Retrospective landed (b0c8e07).
 
-Stream B: T-B00 + T-B01 DONE. BOL-CONTRACT.md lives on server
-(pending commit — agent reported SHA as "pending"; needs manual
-commit + push before any future Bol.com work that cites it as
-authority).
+Stream B: T-B00 + T-B01 DONE.
 
-Next: **T-B02 + T-B05 batched** (Tier 2, Sonnet). Unified ingestion
-pipeline worker + dead-letter handling. Shared module, scopes don't
-overlap. Primer not yet drafted.
+Stream B: T-B02 + T-B05 DONE 2026-04-15 (`d48ccce`).
+
+Stream B: `T-B03` local reliability artifact preserved at
+`.project/B03-RELIABILITY.md`, but not yet landed on `v2`.
+
+Stream B: `T-B04` DONE 2026-04-15 in the current `v2` checkout
+(replayed locally, verified with `t_B04_email_poller_fallback.py`;
+commit still pending).
+
+Stream C: `T-C00` local audit artifact preserved at
+`.project/C00-UI-STATE-AUDIT.md`, but not yet landed on `v2`.
+
+Stream C: `T-C01` was accepted locally before sync, but its code is not
+present on the synced branch. Replay required before it can be marked
+DONE.
+
+Stream C: `T-C02` is already sliced on `v2`:
+- `T-C02a` DONE 2026-04-15 (`3ce3be2`)
+- `T-C02b` DONE 2026-04-15 (`cf66019`)
+- `T-C02d` DONE 2026-04-15 (`0e6442d`)
+- `T-C02e` DONE 2026-04-15 (`fc81d28`)
+
+Next: **Replay remaining unlanded accepted work**. Finish `T-C01`, then
+re-evaluate whether `T-B03` and `T-C00` should be landed as-is or
+refreshed against current `v2`. After the replay/landing pass, shift to
+Playwright-backed E2E/browser truthing for cross-page numeric
+coherence before any deployment-readiness signoff.
 
 ---
 
@@ -92,34 +113,38 @@ overlap. Primer not yet drafted.
 
 ---
 
-## Stream B — Marketplace ingestion (active)
+## Stream B — Marketplace ingestion
 
-### `T-B02` — Unified ingestion pipeline (TODO)
+### `T-B02` — Unified ingestion pipeline (DONE 2026-04-15, d48ccce)
 - Single worker consumes rows from `ingestion_events` regardless of
   source (email / bolcom_api / future webhook) per D-032.
 - Status states: `pending` / `processed` / `failed` / `dead_letter`
   per D-034.
 - deps: `T-B01`
 
-### `T-B03` — Parallel-run Bol.com email vs API polling (TODO)
+### `T-B03` — Parallel-run Bol.com email vs API polling (TODO, local artifact preserved)
 - Run both for one week (or a volume-based threshold of ~50 orders,
   whichever first — calendar duration is not the gate per
   development-milestone principle).
 - Log discrepancies: orders seen by one path and not the other,
   timing differences, field mismatches.
 - Output: reliability report as `.project/B03-RELIABILITY.md`.
+- Local development report exists, but it has not been landed on `v2`
+  after the branch sync.
 - deps: `T-B02`
 
-### `T-B04` — Retire Bol.com email path (TODO)
+### `T-B04` — Retire Bol.com email path (DONE 2026-04-15, local checkout verified)
 - After T-B03 shows API polling is reliable (zero missed orders over
   the comparison window).
 - Email poller stops matching Bol.com senders; IMAP remains for
   MediaMarktSaturn and Boulanger (D-031).
 - Keep the code path for emergency fallback behind a feature flag
   (disabled by default).
+- Replayed into the current `v2` checkout and verified with
+  `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -v --tb=short`.
 - deps: `T-B03`
 
-### `T-B05` — Dead-letter handling (TODO)
+### `T-B05` — Dead-letter handling (DONE 2026-04-15, d48ccce)
 - Events that fail repeatedly move to `dead_letter` state (D-034).
 - Health page surfaces count + reasons via the existing v_health_*
   views (extend if needed).
@@ -136,17 +161,19 @@ overlap. Primer not yet drafted.
 
 ## Stream C — UI rebuild
 
-### `T-C00` — UI state audit (TODO)
+### `T-C00` — UI state audit (TODO, local artifact preserved)
 - Inventory every `localStorage` read/write in `inventory-interwall/frontend/`
 - Inventory every client-side recomputation of a business number
   (margin, stock, profit)
 - Inventory every `innerHTML` assignment with dynamic data (for
   sanitize() coverage)
 - Output: audit doc with bug origin per page
+- Local audit file exists, but it has not been landed on `v2` after the
+  branch sync.
 - Can run in parallel with Stream A
 - deps: none
 
-### `T-C01` — Immutable transaction fields + margin-bug fix (TODO)
+### `T-C01` — Immutable transaction fields + margin-bug fix (TODO, replay required)
 - Backend: confirm `transactions.cogs` / `transactions.profit` are
   written at sale time and never updated (D-025). Already the case
   after A-05 lands.
@@ -154,14 +181,38 @@ overlap. Primer not yet drafted.
   recorded-sale card, sale-edit view
 - Test: open sale, edit, save without changes → margin identical to
   first render
+- Accepted locally before branch sync, but the synced `v2` checkout
+  does not currently contain the implementation. Reapply from the
+  preserved patch before marking done.
 - deps: `T-A05`, `T-C00`
 
-### `T-C02` — Single-source-of-truth refactor (TODO)
+### `T-C02` — Single-source-of-truth refactor (IN PROGRESS, sliced)
 - Every stock/count/margin number rendered in the UI comes from a
   canonical endpoint
 - Delete business-data use of localStorage; keep only UI prefs (D-040)
 - Parts page uses `v_part_stock`; Profit/Valuation uses same view (D-041)
 - deps: `T-A06`, `T-C00`, `T-C01`
+
+#### `T-C02a` — Catalog + low-stock canonical stock (DONE 2026-04-15, 3ce3be2)
+- `catalog-core.js` uses `getProductsWithStock`
+- `ui.js` uses the same canonical snapshot for low-stock checks
+- Legacy `getAvailableStock()` and `getStockWithAllocation()` retired
+
+#### `T-C02b` — Wall + bin-info canonical shelf occupancy (DONE 2026-04-15, cf66019)
+- `v_shelf_occupancy` + `GET /api/shelves/occupancy`
+- `wall.js` and `bin-info-modal.js` consume canonical occupancy data
+
+#### `T-C02c` — Handshake FIFO pick/receive (TODO)
+- `handshake.js` still needs to move off browser-authored FIFO / stock authority
+- deps: `T-C02b`
+
+#### `T-C02d` — Shelf capacity from DB (DONE 2026-04-15, 0e6442d)
+- Capacity writes moved to `PATCH /api/shelves/{shelf_id}`
+- `bin-info-modal.js` reads capacity from backend-backed shelf data
+
+#### `T-C02e` — Shelf split_fifo/single_bin localStorage → DB (DONE 2026-04-15, fc81d28)
+- Shelf settings now flow through DB + `PATCH /api/shelves/{shelf_id}`
+- `shelf-config.js` removed from active runtime
 
 ### `T-C03` — Wall page: reliable rendering, no hardcoded grid (TODO)
 - Remove all hardcoded shelf dimensions (D-045)
