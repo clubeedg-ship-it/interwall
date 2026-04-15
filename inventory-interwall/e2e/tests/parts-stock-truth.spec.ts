@@ -1,41 +1,45 @@
 import { test, expect, request } from '@playwright/test';
 
-test('parts page stock matches API', async ({ page, baseURL }) => {
-  const ctx = await request.newContext({ baseURL });
-  const products = await ctx.get('/api/products?composite=false');
-  if (products.status() === 401 || products.status() === 403) {
-    await ctx.dispose();
-    test.skip(true, 'parts endpoints require auth; no headless credentials wired into harness yet');
-    return;
-  }
-  expect(products.status()).toBe(200);
-  const productRows = await products.json();
-  if (!Array.isArray(productRows) || productRows.length === 0) {
+/**
+ * DOM-vs-canonical: the catalog's `.stock-qty` for a given part must match
+ * the aggregated `total_qty` returned by /api/profit/valuation for that
+ * product's EAN. Those two surfaces are how the UI and the API agree on
+ * "how much of this part is on hand".
+ */
+test('parts catalog stock matches /api/profit/valuation', async ({ page, baseURL, context }) => {
+  const ctx = await request.newContext({ baseURL, storageState: await context.storageState() });
+
+  const productsResp = await ctx.get('/api/products?composite=false');
+  expect(productsResp.status(), 'GET /api/products should succeed with auth').toBe(200);
+  const products: Array<{ id: string; ean: string; name: string }> = await productsResp.json();
+  if (!Array.isArray(products) || products.length === 0) {
     await ctx.dispose();
     test.skip(true, 'no parts seeded in stack');
     return;
   }
 
-  const valuation = await ctx.get('/api/profit/valuation');
-  expect(valuation.status()).toBe(200);
-  const valRows = await valuation.json();
-  const canonical = new Map<string, number>();
-  for (const r of valRows) {
-    canonical.set(r.ean, parseFloat(r.total_qty) || 0);
+  const valuationResp = await ctx.get('/api/profit/valuation');
+  expect(valuationResp.status()).toBe(200);
+  const valuation: Array<{ ean: string; total_qty: string | number }> = await valuationResp.json();
+  const qtyByEan = new Map<string, number>();
+  for (const row of valuation) {
+    qtyByEan.set(row.ean, Number(row.total_qty) || 0);
   }
 
-  await page.goto('/#catalog');
-  const card = page.locator('[data-ean], .part-card, .product-card').first();
-  await card.waitFor({ state: 'attached', timeout: 10_000 });
-  const ean = await card.getAttribute('data-ean');
-  if (!ean) {
-    await ctx.dispose();
-    test.skip(true, 'catalog cards do not expose data-ean; selector needs a frontend hook before DOM-vs-canonical assertion is possible');
-    return;
-  }
-  const stockText = await card.locator('[data-stock], .stock, .in-stock').first().innerText();
-  const domQty = parseFloat(stockText.replace(/[^0-9.\-]/g, '')) || 0;
-  const canonicalQty = canonical.get(ean) ?? 0;
-  expect(domQty).toBeCloseTo(canonicalQty, 2);
+  await page.goto('/');
+  await page.click('[data-view="catalog"]');
+  const firstCard = page.locator('.part-card').first();
+  await firstCard.waitFor({ state: 'visible', timeout: 15_000 });
+
+  const pk = await firstCard.getAttribute('data-part-id');
+  expect(pk, 'catalog card must expose data-part-id').toBeTruthy();
+  const product = products.find(p => p.id === pk);
+  expect(product, `product ${pk} should appear in /api/products payload`).toBeTruthy();
+
+  const domText = (await firstCard.locator('.stock-qty').first().innerText()).trim();
+  const domQty = parseFloat(domText.replace(/[^0-9.\-]/g, '')) || 0;
+  const canonicalQty = qtyByEan.get(product!.ean) ?? 0;
+
+  expect(domQty, `DOM stock for ${product!.ean} should equal valuation total_qty`).toBeCloseTo(canonicalQty, 2);
   await ctx.dispose();
 });
