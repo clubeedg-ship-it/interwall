@@ -53,6 +53,15 @@
                 </svg>
             </button>
 
+            <!-- Batches -->
+            <button class="nav-item" data-view="batches" title="Batches">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            </button>
+
             <!-- EAN Compositions -->
             <button class="nav-item" data-view="compositions" title="EAN Compositions">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -359,6 +368,32 @@
                         <p>Loading history...</p>
                     </div>
                 </div>
+            </section>
+
+            <!-- BATCHES VIEW -->
+            <section class="view" id="view-batches">
+                <div class="view-header">
+                    <h1>Batches</h1>
+                    <div class="batches-controls">
+                        <label class="batches-history-toggle">
+                            <input type="checkbox" id="batchesHistoryToggle">
+                            <span>Full history (include depleted)</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="batches-grid" id="batchesGrid">
+                    <div class="batches-loading">
+                        <div class="spinner"></div>
+                        <p>Loading batches...</p>
+                    </div>
+                </div>
+                <aside class="batches-panel" id="batchesPanel">
+                    <div class="batches-panel-header">
+                        <h3 id="batchesPanelTitle">Ledger Movements</h3>
+                        <button class="modal-close" id="batchesPanelClose">&times;</button>
+                    </div>
+                    <div class="batches-panel-body" id="batchesPanelBody"></div>
+                </aside>
             </section>
 
             <section class="view" id="view-compositions">
@@ -964,24 +999,6 @@
                         <div class="empty-components">No components added yet</div>
                     </div>
 
-                    <!-- Fixed Components Section -->
-                    <div class="fixed-components-section">
-                        <div class="fixed-components-header">
-                            <h3>Fixed Components</h3>
-                            <span class="fixed-components-info">Auto-included in every sale</span>
-                            <button type="button" class="btn-add-fixed" id="btnAddFixedComponent" title="Add Fixed Component">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                                </svg>
-                                Add
-                            </button>
-                        </div>
-                        <div class="fixed-components-list" id="fixedComponentsContainer">
-                            <!-- Fixed components populated by JS -->
-                        </div>
-                    </div>
-
                     <div class="sale-financials">
                         <div class="financial-row">
                             <label for="salePrice">Sale Price (€)</label>
@@ -1004,14 +1021,8 @@
                         <div class="cost-breakdown-grid">
                             <!-- Manual Components Cost -->
                             <div class="cost-item">
-                                <span class="cost-label">Manual Components</span>
+                                <span class="cost-label">Components</span>
                                 <span class="cost-value" id="componentsCostDisplay">€0.00</span>
-                            </div>
-
-                            <!-- Fixed Components Cost -->
-                            <div class="cost-item cost-item-fixed">
-                                <span class="cost-label">Fixed Components</span>
-                                <span class="cost-value" id="fixedComponentsCostDisplay">€0.00</span>
                             </div>
 
                             <!-- Dynamic costs container (populated by JS) -->
@@ -1117,55 +1128,6 @@
         </div>
     </div>
 
-    <!-- Fixed Component Edit Modal -->
-    <div class="modal-overlay" id="fixedCompEditModal">
-        <div class="modal modal-fixed-comp-edit">
-            <div class="modal-header">
-                <h2 class="modal-title" id="fixedCompEditTitle">Add Fixed Component</h2>
-                <button class="modal-close" id="fixedCompEditClose">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="fixedCompEditForm">
-                    <div class="form-group">
-                        <label for="fixedCompPartSelect">Select Part</label>
-                        <select id="fixedCompPartSelect" required>
-                            <option value="">Select a part...</option>
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="fixedCompQty">Quantity per Sale</label>
-                        <input type="number" id="fixedCompQty" min="1" value="1" required>
-                    </div>
-
-                    <div class="form-group form-group-toggle">
-                        <label for="fixedCompEnabled">Enabled</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="fixedCompEnabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <input type="hidden" id="fixedCompEditId">
-
-                    <div class="fixed-comp-help">
-                        Fixed components are automatically included in every sale.
-                        They will be deducted from inventory and their cost will be added to the total.
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn-delete" id="fixedCompDeleteBtn" style="display: none;">Remove</button>
-                        <div class="modal-actions-right">
-                            <button type="button" class="btn-cancel" id="fixedCompEditCancel">Cancel</button>
-                            <button type="submit" class="btn-confirm">Save</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <!-- Profit Config Modal -->
     <div class="modal-overlay" id="profitConfigModal">
         <div class="modal modal-profit-config">
@@ -1184,19 +1146,6 @@
                     </div>
                     <button type="button" class="btn-add-config" onclick="profitConfig.addCost()">
                         + Add Fixed Cost
-                    </button>
-                </div>
-
-                <div class="config-section">
-                    <div class="config-section-header">
-                        <h3>Fixed Components</h3>
-                        <p class="config-help">Components automatically included in every sale (e.g., packaging, cables)</p>
-                    </div>
-                    <div id="configFixedComponentsList" class="config-list">
-                        <!-- Populated by JS -->
-                    </div>
-                    <button type="button" class="btn-add-config" onclick="profitConfig.addComponent()">
-                        + Add Fixed Component
                     </button>
                 </div>
 
@@ -1387,6 +1336,7 @@
     <script src="part-manager.js?v=3"></script>
     <script src="bin-modal.js?v=1"></script>
     <script src="ui.js?v=1"></script>
+    <script src="batches.js?v=1"></script>
     <script src="history.js?v=1"></script>
     <script src="auth.js?v=2"></script>
     <script src="compositions.js?v=9"></script>

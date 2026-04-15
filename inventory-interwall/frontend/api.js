@@ -186,6 +186,25 @@ const api = {
     },
 
     /**
+     * All active stock lots (quantity > 0) with product + shelf metadata.
+     * Feeds the Batches view. Newest-first. (T-C06, D-043)
+     */
+    async getBatches() {
+        return this.request('/api/stock-lots');
+    },
+
+    /**
+     * Batch history (active + depleted) with per-batch ledger movements.
+     * (T-C06, D-043)
+     * @param {Object} [opts] - { limit }
+     */
+    async getBatchHistory({ limit } = {}) {
+        const qs = new URLSearchParams({ include_depleted: '1' });
+        if (limit != null) qs.set('limit', String(limit));
+        return this.request(`/api/stock-lots/history?${qs}`);
+    },
+
+    /**
      * Canonical FIFO order for a product's stock lots (server-authoritative).
      * Returns [{id, quantity, unit_cost, marketplace, received_at, created_at}, ...]
      * ordered by received_at ASC — oldest first.

