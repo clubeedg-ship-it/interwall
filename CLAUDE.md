@@ -24,12 +24,13 @@ Not used (do not revive without asking): `apps/web/` (deprecated Next.js scaffol
 
 - `docker compose up -d` — start the stack
 - `docker compose logs -f api` — tail backend logs
-- `docker compose exec postgres psql -U postgres -d interwall` — DB shell
-- `docker compose exec -T postgres psql -U postgres -d interwall -f /path/to.sql` — run SQL
+- `docker compose exec -T postgres psql -U interwall -d interwall` — DB shell
+- `docker compose exec -T postgres psql -U interwall -d interwall -f /app/path.sql` — run SQL file
 - `./reset-data.sh` — reset DB and reload stock checkpoint (destructive)
 
-There is no test suite yet. Verify changes by exercising the UI and tailing
-logs; do not claim "tests pass" without a suite.
+See [Test & commit discipline](#test--commit-discipline) for how tests are
+written, run, and committed. See [Database access](#database-access) for
+connection details and mount paths.
 
 ## Domain vocabulary (locked)
 
@@ -163,6 +164,49 @@ Rules:
   rationale. Never silently change direction.
 - `DECISIONS.md` is append-only. To reverse, add a new entry that supersedes
   the old one by ID — do not edit past entries.
+
+## Test & commit discipline
+
+Every T-### task's "done" requires three committed artifacts on
+the working branch:
+
+1. Implementation file(s) under the appropriate source tree
+   (`apps/api/sql/`, `apps/api/`, `inventory-interwall/frontend/`)
+2. Test file at `apps/api/tests/t_<TaskID>_<slug>.{sql,py}`
+   - SQL tests wrap in `BEGIN`/`ROLLBACK` so they leave no
+     side effects on the dev DB
+   - Final line must print `<TaskID> ALL TESTS PASSED` or
+     equivalent single-line pass assertion
+   - Must be runnable standalone with one `docker compose exec` command
+3. Both pushed to the working branch before reporting "done"
+
+The "done" report MUST include:
+- Commit SHA containing the implementation
+- Commit SHA containing the test file (may be same commit)
+- Full path to the test file
+- The exact command to re-run the test
+
+A task is not done without all three artifacts and the full
+report. Inline psql runs don't count — transient tests are
+invisible to future sessions and to the reviewer.
+
+## Database access
+
+DB name: `interwall`. User: `interwall` (no superuser `postgres`
+role exists on this instance).
+
+Shell:
+
+    docker compose exec -T postgres psql -U interwall -d interwall
+
+Run SQL file (inside container):
+
+    docker compose exec -T postgres psql -U interwall -d interwall \
+      -f /app/path/inside/container.sql
+
+Files under `apps/api/` are mounted at `/app/` in the postgres
+container (read-only). Tests live at `/app/tests/` inside the
+container, `apps/api/tests/` on the host.
 
 ## Critical invariants
 
