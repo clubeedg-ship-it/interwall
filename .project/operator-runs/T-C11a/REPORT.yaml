@@ -1,0 +1,52 @@
+task_id: T-C11a
+status: done
+
+summary: |
+  Routed unsanitized innerHTML sinks in tenant.js, labels.js, history.js,
+  and profit.js (high-signal only) through sanitize(). Rebuilt the
+  catalog-detail.js supplier URL block with DOM APIs (createElement,
+  setAttribute, textContent) and an http/https protocol gate so neither
+  the href nor the link text is assembled from user-controlled strings
+  via innerHTML. Extended coverage into the transaction-card
+  "Components Used" row (c.partName, c.qty). Verify script asserts each
+  listed identifier appears only as sanitize(...) or is gone from the
+  innerHTML block.
+
+files_changed:
+  - inventory-interwall/frontend/tenant.js
+  - inventory-interwall/frontend/labels.js
+  - inventory-interwall/frontend/history.js
+  - inventory-interwall/frontend/catalog-detail.js
+  - inventory-interwall/frontend/profit.js
+  - inventory-interwall/frontend/t_c11a_sanitize_verify.mjs
+
+tests:
+  - file: inventory-interwall/frontend/t_c11a_sanitize_verify.mjs
+    runner: node inventory-interwall/frontend/t_c11a_sanitize_verify.mjs
+    result: pass
+    final_line: "24 passed, 0 failed"
+
+decisions_cited:
+  - D-046
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+adversarial_review:
+  - "sanitize() is HTML-entity encoding, not context-aware. It is safe inside element text and double-quoted attribute values (which is where every wrapped sink here lives). It would NOT be safe inside a javascript: href or inside an unquoted attribute — neither of those patterns is introduced by this pass."
+  - "catalog-detail.js supplier URL anchor now only assigns href when new URL(supplierURL) succeeds AND protocol is http:/https:. A javascript: URL from notes is parsed fine but fails the protocol check, so the anchor ends up with no href — rendered as dead link text only. Acceptable."
+  - "profit.js still has lower-signal innerHTML sinks (renderComponentsList, chart renderers, profitConfig surfaces) that were explicitly left out of this slice per packet. They are not wired to attacker-controlled fields in current flows, but are a latent risk and are listed for T-C11b or a follow-up C11a wave."
+
+open_questions:
+  - "profit.js residual sinks out of this slice: renderComponentsList line 1101 (c.partName, c.qty in sale-editor cart), plus chart/config surfaces around renderHistoricalChart, renderCostSplitChart, profitConfig.render, and recordSale.showEdit. Confirm which wave picks these up."
+  - "labels.js bulk-print container at line 90 and preview modal body at ~line 130 rely on createLabelHTML being internally sanitized, not on an outer sanitize() call. Acceptable because every dynamic field inside createLabelHTML is sanitize()'d — but flagging so a future refactor of createLabelHTML does not silently break the property."
+  - "Pre-existing workspace dirtiness (.project/COACH-START-PROMPT.md, .project/OPERATOR-PROMPT-CACHE.md, .project/C00-UI-STATE-AUDIT.md, operator-runs/T-C00, T-C11a) was present before this run and was not touched by the operator; the diff outside the scoped files contains only these."
+
+next_ready: true

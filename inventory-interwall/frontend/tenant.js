@@ -171,8 +171,8 @@ const tenant = {
                 <select id="tenantSelect" onchange="tenant.switchTenant(this.value)">
                     <option value="all" ${!this.current ? 'selected' : ''}>All Tenants</option>
                     ${this.tenants.map(t => `
-                        <option value="${t.id}" ${this.current?.id === t.id ? 'selected' : ''}>
-                            ${t.displayName}
+                        <option value="${sanitize(t.id)}" ${this.current?.id === t.id ? 'selected' : ''}>
+                            ${sanitize(t.displayName)}
                         </option>
                     `).join('')}
                 </select>

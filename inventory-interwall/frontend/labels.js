@@ -58,13 +58,13 @@ const labels = {
         return `
             <div class="label-item">
                 <div class="label-header">
-                    <span class="label-company">${LABEL_CONFIG.COMPANY_NAME}</span>
-                    <span class="label-date">${timestamp}</span>
+                    <span class="label-company">${sanitize(LABEL_CONFIG.COMPANY_NAME)}</span>
+                    <span class="label-date">${sanitize(timestamp)}</span>
                 </div>
-                <div class="label-name">${name}</div>
-                <svg class="label-barcode" data-sku="${sku}"></svg>
+                <div class="label-name">${sanitize(name)}</div>
+                <svg class="label-barcode" data-sku="${sanitize(sku)}"></svg>
                 <div class="label-footer">
-                    <span class="label-location">${location}</span>
+                    <span class="label-location">${sanitize(location)}</span>
                     <span class="label-price">€${parseFloat(price).toFixed(2)}</span>
                 </div>
             </div>
@@ -123,7 +123,7 @@ const labels = {
                 <button class="modal-close" onclick="labels.closePreview()">&times;</button>
                 <div class="modal-header">
                     <span class="modal-action">LABEL PREVIEW</span>
-                    <h2 class="modal-title">${items.length} Label${items.length > 1 ? 's' : ''}</h2>
+                    <h2 class="modal-title">${sanitize(items.length)} Label${items.length > 1 ? 's' : ''}</h2>
                 </div>
                 <div class="modal-body">
                     <div class="label-preview-container">

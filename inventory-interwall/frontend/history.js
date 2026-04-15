@@ -93,13 +93,13 @@ const history = {
                 <div class="history-item-content">
                     <div class="history-item-header">
                         <span class="history-item-type ${type}">${this.getTypeLabel(type)}</span>
-                        <span class="history-item-timestamp">${formattedDate}</span>
+                        <span class="history-item-timestamp">${sanitize(formattedDate)}</span>
                     </div>
-                    <div class="history-item-title">${partName}</div>
+                    <div class="history-item-title">${sanitize(partName)}</div>
                     <div class="history-item-details">
                         ${this.renderDetails(movement, type)}
                     </div>
-                    ${movement.notes ? `<div class="history-item-notes">${movement.notes}</div>` : ''}
+                    ${movement.notes ? `<div class="history-item-notes">${sanitize(movement.notes)}</div>` : ''}
                 </div>
             </div>
         `;
@@ -143,7 +143,7 @@ const history = {
             details.push(`
                 <div class="history-detail-item">
                     <span class="history-detail-label">Quantity</span>
-                    <span class="history-detail-value mono highlight">${movement.quantity}</span>
+                    <span class="history-detail-value mono highlight">${sanitize(movement.quantity)}</span>
                 </div>
             `);
         }
@@ -154,7 +154,7 @@ const history = {
                 details.push(`
                     <div class="history-detail-item">
                         <span class="history-detail-label">To Location</span>
-                        <span class="history-detail-value">${movement.location_detail.name || 'Unknown'}</span>
+                        <span class="history-detail-value">${sanitize(movement.location_detail.name || 'Unknown')}</span>
                     </div>
                 `);
             }
@@ -162,7 +162,7 @@ const history = {
             details.push(`
                 <div class="history-detail-item">
                     <span class="history-detail-label">Location</span>
-                    <span class="history-detail-value">${movement.location_detail.name || 'Unknown'}</span>
+                    <span class="history-detail-value">${sanitize(movement.location_detail.name || 'Unknown')}</span>
                 </div>
             `);
         }
@@ -172,7 +172,7 @@ const history = {
             details.push(`
                 <div class="history-detail-item">
                     <span class="history-detail-label">User</span>
-                    <span class="history-detail-value">${movement.user_detail.username || 'Unknown'}</span>
+                    <span class="history-detail-value">${sanitize(movement.user_detail.username || 'Unknown')}</span>
                 </div>
             `);
         }
@@ -182,7 +182,7 @@ const history = {
             details.push(`
                 <div class="history-detail-item">
                     <span class="history-detail-label">Type</span>
-                    <span class="history-detail-value">${movement.tracking_type}</span>
+                    <span class="history-detail-value">${sanitize(movement.tracking_type)}</span>
                 </div>
             `);
         }

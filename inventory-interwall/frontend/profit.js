@@ -2433,7 +2433,7 @@ const profitEngine = {
 
                 html += `
                     <tr class="product-row">
-                        <td>${name}</td>
+                        <td>${sanitize(name)}</td>
                         <td>${qty}</td>
                         <td>${unitCost.toFixed(2)}</td>
                         <td>${value.toFixed(2)}</td>
@@ -2445,7 +2445,7 @@ const profitEngine = {
         } catch (e) {
             console.error('CRITICAL: Render Inventory Failed', e);
             const tbody = document.getElementById('inventoryBreakdownBody');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align:center;">Error rendering data: ${e.message}</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align:center;">Error rendering data: ${sanitize(e.message)}</td></tr>`;
         }
     },
 
@@ -2467,20 +2467,20 @@ const profitEngine = {
             const breakdown = tx.costBreakdown || {};
 
             return `
-            <div class="transaction-card" data-order="${tx.orderId}">
+            <div class="transaction-card" data-order="${sanitize(tx.orderId)}">
                 <div class="transaction-header">
                     <div class="transaction-header-left">
-                        <span class="transaction-id">${tx.orderId}</span>
-                        <span class="transaction-date">${tx.date}</span>
+                        <span class="transaction-id">${sanitize(tx.orderId)}</span>
+                        <span class="transaction-date">${sanitize(tx.date)}</span>
                     </div>
                     <div class="transaction-actions">
-                        <button class="transaction-edit-btn" onclick="event.stopPropagation(); recordSale.showEdit('${tx.orderId}')" title="Edit Sale">
+                        <button class="transaction-edit-btn" onclick="event.stopPropagation(); recordSale.showEdit('${sanitize(tx.orderId)}')" title="Edit Sale">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        <button class="transaction-delete-btn" onclick="event.stopPropagation(); recordSale.confirmDeleteSale('${tx.orderId}')" title="Delete Sale">
+                        <button class="transaction-delete-btn" onclick="event.stopPropagation(); recordSale.confirmDeleteSale('${sanitize(tx.orderId)}')" title="Delete Sale">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2488,7 +2488,7 @@ const profitEngine = {
                         </button>
                     </div>
                 </div>
-                <div class="transaction-product">${tx.productName}</div>
+                <div class="transaction-product">${sanitize(tx.productName)}</div>
 
                 ${breakdown.components !== undefined ? `
                     <div class="transaction-breakdown">
@@ -2498,7 +2498,7 @@ const profitEngine = {
                         </div>
                         ${(breakdown.vat || 0) > 0 ? `
                         <div class="breakdown-item breakdown-item-auto">
-                            <span class="breakdown-label">VAT ${breakdown.vatCountry || ''} (${breakdown.vatRate || 21}%):</span>
+                            <span class="breakdown-label">VAT ${sanitize(breakdown.vatCountry || '')} (${sanitize(breakdown.vatRate || 21)}%):</span>
                             <span class="breakdown-value">€${breakdown.vat.toFixed(2)}</span>
                         </div>
                         ` : ''}
@@ -2524,7 +2524,7 @@ const profitEngine = {
                     <strong>Components Used:</strong>
                     ${tx.components.map(c => `
                         <div class="batch-used ${c.isFixed ? 'batch-fixed' : ''}">
-                            <span class="part">${c.partName} × ${c.qty}${c.isFixed ? ' <span class="fixed-badge">FIXED</span>' : ''}</span>
+                            <span class="part">${sanitize(c.partName)} × ${sanitize(c.qty)}${c.isFixed ? ' <span class="fixed-badge">FIXED</span>' : ''}</span>
                             <span class="batch-info">€${c.cost.toFixed(2)}</span>
                         </div>
                     `).join('')}

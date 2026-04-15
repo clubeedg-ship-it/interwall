@@ -100,18 +100,51 @@ const batchDetail = {
             const urlContainer = document.getElementById('batchDetailSupplierURL');
 
             if (supplierURL) {
-                urlContainer.innerHTML = `
-                    <a href="${supplierURL}" target="_blank" rel="noopener noreferrer" class="supplier-link">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                        <span class="supplier-link-text">${this.shortenURL(supplierURL)}</span>
-                    </a>
-                `;
+                urlContainer.replaceChildren();
+                const anchor = document.createElement('a');
+                anchor.setAttribute('target', '_blank');
+                anchor.setAttribute('rel', 'noopener noreferrer');
+                anchor.className = 'supplier-link';
+                try {
+                    const parsed = new URL(supplierURL);
+                    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                        anchor.href = parsed.href;
+                    }
+                } catch {
+                    // Leave href unset if URL is invalid
+                }
+                const svgNS = 'http://www.w3.org/2000/svg';
+                const svg = document.createElementNS(svgNS, 'svg');
+                svg.setAttribute('width', '16');
+                svg.setAttribute('height', '16');
+                svg.setAttribute('viewBox', '0 0 24 24');
+                svg.setAttribute('fill', 'none');
+                svg.setAttribute('stroke', 'currentColor');
+                svg.setAttribute('stroke-width', '2');
+                const p1 = document.createElementNS(svgNS, 'path');
+                p1.setAttribute('d', 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6');
+                const pl = document.createElementNS(svgNS, 'polyline');
+                pl.setAttribute('points', '15 3 21 3 21 9');
+                const ln = document.createElementNS(svgNS, 'line');
+                ln.setAttribute('x1', '10');
+                ln.setAttribute('y1', '14');
+                ln.setAttribute('x2', '21');
+                ln.setAttribute('y2', '3');
+                svg.appendChild(p1);
+                svg.appendChild(pl);
+                svg.appendChild(ln);
+                anchor.appendChild(svg);
+                const label = document.createElement('span');
+                label.className = 'supplier-link-text';
+                label.textContent = this.shortenURL(supplierURL);
+                anchor.appendChild(label);
+                urlContainer.appendChild(anchor);
             } else {
-                urlContainer.innerHTML = '<span class="detail-empty">No supplier URL provided</span>';
+                urlContainer.replaceChildren();
+                const empty = document.createElement('span');
+                empty.className = 'detail-empty';
+                empty.textContent = 'No supplier URL provided';
+                urlContainer.appendChild(empty);
             }
 
             // Show/hide notes section
