@@ -538,6 +538,22 @@
 - **Reversibility:** High (can add a discount column later; historical
   data stays in raw_payload).
 
+### D-100 — shelves.capacity is canonical SoT (2026-04-15)
+- **Date:** 2026-04-15
+- **Decision:** Per-shelf integer `shelves.capacity` in DB replaces the
+  per-product/per-bin localStorage map from `shelfConfig`. Set via
+  `PATCH /api/shelves/{id}`. Read via `v_shelf_occupancy.capacity` (T-C02b).
+- **Rationale:** Capacity is a property of the physical shelf, not a
+  per-product setting. The localStorage path was lossy (browser-only,
+  per-device) and structurally wrong (keyed by partId+bin). A single
+  DB integer is authoritative across all clients.
+- **Rejected alternatives:**
+  - Keep localStorage — lossy across devices, not queryable.
+  - Per-product or per-bin granularity — over-models reality; a shelf
+    holds whatever fits regardless of product.
+- **Reversibility:** Low impact; the only lossy part is dropping
+  per-product granularity, which was accepted as unnecessary.
+
 ---
 
 ## Superseded decisions

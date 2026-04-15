@@ -80,32 +80,6 @@ const shelfConfig = {
     },
 
     /**
-     * Get bin capacity for a specific part in a specific bin
-     * @returns {number|null} Capacity or null if not defined
-     */
-    getBinCapacity(shelfId, partId, binLetter) {
-        const config = this.getShelfConfig(shelfId);
-        const partCaps = config.capacities[partId];
-        if (!partCaps) return null; // Not defined yet
-        return binLetter === 'A' ? partCaps.binA : partCaps.binB;
-    },
-
-    /**
-     * Set bin capacity for a specific part (called on first receive)
-     */
-    setBinCapacity(shelfId, partId, capacity) {
-        const config = this.getShelfConfig(shelfId);
-        if (!config.capacities[partId]) {
-            config.capacities[partId] = { binA: null, binB: null };
-        }
-        // Set same capacity for both bins
-        config.capacities[partId].binA = capacity;
-        config.capacities[partId].binB = capacity;
-        this.setShelfConfig(shelfId, { capacities: config.capacities });
-        console.log(`Set capacity for part ${partId} in ${shelfId}: ${capacity === null ? 'unlimited (FIFO batch-by-batch)' : capacity + ' per bin'}`);
-    },
-
-    /**
      * Check if shelf has Split FIFO mode enabled
      */
     isSplitFifo(shelfId) {

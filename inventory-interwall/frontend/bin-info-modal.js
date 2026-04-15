@@ -10,6 +10,7 @@
 const binInfoModal = {
     currentShelfId: null,
     currentBinLetter: null,
+    currentShelfDbId: null,
 
     init() {
         const modal = document.getElementById('binInfoModal');
@@ -74,6 +75,7 @@ const binInfoModal = {
         let productName = null;
         let batchCount = 0;
         let capacity = null;
+        this.currentShelfDbId = null;
 
         if (isSingleBinMode) {
             // Combine A + B + base
@@ -87,6 +89,7 @@ const binInfoModal = {
                 batchCount += r.batch_count;
                 if (!productName && r.product_name) productName = r.product_name;
                 if (!capacity && r.capacity) capacity = r.capacity;
+                if (!this.currentShelfDbId && r.shelf_id) this.currentShelfDbId = r.shelf_id;
             }
         } else {
             const row = wall.occupancyByCell.get(cellId);
@@ -96,6 +99,7 @@ const binInfoModal = {
                 productName = row.product_name;
                 batchCount = row.batch_count;
                 capacity = row.capacity;
+                this.currentShelfDbId = row.shelf_id;
             }
         }
 
@@ -145,6 +149,7 @@ const binInfoModal = {
         document.getElementById('binInfoModal').classList.remove('active');
         this.currentShelfId = null;
         this.currentBinLetter = null;
+        this.currentShelfDbId = null;
     },
 
     onSplitFifoChange(enabled) {
@@ -183,46 +188,51 @@ const binInfoModal = {
     },
 
     async editCapacity() {
-        // Read occupancy for current cell to check if there's stock
+        if (!this.currentShelfDbId) {
+            toast.show('Shelf not found in occupancy data', 'error');
+            return;
+        }
+
         const row = wall.occupancyByCell.get(
             this.currentBinLetter
                 ? `${this.currentShelfId}-${this.currentBinLetter}`
                 : this.currentShelfId
         );
-        if (!row || row.total_qty <= 0) {
-            toast.show('Add stock first to set capacity', 'info');
-            return;
-        }
-
-        const partId = null; // capacity is per-shelf now, not per-part
-        const currentCapacity = row.capacity;
+        const currentCapacity = row ? row.capacity : null;
 
         const newCapacity = prompt(
-            `Enter bin capacity for this product:\n(Current: ${currentCapacity || 'not set'})\n\nLeave empty or enter 0 to remove capacity limit.\nWhen not set, batches are retrieved one-by-one (FIFO order).`,
+            `Enter shelf capacity:\n(Current: ${currentCapacity || 'not set'})\n\nLeave empty or enter 0 to remove capacity limit.`,
             currentCapacity || ''
         );
 
-        if (newCapacity === null) {
-            // User cancelled
+        if (newCapacity === null) return; // cancelled
+
+        const parsedCapacity = parseInt(newCapacity);
+        const capacityValue = (newCapacity === '' || parsedCapacity === 0)
+            ? null
+            : (!isNaN(parsedCapacity) && parsedCapacity > 0) ? parsedCapacity : undefined;
+
+        if (capacityValue === undefined) {
+            toast.show('Invalid capacity value', 'error');
             return;
         }
 
-        const parsedCapacity = parseInt(newCapacity);
-
-        if (newCapacity === '' || parsedCapacity === 0) {
-            // Clear capacity - make it unlimited
-            shelfConfig.setBinCapacity(this.currentShelfId, partId, null);
-            toast.show('Capacity limit removed (unlimited)', 'success');
-            document.getElementById('binProductCapacity').textContent = '∞';
-            // Update progress bar to hide when unlimited
-            const fillEl = document.getElementById('binStockFill');
-            if (fillEl) fillEl.style.width = '0%';
-        } else if (!isNaN(parsedCapacity) && parsedCapacity > 0) {
-            shelfConfig.setBinCapacity(this.currentShelfId, partId, parsedCapacity);
-            toast.show(`Capacity set to ${parsedCapacity} units`, 'success');
-            document.getElementById('binProductCapacity').textContent = parsedCapacity;
-        } else {
-            toast.show('Invalid capacity value', 'error');
+        try {
+            await api.updateShelfCapacity(this.currentShelfDbId, capacityValue);
+            toast.show(
+                capacityValue === null
+                    ? 'Capacity limit removed (unlimited)'
+                    : `Capacity set to ${capacityValue} units`,
+                'success'
+            );
+            // Refresh wall data and re-show modal with updated values
+            const cellId = this.currentBinLetter
+                ? `${this.currentShelfId}-${this.currentBinLetter}`
+                : this.currentShelfId;
+            await wall.loadLiveData();
+            this.show(cellId);
+        } catch (err) {
+            toast.show(err.message, 'error');
         }
     }
 };

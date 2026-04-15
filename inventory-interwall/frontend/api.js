@@ -100,6 +100,18 @@ const api = {
         return this.request('/api/shelves/occupancy');
     },
 
+    /**
+     * Update shelf capacity via PATCH /api/shelves/{shelfId}.
+     * @param {string} shelfId - Shelf UUID
+     * @param {number|null} capacity - Positive int or null (unlimited)
+     */
+    async updateShelfCapacity(shelfId, capacity) {
+        return this.request(`/api/shelves/${shelfId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ capacity }),
+        });
+    },
+
     async searchPart(query) {
         const data = await this.request(`/part/?search=${encodeURIComponent(query)}&limit=10`);
         return data.results || data;
