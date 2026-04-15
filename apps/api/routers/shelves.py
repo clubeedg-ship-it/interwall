@@ -12,11 +12,11 @@ def list_shelves(session=Depends(require_session)):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT s.id, s.label, s.col, s.level, s.capacity,
+                """SELECT s.id, s.label, s.col, s.level, s.bin, s.capacity,
                           z.name AS zone_name
                    FROM shelves s
                    JOIN zones z ON z.id = s.zone_id
                    WHERE z.is_active = TRUE
-                   ORDER BY z.name, s.col, s.level"""
+                   ORDER BY z.name, s.col, s.level, s.bin NULLS FIRST"""
             )
             return [dict(r) for r in cur.fetchall()]

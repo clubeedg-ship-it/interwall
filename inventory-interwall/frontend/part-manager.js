@@ -144,7 +144,7 @@ const partManager = {
             shelves.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
-                opt.textContent = s.label || `${s.zone_name}-${s.col}-${s.level}`;
+                opt.textContent = s.label || `${s.zone_name}-${String(s.col).padStart(2,'0')}-${s.level}${s.bin ? '-'+s.bin : ''}`;
                 select.appendChild(opt);
             });
             console.log(`Loaded ${shelves.length} shelves into location dropdown`);

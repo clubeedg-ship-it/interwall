@@ -86,7 +86,7 @@
 - Do NOT touch `ean_compositions` or `process_sale()` (D-010)
 - deps: `T-A00`
 
-### `T-A02` — Normalize shelf addressing (TODO)
+### `T-A02` — Normalize shelf addressing → DONE 2026-04-15
 - Rename schema columns to Zone / Column / Level / Bin where they aren't already (D-050)
 - Update indexes and FK names
 - Migration script: keep reversible for one release window
