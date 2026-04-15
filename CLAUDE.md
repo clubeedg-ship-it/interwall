@@ -114,11 +114,18 @@ ERPNext, Frappe, MariaDB, Tryton, or anything similar. (D-001, D-002)
 - **Read files**: Read with absolute paths; NEVER `cat`, `head`, `tail`.
 - **Edit**: Edit for targeted changes; Write only for new files or full rewrites.
 - **Shell**: Bash only for commands with no dedicated tool (git, docker, migrations).
-- **Library docs**: query the docs MCP BEFORE writing code against FastAPI,
-  psycopg, Bol.com Retailer API, Postgres FIFO patterns, IMAP libs. Training
-  data lags real APIs.
+- **Read-once rule**: re-reading a file you already read in this session
+  is wasted tool calls. On first read, extract what you need (columns,
+  signatures, constants) into a scratch comment at the top of your working
+  file. Re-read only when the file has changed since. See
+  `@.project/PROCESS.md` §3.
+- **Library docs via Context7 MCP**: use BEFORE writing code against
+  FastAPI internals, psycopg3, Bol.com Retailer API v10, IMAP libs,
+  Postgres FIFO patterns, APScheduler. Training data lags these APIs.
+  Resolve library ID first (`resolve-library-id`), then `query-docs`.
+- **Playwright MCP** for UI smoke tests: wire up at T-C00, not before.
 - **Web research**: WebSearch only for non-library questions (IMAP quirks,
-  "how do others solve X"). Prefer docs MCP for any library or SDK question.
+  "how do others solve X"). Prefer Context7 for any library or SDK question.
 - **GitHub**: use `gh` CLI for read operations; GitHub MCP for writes.
 
 Never WebFetch a URL you invented. Only fetch URLs the user provided or that
@@ -149,21 +156,31 @@ constraints from this file (subagents don't see CLAUDE.md the same way).
 
 ## Plan / execute workflow
 
-Work is tracked in three files under `.project/`, imported at the bottom.
+Work is tracked across seven files under `.project/`:
 
 - `@.project/PLAN.md` — direction, scope, success criteria
-- `@.project/DECISIONS.md` — append-only log of every locked decision (D-###)
-- `@.project/TODO.md` — sequenced next actions across work streams (T-###)
+- `@.project/DECISIONS.md` — append-only D-### log with rationale
+- `@.project/TODO.md` — sequenced T-### next actions across streams
+- `@.project/PROCESS.md` — gating tiers, test discipline, review
+  checklist, read-once rule, scope boundaries, session boundaries
+- `@.project/PRIMER-TEMPLATE.md` — canonical shape for every task primer
+- `@.project/REPORT-SCHEMA.md` — YAML schema every "done" report follows
+- `.project/RETROSPECTIVES.md` — end-of-stream protocol reviews
+  (referenced, not auto-imported)
+- `.project/COMPONENTS.md` — UI component catalog, populated at T-C00
+  (referenced, not auto-imported)
 
 Rules:
 
 - Before non-trivial work (>1 file or >30 lines), confirm the target is in
-  `TODO.md`. If it isn't, add it and tell the user.
-- For any architectural choice (schema shape, algorithm variant, new dependency,
-  new library), append a new `D-NNN` entry to `DECISIONS.md` with one-line
-  rationale. Never silently change direction.
-- `DECISIONS.md` is append-only. To reverse, add a new entry that supersedes
-  the old one by ID — do not edit past entries.
+  `TODO.md`. If not, add it and tell the user.
+- Every architectural choice appends a new `D-NNN` to `DECISIONS.md` with
+  one-line rationale. Append-only — reversals create new entries that cite
+  the superseded ID.
+- Every task starts with a primer conforming to `PRIMER-TEMPLATE.md`.
+- Every task ends with a report conforming to `REPORT-SCHEMA.md`.
+- Gating tier per task is declared in `TODO.md`; protocol per tier lives
+  in `PROCESS.md` §1.
 
 ## Test & commit discipline
 
@@ -238,6 +255,15 @@ Expensive mistakes. Breaking any of these misleads the operator or corrupts data
 - When a hook or lint step fails, fix the underlying cause. Never bypass with
   `--no-verify`.
 
+## Adversarial self-review
+
+Before submitting a "done" report for any task, write a 3-bullet
+"how would this fail in production" section. If any bullet names a
+real failure mode, address it in code or tests, then re-run. Include
+the 3 bullets in the report under `adversarial_review`.
+
+Mandatory for Tier 1 and Tier 2. Skipping it is a protocol deviation.
+
 ## Self-modification
 
 Propose diffs to this file when conventions change. Do NOT silently edit it.
@@ -248,3 +274,6 @@ Silent drift is worse than staleness.
 @.project/PLAN.md
 @.project/DECISIONS.md
 @.project/TODO.md
+@.project/PROCESS.md
+@.project/PRIMER-TEMPLATE.md
+@.project/REPORT-SCHEMA.md
