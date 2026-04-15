@@ -1,185 +1,33 @@
-# Interwall — Agent Context
+# Interwall — universal rules
 
-## Project
+Loaded for every agent regardless of task. Keep minimal. Per-task
+identity, stack, and context come from the first message.
 
-Interwall is the operational backbone of a single-tenant PC-assembly
-business. Solo engineer. Production runs one client's daily operations.
+## Money-safety (data-corruption triggers)
 
-Core value: marketplace sale → automatic FIFO-across-item-group
-component deduction → real-cost profit recorded in the DB with an
-audit trail.
+- Never modify `transactions.cogs` / `transactions.profit` after
+  initial write (D-025)
+- Every sale row has ≥1 `stock_ledger_entries` row (D-017)
+- FIFO pools across `item_groups`, never pinned to an EAN; use
+  `SELECT FOR UPDATE`, never `SKIP LOCKED` (D-020, D-021)
+- `process_bom_sale` is one transaction; partial fulfilment is not a
+  valid state (D-022)
+- `ean_compositions` + `process_sale()` stay during migration (D-010)
 
-## Stack & paths
+## Locked vocabulary (no synonyms in code, comments, or commits)
 
-- `apps/api/` — FastAPI + psycopg2 + APScheduler (single process)
-- `apps/api/sql/init.sql` — PostgreSQL schema + PL/pgSQL functions
-- `apps/api/email_poller/` — IMAP poller + marketplace parsers
-- `inventory-interwall/frontend/` — vanilla JS SPA (no build step)
-- `nginx/` — reverse proxy, static host
-- `docker-compose.yml` — 3 containers: postgres, api, nginx
+`products` = Parts · `stock_lots` = Batches · `item_groups` = Models ·
+`builds` + `build_components` = Builds (key `build_code`) ·
+`external_item_xref` = SKU mapping · `stock_ledger_entries` = batch
+history · shelf address = `Zone-Column-Level-Bin` (e.g. `A-02-3-B`)
 
-Not used (do not revive without asking): `apps/web/` (deprecated
-Next.js scaffold), `supabase/` (speculative multi-tenant schema).
+## Push / safety
 
-## Dev commands
+- Never push to `main` without explicit ask. Never `--force`, never
+  `--no-verify`. Never open a PR unless asked.
+- Host port **1441** (system nginx fronts the domain); use
+  `http://localhost:1441/...` not bare `localhost`.
+- DB shell: `docker compose exec -T postgres psql -U interwall -d interwall`
 
-- `docker compose up -d` — start the stack
-- `docker compose logs -f api` — tail backend logs
-- `./reset-data.sh` — reset DB and reload stock checkpoint (destructive)
-
-The Docker stack binds nginx to host port **1441**, not 80. Port 80
-on the host is a system nginx (apt-installed) which proxies
-`interwall.abbamarkt.nl → 127.0.0.1:1441`. For local testing use
-`http://localhost:1441/...`. Hitting `localhost` without the port
-will hit the system nginx and can return 404 for routes the system
-nginx doesn't know about.
-
-DB shell and file-run commands live in `.project/PROCESS.md` §4.
-
-## Domain vocabulary (locked)
-
-Do not invent synonyms. Full table and rationale in DECISIONS.md D-060.
-
-| Code | UI label | Meaning |
-|---|---|---|
-| `products` | Parts | Catalog of real physical things with EANs |
-| `stock_lots` | Batches | Physical received lots (unit cost, date, shelf) |
-| `item_groups` | Models | Substitute pool ("any RTX 3050") |
-| `builds` + `build_components` | Builds | Finished-product recipes, keyed by `build_code` |
-| `external_item_xref` | SKU mapping | Marketplace SKU → `build_code` |
-| `stock_ledger_entries` | (Batch history) | Per-movement audit rows |
-| `shelves` / `zones` / `warehouses` | Wall | Physical location hierarchy |
-
-Shelf addressing is always `Zone-Column-Level-Bin` (e.g. `A-02-3-B`).
-Never "aisle", "row", "stack", or "area" in new code.
-
-## Critical invariants
-
-Expensive mistakes. Breaking any of these misleads the operator or
-corrupts data. Rationale for each is in DECISIONS.md — referenced by ID.
-
-- **NEVER** modify `transactions.cogs` or `transactions.profit` after
-  initial write — written once by `process_bom_sale` at sale time
-  from real lot costs. (D-025)
-- **Every sale has ≥1 `stock_ledger_entries` row.** The ledger is
-  the audit trail; a sale without ledger rows is a bug. (D-017)
-- **AVL-FIFO pools across item groups.** `deduct_fifo_for_group`
-  picks the oldest lot from any product in the group; never pins to
-  a specific EAN. (D-020)
-- **Strict serialization** via `SELECT FOR UPDATE`, never
-  `SKIP LOCKED`. Correctness over throughput. (D-021)
-- **Atomic sale processing.** `process_bom_sale` is one transaction;
-  a failed deduction rolls back everything. Partial fulfilment is not
-  a valid state. (D-022)
-- **Database is the single source of truth.** Frontend renders stored
-  values; it never recomputes business numbers. `localStorage` is
-  allowed only for pure UI prefs. (D-040, D-041)
-- **Additive migrations only.** Legacy structures
-  (`ean_compositions`, `process_sale()`) stay until the new path is
-  proven. (D-010, D-024)
-- **Sanitize all user-data rendering.** Every `innerHTML` with
-  dynamic content routes through `sanitize()`. (D-046)
-- **No hardcoded business values.** Thresholds, gradient breakpoints,
-  VAT / commission / overhead rates — all in the DB or named config
-  tables. (D-045)
-- **Forward-compatibility columns ship unwired.** `priority`,
-  `valid_from`, `valid_to`, `serial_number` exist in schema but do
-  not drive logic today. (D-015)
-
-## Tool usage
-
-- **Search code**: Grep (NEVER `bash grep` / `rg`). Glob for filename
-  patterns. **Read files**: Read with absolute paths. **Edit**: Edit
-  for targeted changes; Write for new files. **Shell**: Bash only
-  when no dedicated tool exists.
-- **Read-once rule** (PROCESS.md §3): re-reading a file already read
-  this session is wasted tool calls. On first read, extract what you
-  need into a scratch comment at the top of your working file.
-- **Context7 MCP** before writing code against FastAPI internals,
-  psycopg, Bol.com Retailer API v10, IMAP libs, APScheduler —
-  training data lags these APIs. Resolve library ID first, then
-  query-docs.
-- **GitHub**: `gh` CLI for reads; GitHub MCP for writes.
-- Never WebFetch a URL you invented. Only fetch URLs the user
-  provided or that came from a search result.
-
-## Subagents
-
-Spawn when the task needs reading >10 files, running >2 independent
-subtasks, or research you don't want in main context. Do NOT spawn
-for 1–3 file reads — overhead isn't worth it.
-
-Every subagent brief contains: (a) the concrete question, (b) files
-or paths to start from, (c) what a good answer looks like, (d)
-critical constraints from this file (subagents don't see CLAUDE.md
-the same way).
-
-## Research vs act
-
-Research first when touching an external API, an unfamiliar library,
-or a Postgres/FIFO pattern with correctness implications. Skip
-research when the diff is describable in one sentence or mirrors an
-existing pattern in the same file. Correctness beats speed on stock
-movement, COGS, and ledger writes.
-
-## Plan / execute workflow
-
-You are coach + executor in one. Develop in sandbox; push directly to
-v2. Heavy grep / multi-file reads / docker-exec test runs are
-delegated to a Sonnet on the server terminal via the file-based
-dispatch in `.project/HANDOFFS.md`. Read that file before dispatching
-the first task of a session.
-
-Project context files live in `.project/` and are NOT auto-imported.
-Load on demand, in this order, only when the task needs them:
-
-- `.project/TODO.md` — next actions; load first each session
-- `.project/DECISIONS.md` — D-### log; load when a task cites D-###s
-  or when appending a new one
-- `.project/PROCESS.md` — gating tiers, review checklist, DB access
-  commands
-- `.project/PRIMER-TEMPLATE.md` — primer shape (when drafting a
-  server prompt)
-- `.project/REPORT-SCHEMA.md` — YAML report shape (when verifying)
-- `.project/PLAN.md` — mission + scope (rarely needed mid-task)
-- `.project/REFERENCES.md` — ERPNext / Tryton / Bol.com / GS1 refs
-- `.project/PRIMER-EXEMPLARS.md` — worked T-A05 example
-- `.project/BOL-CONTRACT.md` — Bol.com API catalogue
-- `.project/TODO-ARCHIVE.md` — historical DONE entries
-- `.project/RETROSPECTIVES.md` — end-of-stream patches
-
-Before non-trivial work (>1 file or >30 lines), confirm the target
-is in TODO.md. Every architectural choice appends a new `D-NNN` to
-DECISIONS.md — append-only; reversals cite the superseded ID.
-
-## Commit & branch discipline
-
-- Commit messages: present tense, imperative mood. Stream prefix:
-  `feat(backend): …`, `fix(frontend): …`, `chore(repo): …`.
-- One logical change per commit. Cleanup and feature work never in
-  the same commit.
-- **Do not push to `main` without an explicit user request.** Feature
-  branches OK without asking.
-- Never push with `--force`. Never `--no-verify`. Never open a PR
-  unless the user asks.
-
-## Safety & reversibility
-
-- For destructive operations (`rm -rf`, `DROP`, `git reset --hard`,
-  file deletion), show the plan and wait for confirmation unless
-  pre-authorised this session.
-- If you encounter files you don't recognise, investigate before
-  deleting — they may be in-progress work.
-- When a hook or lint step fails, fix the underlying cause. Never
-  bypass with `--no-verify`.
-
-## Self-modification
-
-Propose diffs to this file when conventions change. Do NOT silently
-edit it. Silent drift is worse than staleness.
-
-## Imports
-
-No auto-imports. Load `.project/*.md` on demand per the list above.
-Keeps the KV-cached prefix small; per-task context lives in the
-first message of each turn.
+Full context (plan, decisions, process, templates) lives under
+`.project/` — load on demand only when the task needs it.
