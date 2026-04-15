@@ -245,4 +245,4 @@ fit as a concise note here.
     B02/B05 local files, reconcile backup) were moved out of the repo to
     `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/`
   - branch is now safe for `git fetch`; any future sync should account
-    for local commits `b103920` and `c1f7518`
+    for local commits `b103920`, `c1f7518`, and `a6a377c`
