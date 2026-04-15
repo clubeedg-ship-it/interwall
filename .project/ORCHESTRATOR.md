@@ -109,6 +109,28 @@ the original primer in place (audit trail).
 - Asking the user "should I proceed" after every dispatch — fire and move on to verification when report lands.
 - Editing CLAUDE.md to inject task context — busts KV cache; use primer.
 
+## Branching rules (no-conflict discipline)
+
+- **`v2` is the only write target.** Agents push v2. Desktop pushes v2.
+  `main` is read-only locally; it only advances via GitHub PR merges
+  from v2. Never commit directly to `main`.
+- **Never merge `main` → `v2` mid-stream.** Until the rebuild ships,
+  main only receives v2. If a PR lands, resync v2 immediately:
+
+        git fetch origin && git checkout v2
+        git merge --ff-only origin/main   # expected: Already up to date
+                                           # (because main ≡ v2 at merge time)
+
+  If fast-forward fails, someone committed to main directly — stop
+  and investigate before continuing.
+- **One worktree per live branch.** `gracious-dewdney` holds v2. The
+  main repo dir holds `main` for read-only reference. Everything else
+  in `.claude/worktrees/` is stale and should be pruned
+  (`git worktree remove <path>` + `git branch -D <branch>`).
+- **No feature branches for rebuild work.** T-### tasks commit
+  directly to v2 via the handoff primer. Branching adds merge cost
+  that the rebuild doesn't benefit from at this team size.
+
 ## Worktree gotcha
 
 The `v2` branch is checked out in a worktree
