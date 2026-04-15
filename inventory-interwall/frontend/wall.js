@@ -149,8 +149,8 @@ const wall = {
         cell.className = 'cell empty';
         cell.dataset.cellId = cellId;
 
-        // Check if this shelf is configured as Single Bin mode (via toggle)
-        const isSingleBin = isPowerSupply || shelfConfig.isSplitBins(cellId);
+        // Check if this shelf is configured as Single Bin mode (via DB)
+        const isSingleBin = isPowerSupply || this.occupancyByCell.get(cellId)?.single_bin === true;
 
         if (isSingleBin) {
             cell.classList.add('solid');
@@ -216,7 +216,7 @@ const wall = {
         existingCell.parentNode.replaceChild(newCell, existingCell);
 
         // Reload data for this cell
-        this.loadCellData(cellId, isPowerSupply || shelfConfig.isSplitBins(cellId));
+        this.loadCellData(cellId, isPowerSupply || this.occupancyByCell.get(cellId)?.single_bin === true);
 
         console.log(`Cell ${cellId} re-rendered`);
     },

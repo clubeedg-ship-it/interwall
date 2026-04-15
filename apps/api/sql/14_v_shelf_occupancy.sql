@@ -17,6 +17,8 @@ SELECT
     s.level,
     s.bin,
     s.capacity,
+    s.split_fifo,
+    s.single_bin,
     COALESCE(SUM(sl.quantity), 0)                     AS total_qty,
     COALESCE(SUM(sl.quantity * sl.unit_cost), 0)      AS total_value,
     COUNT(sl.id) FILTER (WHERE sl.quantity > 0)       AS batch_count,
@@ -29,5 +31,5 @@ JOIN zones z ON z.id = s.zone_id
 LEFT JOIN stock_lots sl ON sl.shelf_id = s.id AND sl.quantity > 0
 LEFT JOIN products  p  ON p.id = sl.product_id
 WHERE z.is_active = TRUE
-GROUP BY s.id, s.label, z.name, s.col, s.level, s.bin, s.capacity
+GROUP BY s.id, s.label, z.name, s.col, s.level, s.bin, s.capacity, s.split_fifo, s.single_bin
 ORDER BY z.name, s.col, s.level, s.bin NULLS FIRST;

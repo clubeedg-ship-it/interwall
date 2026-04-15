@@ -556,9 +556,18 @@
 
 ---
 
+### D-101 — Shelf settings SoT migration complete (2026-04-15)
+- **Date:** 2026-04-15
+- **Decision:** `capacity`, `split_fifo`, and `single_bin` all live in the `shelves` table. Reads via `v_shelf_occupancy` (which now SELECTs all three columns). Writes via `PATCH /api/shelves/{id}` (accepts any subset of the three fields). `shelf-config.js` (localStorage) retired and deleted. D-053's deferral of `split_fifo`/`single_bin` wiring is superseded — both columns are now actively used.
+- **Rationale:** localStorage is lossy across devices and not queryable. DB columns are the correct SoT for physical shelf properties. T-C02e completes the migration begun in T-C02d.
+- **Reversibility:** Low (localStorage data is gone; columns remain in DB).
+
+---
+
 ## Superseded decisions
 
 - D-097 supersedes D-030 (webhooks do not deliver new orders; RSA-SHA256 not HMAC)
+- D-101 supersedes D-053 (split_fifo and single_bin are now actively wired, not deprecated)
 
 ---
 

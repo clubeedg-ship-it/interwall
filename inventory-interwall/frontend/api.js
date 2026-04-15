@@ -101,14 +101,14 @@ const api = {
     },
 
     /**
-     * Update shelf capacity via PATCH /api/shelves/{shelfId}.
+     * Update per-shelf settings via PATCH /api/shelves/{shelfId}.
      * @param {string} shelfId - Shelf UUID
-     * @param {number|null} capacity - Positive int or null (unlimited)
+     * @param {Object} patch - Fields to update: capacity, split_fifo, single_bin
      */
-    async updateShelfCapacity(shelfId, capacity) {
+    async updateShelf(shelfId, patch) {
         return this.request(`/api/shelves/${shelfId}`, {
             method: 'PATCH',
-            body: JSON.stringify({ capacity }),
+            body: JSON.stringify(patch),
         });
     },
 

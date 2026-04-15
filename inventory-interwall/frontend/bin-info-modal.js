@@ -8,6 +8,7 @@
 // Bin Info Modal - Shows bin details and per-shelf configuration
 // =============================================================================
 const binInfoModal = {
+    currentCellId: null,
     currentShelfId: null,
     currentBinLetter: null,
     currentShelfDbId: null,
@@ -40,10 +41,14 @@ const binInfoModal = {
     async show(cellId) {
         console.log(` Opening bin info for: ${cellId}`);
 
-        this.currentShelfId = shelfConfig.getShelfId(cellId);
+        this.currentCellId = cellId;
+        const parts = cellId.split('-');
+        this.currentShelfId = parts.length === 4 ? parts.slice(0, 3).join('-') : cellId;
         this.currentBinLetter = cellId.endsWith('-A') ? 'A' : cellId.endsWith('-B') ? 'B' : null;
 
-        const config = shelfConfig.getShelfConfig(this.currentShelfId);
+        const row = wall.occupancyByCell.get(cellId);
+        const splitFifo = row?.split_fifo ?? false;
+        const singleBin = row?.single_bin ?? false;
 
         // Parse cell ID components (e.g., "A-1-3-A" → zone=A, col=1, level=3, bin=A)
         const idParts = cellId.split('-');
@@ -68,7 +73,7 @@ const binInfoModal = {
         document.getElementById('binInfoShelfId').textContent = `Zone ${zone} · Column ${col} · Level ${level}`;
 
         // ── Read occupancy from wall cache (T-C02b) ───────────────────
-        const isSingleBinMode = !this.currentBinLetter && shelfConfig.isSplitBins(this.currentShelfId);
+        const isSingleBinMode = !this.currentBinLetter && singleBin;
 
         let totalQty = 0;
         let totalValue = 0;
@@ -92,14 +97,14 @@ const binInfoModal = {
                 if (!this.currentShelfDbId && r.shelf_id) this.currentShelfDbId = r.shelf_id;
             }
         } else {
-            const row = wall.occupancyByCell.get(cellId);
-            if (row) {
-                totalQty = row.total_qty;
-                totalValue = row.total_value;
-                productName = row.product_name;
-                batchCount = row.batch_count;
-                capacity = row.capacity;
-                this.currentShelfDbId = row.shelf_id;
+            const occRow = wall.occupancyByCell.get(cellId);
+            if (occRow) {
+                totalQty = occRow.total_qty;
+                totalValue = occRow.total_value;
+                productName = occRow.product_name;
+                batchCount = occRow.batch_count;
+                capacity = occRow.capacity;
+                this.currentShelfDbId = occRow.shelf_id;
             }
         }
 
@@ -138,8 +143,8 @@ const binInfoModal = {
         }
 
         // Set toggle states
-        document.getElementById('binConfigSplitFifo').checked = config.splitFifo || false;
-        document.getElementById('binConfigSplitBins').checked = config.splitBins || false;
+        document.getElementById('binConfigSplitFifo').checked = splitFifo;
+        document.getElementById('binConfigSplitBins').checked = singleBin;
 
         // Show modal
         document.getElementById('binInfoModal').classList.add('active');
@@ -147,14 +152,17 @@ const binInfoModal = {
 
     close() {
         document.getElementById('binInfoModal').classList.remove('active');
+        this.currentCellId = null;
         this.currentShelfId = null;
         this.currentBinLetter = null;
         this.currentShelfDbId = null;
     },
 
-    onSplitFifoChange(enabled) {
-        if (!this.currentShelfId) return;
-        shelfConfig.toggleSplitFifo(this.currentShelfId, enabled);
+    async onSplitFifoChange(enabled) {
+        if (!this.currentShelfDbId) return;
+        await api.updateShelf(this.currentShelfDbId, { split_fifo: enabled });
+        await wall.loadLiveData();
+        this.show(this.currentCellId);
         notifications.show(
             enabled
                 ? 'Split FIFO enabled - Bins A and B are now independent'
@@ -163,16 +171,11 @@ const binInfoModal = {
         );
     },
 
-    onSplitBinsChange(enabled) {
-        if (!this.currentShelfId) return;
-        shelfConfig.toggleSplitBins(this.currentShelfId, enabled);
-
-        // Re-render the cell to update visual appearance
-        wall.rerenderCell(this.currentShelfId);
-
-        // Close modal since the cell structure changed
-        this.close();
-
+    async onSplitBinsChange(enabled) {
+        if (!this.currentShelfDbId) return;
+        await api.updateShelf(this.currentShelfDbId, { single_bin: enabled });
+        await wall.loadLiveData();
+        this.show(this.currentCellId);
         notifications.show(
             enabled
                 ? 'Single Bin mode enabled - Cell merged'
@@ -193,12 +196,12 @@ const binInfoModal = {
             return;
         }
 
-        const row = wall.occupancyByCell.get(
+        const occRow = wall.occupancyByCell.get(
             this.currentBinLetter
                 ? `${this.currentShelfId}-${this.currentBinLetter}`
                 : this.currentShelfId
         );
-        const currentCapacity = row ? row.capacity : null;
+        const currentCapacity = occRow ? occRow.capacity : null;
 
         const newCapacity = prompt(
             `Enter shelf capacity:\n(Current: ${currentCapacity || 'not set'})\n\nLeave empty or enter 0 to remove capacity limit.`,
@@ -218,7 +221,7 @@ const binInfoModal = {
         }
 
         try {
-            await api.updateShelfCapacity(this.currentShelfDbId, capacityValue);
+            await api.updateShelf(this.currentShelfDbId, { capacity: capacityValue });
             toast.show(
                 capacityValue === null
                     ? 'Capacity limit removed (unlimited)'

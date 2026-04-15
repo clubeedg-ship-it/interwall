@@ -134,9 +134,6 @@ async function init() {
     // Zone Configuration
     zoneConfig.init();
 
-    // Shelf Configuration (Bin A/B FIFO settings)
-    shelfConfig.init();
-
     // Wall
     wall.init();
 
