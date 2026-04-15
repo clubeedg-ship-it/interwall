@@ -147,3 +147,31 @@ def ingestion_status(session=Depends(require_session)):
         with conn.cursor() as cur:
             cur.execute(_INGESTION_STATUS_SQL)
             return [_format_ingestion_row(r) for r in cur.fetchall()]
+
+
+@router.get("/ingestion/failed")
+def ingestion_failed(session=Depends(require_session)):
+    """Retryable failed ingestion events (retry_count < MAX_RETRIES). T-B05."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, source, marketplace, external_id,
+                          retry_count, error_message, created_at
+                     FROM v_health_ingestion_failed
+                    ORDER BY created_at DESC"""
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+@router.get("/ingestion/dead-letter")
+def ingestion_dead_letter(session=Depends(require_session)):
+    """Dead-lettered ingestion events requiring operator action. T-B05."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, source, marketplace, external_id,
+                          retry_count, error_message, dead_letter_reason, created_at
+                     FROM v_health_ingestion_dead_letter
+                    ORDER BY created_at DESC"""
+            )
+            return [dict(r) for r in cur.fetchall()]

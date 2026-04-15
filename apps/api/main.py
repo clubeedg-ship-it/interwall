@@ -33,6 +33,7 @@ from routers.builds import router as builds_router
 from routers.external_xref import router as external_xref_router
 from email_poller.poller import poll_once
 from poller.bol_poller import poll_bol_once
+from ingestion.worker import process_pending_events
 
 scheduler = BackgroundScheduler()
 
@@ -73,6 +74,21 @@ async def lifespan(app: FastAPI):
             run_date=None,
             max_instances=1,
         )
+    interval = int(os.getenv("INGESTION_WORKER_INTERVAL_MINUTES", "5"))
+    scheduler.add_job(
+        process_pending_events,
+        "interval",
+        minutes=interval,
+        id="ingestion_worker",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        process_pending_events,
+        "date",
+        id="ingestion_worker_startup",
+        run_date=None,
+    )
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)
