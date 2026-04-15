@@ -1,9 +1,9 @@
 # Interwall — Handoff Protocol
 
-Read this only when dispatching work to server Sonnet or resuming from a
+Read this only when dispatching bounded operator work or resuming from a
 returned report.
 
-This file is intentionally narrower than `ORCHESTRATOR.md`.
+This file is intentionally narrower than `.project/COACH-HANDOFF.md`.
 
 ---
 
@@ -11,7 +11,7 @@ This file is intentionally narrower than `ORCHESTRATOR.md`.
 
 Handoffs exist for one thing:
 
-- move a bounded execution task from the main agent to the server agent
+- move a bounded execution task from the coach to the operator
   with minimal context loss
 
 Handoffs are not the place to restate the whole rebuild.
@@ -23,7 +23,7 @@ Handoffs are not the place to restate the whole rebuild.
 Create a primer only when all three are true:
 
 1. the task is already designed well enough to execute
-2. the task benefits from server-side work or a cheaper model
+2. the task benefits from delegation
 3. the task has a clear finish line you can verify from a returned report
 
 If design is still moving, do not hand off yet.
@@ -38,12 +38,14 @@ Each primer should fit this structure:
 
 Always include:
 
-    # T-XXX primer
-    # Run on server with:
-    #   claude --dangerously-skip-permissions --model claude-sonnet-4-6 \
-    #     < .project/handoffs/T-XXX-primer.md
-    # Report to: .project/handoffs/T-XXX-report.yaml
-    # When done: git add -A && git commit -m "chore(handoff): T-XXX report" && git push origin HEAD:v2
+    You are the operator for Interwall in `/Users/ottogen/interwall` on branch `v2`.
+    Task group:
+    - T-XXX
+    ...
+    Report:
+    - Return only YAML per `.project/REPORT-SCHEMA.md`
+    Stop rule:
+    - After report, stop
 
 ### Body
 
@@ -66,7 +68,7 @@ or router registration.
 
 ## 4. What to include
 
-Include only the facts the server agent actually needs:
+Include only the facts the operator actually needs:
 
 - exact file paths
 - function names and signatures
@@ -118,9 +120,8 @@ This matters more than background prose.
 
 ## 7. Report contract
 
-Every dispatched task returns:
-
-- `.project/handoffs/T-XXX-report.yaml`
+Every dispatched task returns YAML in chat following
+`.project/REPORT-SCHEMA.md`.
 
 The report must be structured enough to verify:
 
@@ -157,7 +158,7 @@ Examples of bad batching:
 
 ## 9. Recovery
 
-### Server agent ran out of context, diff still exists
+### Operator session ran out of context, diff still exists
 
 Write a finisher primer:
 
@@ -185,14 +186,21 @@ Instead:
 
 ---
 
-## 10. Practical guidance for this repo
+## 10. Branch discipline
 
-For Interwall right now:
+- All active Interwall work happens in:
+  - `/Users/ottogen/interwall`
+- All active Interwall work happens on:
+  - `v2`
+- Do not create, use, or recommend `.claude/worktrees/`
+- Do not split operator work onto side branches
+
+## 11. Practical guidance for this repo
 
 - Stream B backend execution is a good handoff candidate.
 - Stream C design prep is mostly a main-agent job.
 - Large UI rebuilds should not be delegated until the main agent has
-  narrowed the design enough that the server agent is implementing,
+  narrowed the design enough that the operator is implementing,
   not inventing.
 
 That is the line between useful delegation and expensive confusion.

@@ -1,122 +1,118 @@
-# Interwall — Codex Agent Guide
+# Interwall — Agent Guide
 
-This file is for fresh Codex sessions working in the active rebuild
-worktree.
+Active repo:
+`/Users/ottogen/interwall`
 
-Active worktree:
+Single allowed checkout:
+`/Users/ottogen/interwall`
 
-    /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney
+Single allowed write branch:
+`v2`
 
-Active branch:
+## Branch discipline
 
-    v2
+- All agents working on Interwall use exactly one branch: `v2`
+- All agents work from exactly one checkout: `/Users/ottogen/interwall`
+- Do not create, use, or recommend `.claude/worktrees/`
+- Do not create side branches for task work
+- Do not spread concurrent agent work across multiple checkouts
+- Before starting substantive work, confirm:
+  - `pwd` is `/Users/ottogen/interwall`
+  - `git branch --show-current` is `v2`
 
-Do not orchestrate from repo-root `main` unless explicitly asked.
+## Roles
 
----
+Two-session model:
 
-## Role
+- `coach`
+  - owns context, sequencing, and design
+  - loads only task-relevant docs and code
+  - decides direct execution vs delegation
+  - prepares the operator's first message
+  - reviews returned reports
+  - updates planning files and commits meaningful progress
+  - after accepting a task report, updates `.project/TODO.md` status and
+    the "Now (next up)" pointer before closing the task
 
-You are the main orchestrator for this rebuild.
+- `operator`
+  - receives a bounded task group
+  - implements only that task group
+  - runs required tests
+  - returns a structured report
+  - stops after reporting
 
-Default posture:
+## Startup
 
-- resolve design and sequencing locally
-- inspect code with CLI first
-- implement directly when the task is small or judgment-heavy
-- delegate only bounded execution work to server Sonnet via
-  `.project/handoffs/`
+Read only:
+1. `AGENTS.md`
+2. `.project/TODO.md`
 
-Do not recreate a coach/operator hierarchy inside Codex. One strong main
-agent is the default.
-
----
-
-## First files to read
-
-At session start, read only:
-
-1. `CLAUDE.md`
-2. `.project/ORCHESTRATOR.md`
-3. `.project/TODO.md`
-
-Then load only the file needed for the task:
-
-- `.project/DECISIONS.md` for design locks
-- `.project/HANDOFFS.md` for server delegation
-- `.project/PROCESS.md` for gating / verification
+Then load only what the task needs:
+- `.project/DECISIONS.md` for relevant design locks
+- `.project/HANDOFFS.md` for delegation rules
+- `.project/REPORT-SCHEMA.md` for return format
+- `.project/COACH-HANDOFF.md` for coach workflow state, session carryover,
+  and close-session notes
 - `.project/PLAN.md` only for high-level direction
 
 Do not dump the full `.project/` tree into context.
 
----
+## CLI-first discovery
 
-## Current project state
+Before broad reading, prefer:
+- `rg`
+- `rg --files`
+- `wc -l`
+- `sed -n`
+- `git log -S`
 
-- Stream A backend foundation is largely defined / landed
-- Stream B ingestion is the active execution track
-- Stream C UI rebuild is the next major track
-- The most important durable context is in `DECISIONS.md`
-- The most important execution context is in `TODO.md`
+Use docs selectively after locating the exact files and symbols involved.
 
-Near-term priority:
+## Task unit
 
-- prepare and/or execute `T-B02` + `T-B05`
-- keep workflow docs and handoffs lean
-- reduce context rot before large Stream C work begins
+Default execution unit:
+- one `T-XXX`
 
----
+Allowed exception:
+- one tightly coupled task pair like `T-B02 + T-B05`
 
-## Working rules
+Never use:
+- "continue Stream B"
+- "keep going until blocked"
+- open-ended execution scopes
 
-- Work only inside the active `v2` worktree unless explicitly told otherwise.
-- Use CLI search (`rg`, `sed`, `wc`, `git log -S`) to recover context.
-- Treat `DECISIONS.md` as the design lockfile.
-- Treat `TODO.md` as the next-action queue.
-- Keep `PLAN.md` high-level; do not reintroduce stale open-question logs there.
-- Keep primers short and factual.
-- Never push to `main`.
+## Documentation usage
 
----
+- `TODO.md`: next-action queue
+- `DECISIONS.md`: design lockfile
+- `PLAN.md`: high-level direction only
+- `COACH-HANDOFF.md`: single coach-side workflow/state/hygiene file
+- `HANDOFFS.md`: delegation protocol only
+- `REPORT-SCHEMA.md`: operator return contract
 
-## Delegation rule
+## Task closure
 
-Delegate to server Sonnet only when the task is already designed and
-benefits from:
+Coach closes a task only after all of the following are true:
+- returned report reviewed and accepted
+- `.project/TODO.md` updated to reflect the accepted task status
+- "Now (next up)" updated if the accepted task changes the queue head
+- any task-required planning/report artifact is written or verified
 
-- real server execution
-- long-running test / rebuild loops
-- bounded multi-file coding with clear acceptance checks
+## Handoff health
 
-Do not delegate unresolved design.
+A healthy handoff has:
+- one bounded task group
+- explicit scope fence
+- exact files/symbols to inspect
+- exact tests to run
+- explicit stop-after-report rule
+- no duplication of stable `AGENTS.md` content
+- no full project-history dump
 
----
+## Stop condition
 
-## When editing workflow docs
+Coach:
+- stop after context-state summary, execution decision, and operator first message
 
-Keep the stack simple:
-
-- `CLAUDE.md` = minimal invariants
-- `.project/ORCHESTRATOR.md` = how the main agent works
-- `.project/HANDOFFS.md` = how server delegation works
-- `.project/PROCESS.md` = gates and review standards
-- `.project/TODO.md` = current work
-- `.project/DECISIONS.md` = design history
-
-Avoid adding new meta-docs unless one replaces confusion with clarity.
-
----
-
-## Session objective
-
-Preserve momentum without rebuilding context every turn.
-
-The correct shape for this repo is:
-
-- design here
-- execute here when cheap
-- execute on server when bounded and worth it
-- verify here
-
-If a workflow change increases ceremony more than speed or clarity, do
-not adopt it.
+Operator:
+- stop after implementation, tests, and structured report

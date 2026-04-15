@@ -29,5 +29,29 @@ history · shelf address = `Zone-Column-Level-Bin` (e.g. `A-02-3-B`)
   `http://localhost:1441/...` not bare `localhost`.
 - DB shell: `docker compose exec -T postgres psql -U interwall -d interwall`
 
+## Workflow
+
+- `AGENTS.md` defines the coach/operator workflow and task-unit rules.
+- Use efficient CLI discovery first: `rg`, `rg --files`, `wc -l`,
+  `sed -n`, `git log -S`.
+- Load `.project/` docs on demand only when the task needs them.
+- Use `.project/COACH-HANDOFF.md` as the single coach-side handoff /
+  workflow-state file when saving session findings or resuming coach
+  work.
+- When coach work accepts a task as done, update `.project/TODO.md`
+  immediately before considering the task closed. This includes the
+  task status line and the "Now (next up)" pointer when the queue head
+  changes.
+
+## Branch discipline
+
+- All Interwall work happens on exactly one branch: `v2`
+- All Interwall work happens in exactly one checkout:
+  `/Users/ottogen/interwall`
+- Do not create, use, or recommend `.claude/worktrees/`
+- Do not split agents across multiple local branches or checkouts
+- Before substantive work, confirm `pwd` is `/Users/ottogen/interwall`
+  and `git branch --show-current` is `v2`
+
 Full context (plan, decisions, process, templates) lives under
 `.project/` — load on demand only when the task needs it.

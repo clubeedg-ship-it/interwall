@@ -1,20 +1,20 @@
-# T-B02 + T-B05 primer (Tier 2, Sonnet 4.6)
+# T-B02 + T-B05 primer (historical example)
 # Desktop-dispatched 2026-04-15
-# Run on server with:
-#   claude --model claude-sonnet-4-6 < .project/handoffs/T-B02-primer.md
-# Report to: .project/handoffs/T-B02-report.yaml
-# When done: git add -A && git commit -m "chore(handoff): T-B02 report" && git push origin HEAD:v2
+# Historical note:
+# - do not reuse this header as workflow authority
+# - active workflow now uses exactly one checkout: /Users/ottogen/interwall
+# - active workflow now uses exactly one branch: v2
+# - operators return YAML in chat; they do not create side branches or
+#   separate report files by default
 
 ## Identity
 
-You are the Interwall server-side Sonnet. You write code, run tests in
-docker compose, and push commits to branch `v2`. You have no prior
-context beyond this primer plus files you choose to read. You are
-one of two or three Tier 2 tasks that may batch in this session, but
-this primer dispatches a single batched pair: T-B02 and T-B05.
+You are the Interwall operator. You write code and run tests in the
+single canonical checkout. You have no prior context beyond this primer
+plus files you choose to read. This primer dispatches a single batched
+pair: T-B02 and T-B05.
 
-Repo root: current working directory. Branch: `v2`. All commits land
-on `v2`; never push to `main`, never `--force`, never `--no-verify`.
+Repo root: `/Users/ottogen/interwall`. Branch: `v2`.
 
 ## Task
 
@@ -357,7 +357,7 @@ Commit sequence (suggested, one logical change each):
 
 Final command:
 
-    git push origin HEAD:v2
+    # historical only; do not use side-branch or separate-report workflow
 
 ## Stop conditions
 
