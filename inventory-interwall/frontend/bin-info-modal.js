@@ -128,7 +128,7 @@ const binInfoModal = {
             if (fillEl && capacity) {
                 const fillPercent = Math.min((totalQty / capacity) * 100, 100);
                 fillEl.style.width = `${fillPercent}%`;
-                if (fillPercent < 20) {
+                if (fillPercent < THRESHOLDS.BIN_LOW_FILL_PERCENT) {
                     fillEl.classList.add('low');
                 } else {
                     fillEl.classList.remove('low');

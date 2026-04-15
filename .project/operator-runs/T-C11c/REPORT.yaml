@@ -1,0 +1,65 @@
+task_id: T-C11c
+status: done
+
+summary: |
+  Added THRESHOLDS and DEFAULTS named-constants surface to config.js (D-045).
+  Migrated inline business literals in wall.js (5/15 stock band), bin-info-modal.js
+  (20% fill), catalog-core.js (0.5 low-stock ratio), and profit.js (VAT 21,
+  commission 6.2/0.062, overhead 95) to reference the new constants. Pure
+  refactor — values unchanged.
+
+files_changed:
+  - inventory-interwall/frontend/config.js
+  - inventory-interwall/frontend/wall.js
+  - inventory-interwall/frontend/bin-info-modal.js
+  - inventory-interwall/frontend/catalog-core.js
+  - inventory-interwall/frontend/profit.js
+  - inventory-interwall/frontend/t_c11c_constants_verify.mjs
+
+tests:
+  - file: inventory-interwall/frontend/t_c11c_constants_verify.mjs
+    runner: node inventory-interwall/frontend/t_c11c_constants_verify.mjs
+    result: pass
+    final_line: 35 passed, 0 failed
+
+decisions_cited:
+  - D-045
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+adversarial_review:
+  - Script load order — config.js defines THRESHOLDS/DEFAULTS and already
+    loads first in index.html before all sink files (wall.js, bin-info-modal.js,
+    catalog-core.js, profit.js), so global references resolve at call time.
+  - profit.js has several nested objects whose own member named `DEFAULTS`
+    (costConfig.DEFAULTS, fixedComponentsConfig.DEFAULTS). The global
+    `DEFAULTS` constant is referenced by bare identifier only inside the
+    initializer for costConfig.DEFAULTS (`value: DEFAULTS.VAT_RATE`), where
+    JS resolves to the outer binding, not the property being defined — so
+    no self-reference or shadow bug. `this.DEFAULTS` call sites are untouched.
+  - Literal values copied verbatim (5, 15, 20, 0.5, 21, 6.2, 0.062, 95.00);
+    no behavior drift. Catalog `inStock < minStock` (no ratio) left as-is
+    since it is not a threshold literal.
+
+open_questions:
+  - profit.js line 1693 has a render-time fallback `vatEntry.value : 21` for
+    DB-sourced transactions with missing VAT rows, and line 792 has a
+    `sanitize(bd.vatRate || 21)` label fallback. These mirror the default
+    VAT rate but are display fallbacks on persisted historical data, not
+    "DEFAULTS when backend config absent". Left literal per the "leave
+    ambiguous literals literal and flag" rule. Coach to decide whether a
+    future pass should collapse them to DEFAULTS.VAT_RATE.
+  - profit.js line 1862/1865 have render-time commission/overhead fallbacks
+    (`0.062`, `0`) in buildFromOrder path. The `0.062` matches
+    DEFAULTS.COMMISSION_RATE; the `0` is a distinct "no overhead row found"
+    sentinel, not the default 95. Left literal for the same reason.
+
+next_ready: true

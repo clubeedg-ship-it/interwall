@@ -52,7 +52,7 @@ const costConfig = {
             name: 'BTW/VAT',
             type: 'vat',             // Special type: deducted from sale price
             basis: 'salePrice',
-            value: 21,               // VAT percentage (extracted from gross, not added)
+            value: DEFAULTS.VAT_RATE, // VAT percentage (extracted from gross, not added)
             country: 'NL',
             enabled: true
         },
@@ -61,7 +61,7 @@ const costConfig = {
             name: 'Commission',
             type: 'percentage',      // 'fixed' or 'percentage'
             basis: 'salePrice',      // 'salePrice' or 'componentsCost' (only for percentage)
-            value: 6.2,              // percentage value (6.2 = 6.2%)
+            value: DEFAULTS.COMMISSION_PCT, // percentage value (6.2 = 6.2%)
             enabled: true
         },
         {
@@ -69,7 +69,7 @@ const costConfig = {
             name: 'Fixed Overhead',
             type: 'fixed',
             basis: null,
-            value: 95.00,
+            value: DEFAULTS.OVERHEAD_FIXED,
             enabled: true
         }
     ],
@@ -281,11 +281,11 @@ const costConfig = {
 const PROFIT_CONFIG = {
     get COMMISSION_RATE() {
         const commission = costConfig.get('commission');
-        return commission ? commission.value / 100 : 0.062;
+        return commission ? commission.value / 100 : DEFAULTS.COMMISSION_RATE;
     },
     get STATIC_OVERHEAD() {
         const overhead = costConfig.get('overhead');
-        return overhead ? overhead.value : 95.00;
+        return overhead ? overhead.value : DEFAULTS.OVERHEAD_FIXED;
     }
 };
 

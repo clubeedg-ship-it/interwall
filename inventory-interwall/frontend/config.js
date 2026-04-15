@@ -24,6 +24,26 @@ const CONFIG = {
 };
 
 // =============================================================================
+// Business Thresholds & Defaults (D-045)
+// =============================================================================
+const THRESHOLDS = {
+    STOCK_CRITICAL: 5,          // qty at/below which wall cell is "critical"
+    STOCK_WARNING: 15,          // qty at/below which wall cell is "warning"
+    BIN_LOW_FILL_PERCENT: 20,   // fill% below which bin-info flags low
+    LOW_STOCK_RATIO: 0.5,       // catalog low-stock = inStock < minStock * ratio
+};
+
+const DEFAULTS = {
+    VAT_RATE: 21,               // default VAT percentage (NL) when backend absent
+    COMMISSION_PCT: 6.2,        // default commission percentage
+    COMMISSION_RATE: 0.062,     // default commission as rate (legacy PROFIT_CONFIG fallback)
+    OVERHEAD_FIXED: 95.00,      // default fixed overhead amount
+};
+
+window.THRESHOLDS = THRESHOLDS;
+window.DEFAULTS = DEFAULTS;
+
+// =============================================================================
 // State
 // =============================================================================
 const state = {

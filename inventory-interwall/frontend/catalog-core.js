@@ -278,7 +278,7 @@ const catalog = {
         let statusText = 'No Stock';
 
         if (inStock > 0) {
-            if (minStock > 0 && inStock < minStock * 0.5) {
+            if (minStock > 0 && inStock < minStock * THRESHOLDS.LOW_STOCK_RATIO) {
                 statusClass = 'critical';
                 statusText = 'Critical';
             } else if (minStock > 0 && inStock < minStock) {

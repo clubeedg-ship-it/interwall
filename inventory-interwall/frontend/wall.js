@@ -402,8 +402,8 @@ const wall = {
      */
     getStatus(qty) {
         if (qty <= 0) return 'empty';
-        if (qty <= 5) return 'critical';
-        if (qty <= 15) return 'warning';
+        if (qty <= THRESHOLDS.STOCK_CRITICAL) return 'critical';
+        if (qty <= THRESHOLDS.STOCK_WARNING) return 'warning';
         return 'healthy';
     }
 };
