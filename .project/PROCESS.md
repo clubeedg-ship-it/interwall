@@ -184,3 +184,37 @@ PROCESS.md, PRIMER-TEMPLATE.md, or REPORT-SCHEMA.md. Patches:
   non-trivial (not a typo fix).
 - Take effect for all tasks started AFTER the patch commit, not
   retroactively.
+
+---
+
+## 11. Post-merge cold-rebuild sanity check
+
+Mandatory reviewer-side step whenever a task commit touches ANY of:
+
+- `apps/api/requirements.txt`
+- `apps/api/Dockerfile`
+- `docker-compose.yml`
+- `apps/api/sql/` (new files that are not listed under
+  `/docker-entrypoint-initdb.d/` volume mounts)
+- Any new volume or bind mount
+- Any new router registered in `apps/api/main.py`
+
+After pulling the task commit on the server, the reviewer runs:
+
+    git pull origin v2
+    docker compose down
+    docker compose build api
+    docker compose up -d
+    # Re-run every committed test file that existed before this task:
+    docker compose exec -T postgres psql -U interwall -d interwall \
+      -f /app/tests/<each *.sql test>
+    docker compose exec -T api python -m pytest /app/tests/ -v
+
+If anything fails that previously passed, the task did not actually
+ship. File a remediation task (e.g. T-A07a pattern) and block the
+next task until green.
+
+The agent's own `cold_rebuild_survival` block in the report is
+evidence but NOT proof. Reviewer re-runs from a clean state on the
+reviewer's own shell. Trust-but-verify is the rule for infra-adjacent
+changes.

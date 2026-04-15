@@ -9,7 +9,7 @@ A good primer is specific, fenced, and self-contained. It never says
 
 ---
 
-## Anatomy (7 sections, in order)
+## Anatomy (8 sections, in order)
 
 ### 1. Context
 One paragraph. What shipped immediately before, what's next, which tier.
@@ -52,7 +52,27 @@ Format per case:
 Reference REPORT-SCHEMA.md. State that the report MUST be YAML per
 that schema. Prose reports are rejected.
 
-### 7. Stop conditions
+### 7. Cold-rebuild survival declaration
+Mandatory when the task touches ANY of:
+- `apps/api/requirements.txt` (new runtime or test deps)
+- `apps/api/Dockerfile` or `docker-compose.yml`
+- A new SQL file under `apps/api/sql/` that must be loaded at DB init
+  (i.e. not manually applied)
+- A new router registered in `main.py`
+- A new volume mount or bind mount
+
+Primer MUST state:
+- The EXACT command the agent will run to prove cold-rebuild survival,
+  e.g. `docker compose down && docker compose build api && docker compose up -d && <re-run tests>`
+- The expected result (all prior tests + new tests pass)
+- Instruction to record both in `cold_rebuild_survival` block of the
+  YAML report per REPORT-SCHEMA.md
+
+Not applicable (leave the section with `not required — task adds no
+deps, no loaded files, no registered routers`) when the task is pure
+refactor, pure docs, or confined to files that never leave the host.
+
+### 8. Stop conditions
 Explicit line: "Pause after report. Do not begin T-<next>."
 Name the next task by ID so the agent doesn't guess.
 

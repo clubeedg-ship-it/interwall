@@ -28,6 +28,13 @@ Not used (do not revive without asking): `apps/web/` (deprecated Next.js scaffol
 - `docker compose exec -T postgres psql -U interwall -d interwall -f /app/path.sql` — run SQL file
 - `./reset-data.sh` — reset DB and reload stock checkpoint (destructive)
 
+The Docker stack binds nginx to host port **1441**, not 80. Port 80 on
+the host is a system nginx (apt-installed) which proxies
+`interwall.abbamarkt.nl → 127.0.0.1:1441`. For local testing use
+`http://localhost:1441/...`. Hitting `localhost` without the port will
+hit the system nginx and can return 404 for routes the system nginx
+doesn't know about.
+
 See [Test & commit discipline](#test--commit-discipline) for how tests are
 written, run, and committed. See [Database access](#database-access) for
 connection details and mount paths.
