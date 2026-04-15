@@ -25,6 +25,7 @@ from routers.compositions import router as compositions_router
 from routers.fixed_costs import router as fixed_costs_router
 from routers.profit import router as profit_router
 from routers.stock_lots import router as stock_lots_router
+from routers.stock_transfer import router as stock_transfer_router
 from routers.categories import router as categories_router
 from routers.shelves import router as shelves_router
 from routers.vat_rates import router as vat_rates_router
@@ -131,6 +132,7 @@ app.include_router(compositions_router)
 app.include_router(fixed_costs_router)
 app.include_router(profit_router)
 app.include_router(stock_lots_router)
+app.include_router(stock_transfer_router)
 app.include_router(categories_router)
 app.include_router(shelves_router)
 app.include_router(vat_rates_router)

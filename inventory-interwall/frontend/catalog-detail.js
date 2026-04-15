@@ -391,11 +391,18 @@ const batchEditor = {
             const locationChanged = newLocationId && parseInt(newLocationId) !== this.currentStock.location;
 
             if (locationChanged) {
-                console.log(`Location change detected: moving stock to new location`);
-
-                // Transfer stock to new location
-                await handshake.moveStock(stockId, parseInt(newLocationId), qty);
-                toast.show('Batch moved to new location', 'success');
+                // Backend /api/stock/transfer expects UUIDs for both lot and
+                // shelf. The legacy InvenTree state model stored integer pks,
+                // so guard the call to keep the flow safe when the editor is
+                // still wired against the old shape.
+                const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (UUID_RE.test(String(stockId)) && UUID_RE.test(String(newLocationId))) {
+                    await api.transferStock(stockId, newLocationId, qty, 'Batch editor location change');
+                    toast.show('Batch moved to new location', 'success');
+                } else {
+                    console.warn('Skipping transferStock: non-UUID ids', { stockId, newLocationId });
+                    toast.show('Move skipped: legacy ids — re-open from canonical lot list', 'warn');
+                }
             }
 
             // Update quantity and price

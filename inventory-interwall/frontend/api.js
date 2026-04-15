@@ -186,6 +186,43 @@ const api = {
     },
 
     /**
+     * Canonical FIFO order for a product's stock lots (server-authoritative).
+     * Returns [{id, quantity, unit_cost, marketplace, received_at, created_at}, ...]
+     * ordered by received_at ASC — oldest first.
+     */
+    async getStockLotsByProduct(ean) {
+        return this.request(`/api/stock-lots/by-product/${encodeURIComponent(ean)}`);
+    },
+
+    /**
+     * Move a lot (or part of a lot) to another shelf.
+     * Backed by POST /api/stock/transfer; session-authenticated.
+     */
+    async transferStock(lotId, toShelfId, qty, notes = '') {
+        return this.request('/api/stock/transfer', {
+            method: 'POST',
+            body: JSON.stringify({
+                lot_id: lotId,
+                to_shelf_id: toShelfId,
+                qty,
+                notes,
+            }),
+        });
+    },
+
+    /**
+     * Consume (decrement) qty from a specific stock lot.
+     * Backed by POST /api/stock-lots/{lot_id}/consume. Used by the
+     * handshake picking flow for manual stock-outs.
+     */
+    async consumeLot(lotId, qty, notes = '') {
+        return this.request(`/api/stock-lots/${encodeURIComponent(lotId)}/consume`, {
+            method: 'POST',
+            body: JSON.stringify({ qty, notes }),
+        });
+    },
+
+    /**
      * Consume stock from a specific stock item (reduce quantity)
      * @param {number} stockItemId - Stock item ID
      * @param {number} qty - Quantity to consume
@@ -198,22 +235,6 @@ const api = {
             method: 'PATCH',
             body: JSON.stringify({
                 quantity: qty
-            })
-        });
-    },
-
-    /**
-     * Remove stock items (delete or set to 0)
-     * @param {number} stockItemId - Stock item ID
-     * @param {number} qty - Quantity to remove
-     */
-    async removeStock(stockItemId, qty) {
-        // Use stock move/remove endpoint
-        return this.request('/stock/remove/', {
-            method: 'POST',
-            body: JSON.stringify({
-                items: [{ pk: stockItemId, quantity: qty }],
-                notes: 'Picked via Interwall OS'
             })
         });
     },

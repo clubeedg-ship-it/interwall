@@ -209,8 +209,18 @@ coherence before any deployment-readiness signoff.
 - `v_shelf_occupancy` + `GET /api/shelves/occupancy`
 - `wall.js` and `bin-info-modal.js` consume canonical occupancy data
 
-#### `T-C02c` — Handshake FIFO pick/receive (TODO)
-- `handshake.js` still needs to move off browser-authored FIFO / stock authority
+#### `T-C02c` — Handshake FIFO pick/receive (DONE 2026-04-15)
+- `handshake.js` off browser-authored FIFO; `api.consumeLot` +
+  `api.transferStock` hit canonical server endpoints
+- Backend: `POST /api/stock-lots/{lot_id}/consume`,
+  `POST /api/stock/transfer` (session auth, SELECT FOR UPDATE, atomic)
+- Deviation: manual stock-out/relocation does not write
+  `stock_ledger_entries` because the table's NOT NULL + qty_delta<>0
+  constraints block ledger rows for non-sale movements. D-017 still
+  holds on the sales path via `process_bom_sale`. Tracked as new
+  parking-lot item for a future ledger-schema relax.
+- Tests: `apps/api/tests/t_C02c_handshake_endpoints.py` 7/7 pass;
+  `inventory-interwall/frontend/t_c02c_handshake_verify.mjs` 23/23.
 - deps: `T-C02b`
 
 #### `T-C02d` — Shelf capacity from DB (DONE 2026-04-15, 0e6442d)

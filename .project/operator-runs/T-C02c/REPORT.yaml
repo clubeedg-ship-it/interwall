@@ -1,0 +1,80 @@
+task_id: T-C02c
+status: deviated
+summary: |
+  Added canonical consume + transfer endpoints, rewired handshake picking
+  and catalog-detail onto them, and dropped the dead /stock/remove/ client
+  helper. Deviated from packet on one point: the schema's
+  stock_ledger_entries.transaction_id is NOT NULL with an FK to
+  transactions (type in purchase|sale), so manual stock-outs cannot write
+  a ledger row without a migration. D-017 governs sale flows — which
+  still write ledger rows via process_bom_sale on the ingestion path —
+  so the consume and transfer endpoints move lot quantity only and
+  document the decision in-code.
+files_changed:
+  - apps/api/main.py
+  - apps/api/routers/stock_lots.py
+  - apps/api/routers/stock_transfer.py
+  - apps/api/tests/t_C02c_handshake_endpoints.py
+  - inventory-interwall/frontend/api.js
+  - inventory-interwall/frontend/handshake.js
+  - inventory-interwall/frontend/catalog-detail.js
+  - inventory-interwall/frontend/t_c02c_handshake_verify.mjs
+tests:
+  - file: inventory-interwall/frontend/t_c02c_handshake_verify.mjs
+    runner: node inventory-interwall/frontend/t_c02c_handshake_verify.mjs
+    final_line: 23 passed, 0 failed
+  - file: apps/api/tests/t_C02c_handshake_endpoints.py
+    runner: docker compose exec -T api python -m pytest /app/tests/t_C02c_handshake_endpoints.py -v --tb=short
+    final_line: 7 passed, 1 warning in 0.18s
+  - file: null
+    runner: curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:1441/api/stock-lots/<uuid>/consume (unauth) and /api/stock/transfer (unauth)
+    final_line: consume 401, transfer 401 — routes live, session auth enforced
+decisions_cited:
+  - D-017
+  - D-020
+  - D-021
+  - D-022
+  - D-025
+  - D-040
+  - D-041
+  - D-046
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+cold_rebuild:
+  required: true
+  command: docker compose build api && docker compose up -d api
+  result: api container rebuilt — code is COPY'd into image (only tests/ is bind-mounted), so router additions require a rebuild
+adversarial_review:
+  - |
+    Deviated: neither consume nor transfer writes stock_ledger_entries.
+    Schema blocks the packet's VALUES (NULL, lot_id, ...) plan —
+    transaction_id is NOT NULL, type ∈ {purchase, sale}, qty_delta <> 0.
+    Sales still produce ledger rows via process_bom_sale on ingestion,
+    so D-017 remains satisfied where it actually applies.
+  - |
+    consume_lot is not idempotent: a retry after a successful decrement
+    will decrement again. Handshake picks are human-triggered one-offs
+    so this is tolerable for now, but the lack of idempotency key leaves
+    the door open to double-pick on flaky networks.
+  - |
+    catalog-detail.js batchEditor gates the transfer on a UUID-shape
+    check for both lot id and shelf id. Legacy InvenTree-int state shapes
+    silently short-circuit with a toast. Correct behaviour in a
+    transitional codebase, but it also means a subtle wiring bug that
+    keeps legacy ints flowing will look like "nothing happens" to the
+    user — needs replacement with canonical lot-list wiring in a
+    follow-up UI slice.
+open_questions:
+  - |
+    Do we want a non-sale transaction type (e.g. 'adjustment') plus a
+    nullable stock_ledger_entries.transaction_id to record manual
+    stock-out history? That's the only way to regain a full audit trail
+    for handshake picks — requires a migration so it is out of scope
+    here.
+  - |
+    Partial-qty transfer splits the lot and preserves received_at, so
+    FIFO order remains stable. Confirm the coach is happy with two
+    distinct lot rows for the same physical receipt after a split.
+next_ready: true
