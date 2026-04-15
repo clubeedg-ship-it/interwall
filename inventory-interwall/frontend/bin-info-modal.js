@@ -10,7 +10,6 @@
 const binInfoModal = {
     currentShelfId: null,
     currentBinLetter: null,
-    currentStock: [],
 
     init() {
         const modal = document.getElementById('binInfoModal');
@@ -67,62 +66,53 @@ const binInfoModal = {
         document.getElementById('binInfoTitle').textContent = `Bin ${cellId}`;
         document.getElementById('binInfoShelfId').textContent = `Zone ${zone} · Column ${col} · Level ${level}`;
 
-        // Get location ID for this cell
-        let location = state.locations.get(cellId);
-
-        // For single bin mode on regular shelves, the location might not exist directly
-        // (e.g., "A-1-3" doesn't exist, only "A-1-3-A" and "A-1-3-B" do)
-        // In this case, we need to combine stock from both A and B bins
+        // ── Read occupancy from wall cache (T-C02b) ───────────────────
         const isSingleBinMode = !this.currentBinLetter && shelfConfig.isSplitBins(this.currentShelfId);
 
-        // Load stock for this cell
-        try {
-            if (location) {
-                // Direct location found (power supply or native single bin)
-                this.currentStock = await api.getStockAtLocation(location.pk);
-            } else if (isSingleBinMode) {
-                // Single bin mode on regular shelf - combine stock from A and B
-                const locA = state.locations.get(`${cellId}-A`);
-                const locB = state.locations.get(`${cellId}-B`);
+        let totalQty = 0;
+        let totalValue = 0;
+        let productName = null;
+        let batchCount = 0;
+        let capacity = null;
 
-                const stockA = locA ? await api.getStockAtLocation(locA.pk) : [];
-                const stockB = locB ? await api.getStockAtLocation(locB.pk) : [];
-
-                this.currentStock = [...stockA, ...stockB];
-                console.log(`Single bin mode: Combined ${stockA.length} + ${stockB.length} batches`);
-            } else {
-                console.warn(`Location not found for cell: ${cellId}`);
-                document.getElementById('binProductSection').style.display = 'none';
-                document.getElementById('binEmptySection').style.display = 'flex';
-                document.getElementById('binInfoModal').classList.add('active');
-                return;
+        if (isSingleBinMode) {
+            // Combine A + B + base
+            const rA = wall.occupancyByCell.get(`${cellId}-A`);
+            const rB = wall.occupancyByCell.get(`${cellId}-B`);
+            const rBase = wall.occupancyByCell.get(cellId);
+            for (const r of [rA, rB, rBase]) {
+                if (!r) continue;
+                totalQty += r.total_qty;
+                totalValue += r.total_value;
+                batchCount += r.batch_count;
+                if (!productName && r.product_name) productName = r.product_name;
+                if (!capacity && r.capacity) capacity = r.capacity;
             }
-        } catch (e) {
-            console.error('Failed to load stock:', e);
-            this.currentStock = [];
+        } else {
+            const row = wall.occupancyByCell.get(cellId);
+            if (row) {
+                totalQty = row.total_qty;
+                totalValue = row.total_value;
+                productName = row.product_name;
+                batchCount = row.batch_count;
+                capacity = row.capacity;
+            }
         }
 
         // Display stock info
-        if (this.currentStock.length === 0) {
+        if (totalQty <= 0) {
             document.getElementById('binProductSection').style.display = 'none';
             document.getElementById('binEmptySection').style.display = 'flex';
         } else {
             document.getElementById('binEmptySection').style.display = 'none';
             document.getElementById('binProductSection').style.display = 'flex';
 
-            // Get first stock item (could be multiple batches of same product)
-            const firstStock = this.currentStock[0];
-            const part = state.parts.get(firstStock.part);
-            const totalQty = this.currentStock.reduce((sum, s) => sum + s.quantity, 0);
-            const totalValue = this.currentStock.reduce((sum, s) => sum + (s.quantity * (s.purchase_price || 0)), 0);
-            const capacity = shelfConfig.getBinCapacity(this.currentShelfId, firstStock.part, this.currentBinLetter);
-
             // Update product name
-            document.getElementById('binProductName').textContent = part?.name || 'Unknown Part';
+            document.getElementById('binProductName').textContent = productName || 'Unknown Part';
 
-            // Update stock metrics (separate elements)
+            // Update stock metrics
             document.getElementById('binProductQty').textContent = totalQty;
-            document.getElementById('binProductCapacity').textContent = capacity || '∞';
+            document.getElementById('binProductCapacity').textContent = capacity || '\u221E';
 
             // Update progress bar
             const fillEl = document.getElementById('binStockFill');
@@ -140,7 +130,7 @@ const binInfoModal = {
             }
 
             // Update value
-            document.getElementById('binProductValue').textContent = `€${totalValue.toFixed(2)} total value`;
+            document.getElementById('binProductValue').textContent = `\u20AC${totalValue.toFixed(2)} total value`;
         }
 
         // Set toggle states
@@ -155,7 +145,6 @@ const binInfoModal = {
         document.getElementById('binInfoModal').classList.remove('active');
         this.currentShelfId = null;
         this.currentBinLetter = null;
-        this.currentStock = [];
     },
 
     onSplitFifoChange(enabled) {
@@ -188,25 +177,25 @@ const binInfoModal = {
     },
 
     async viewBatches() {
-        if (this.currentStock.length === 0) {
-            toast.show('No batches in this bin', 'info');
-            return;
-        }
-        // Open first batch in batch detail modal
-        if (typeof batchDetail !== 'undefined') {
-            batchDetail.show(this.currentStock[0].pk);
-            this.close();
-        }
+        // Batch-level detail requires per-lot data (T-C04 scope).
+        // For now surface a hint rather than calling a dead InvenTree path.
+        toast.show('Batch detail view coming in T-C04', 'info');
     },
 
     async editCapacity() {
-        if (this.currentStock.length === 0) {
+        // Read occupancy for current cell to check if there's stock
+        const row = wall.occupancyByCell.get(
+            this.currentBinLetter
+                ? `${this.currentShelfId}-${this.currentBinLetter}`
+                : this.currentShelfId
+        );
+        if (!row || row.total_qty <= 0) {
             toast.show('Add stock first to set capacity', 'info');
             return;
         }
 
-        const partId = this.currentStock[0].part;
-        const currentCapacity = shelfConfig.getBinCapacity(this.currentShelfId, partId, this.currentBinLetter);
+        const partId = null; // capacity is per-shelf now, not per-part
+        const currentCapacity = row.capacity;
 
         const newCapacity = prompt(
             `Enter bin capacity for this product:\n(Current: ${currentCapacity || 'not set'})\n\nLeave empty or enter 0 to remove capacity limit.\nWhen not set, batches are retrieved one-by-one (FIFO order).`,

@@ -90,15 +90,14 @@ const api = {
         return data;
     },
 
-    async getStockAtLocation(locId) {
-        const data = await this.request(`/stock/?location=${locId}&limit=100`);
-        return data.results || data;
-    },
-
-    // Bulk load ALL stock items (for fast wall loading)
-    async getAllStock() {
-        const data = await this.request(`/stock/?in_stock=true&limit=2000`);
-        return data.results || data;
+    /**
+     * Per-shelf occupancy from v_shelf_occupancy (T-C02b).
+     * Returns array of {shelf_id, shelf_label, zone_name, col, level, bin,
+     *                    capacity, total_qty, total_value, batch_count,
+     *                    product_name, product_ean}.
+     */
+    async getShelfOccupancy() {
+        return this.request('/api/shelves/occupancy');
     },
 
     async searchPart(query) {

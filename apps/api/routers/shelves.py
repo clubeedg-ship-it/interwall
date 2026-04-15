@@ -20,3 +20,26 @@ def list_shelves(session=Depends(require_session)):
                    ORDER BY z.name, s.col, s.level, s.bin NULLS FIRST"""
             )
             return [dict(r) for r in cur.fetchall()]
+
+
+@router.get("/occupancy")
+def shelf_occupancy(session=Depends(require_session)):
+    """Per-shelf occupancy from v_shelf_occupancy (T-C02b).
+
+    Returns one row per shelf with aggregated stock qty/value and
+    primary product info.  The wall grid and bin-info modal consume
+    this as the single source of truth for shelf stock.
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM v_shelf_occupancy")
+            rows = cur.fetchall()
+            # Convert Decimal to float for JSON serialisation
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["total_qty"] = int(d["total_qty"])
+                d["total_value"] = float(d["total_value"])
+                d["batch_count"] = int(d["batch_count"])
+                out.append(d)
+            return out

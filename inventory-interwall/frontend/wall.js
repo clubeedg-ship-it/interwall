@@ -243,49 +243,37 @@ const wall = {
 
     async loadBinContents(cellId, isPowerSupply) {
         if (isPowerSupply) {
-            const loc = state.locations.get(cellId);
-            if (loc) {
-                const stock = await api.getStockAtLocation(loc.pk);
-                dom.binAContent.innerHTML = this.renderStock(stock);
-            }
+            dom.binAContent.innerHTML = this.renderOccupancy(cellId);
         } else {
-            const locA = state.locations.get(`${cellId}-A`);
-            const locB = state.locations.get(`${cellId}-B`);
-
-            if (locA) {
-                const stockA = await api.getStockAtLocation(locA.pk);
-                dom.binAContent.innerHTML = this.renderStock(stockA);
-            }
-
-            if (locB) {
-                const stockB = await api.getStockAtLocation(locB.pk);
-                dom.binBContent.innerHTML = this.renderStock(stockB);
-            }
+            dom.binAContent.innerHTML = this.renderOccupancy(`${cellId}-A`, cellId);
+            dom.binBContent.innerHTML = this.renderOccupancy(`${cellId}-B`);
         }
     },
 
-    renderStock(items) {
-        if (!items || items.length === 0) {
+    /**
+     * Render occupancy summary for a shelf key.
+     * If fallbackKey is provided, its qty is folded in (base shelf → bin A).
+     */
+    renderOccupancy(key, fallbackKey) {
+        const row = this.occupancyByCell.get(key);
+        const fallback = fallbackKey ? this.occupancyByCell.get(fallbackKey) : null;
+        const qty = (row ? row.total_qty : 0) + (fallback ? fallback.total_qty : 0);
+        const value = (row ? row.total_value : 0) + (fallback ? fallback.total_value : 0);
+        const name = (row && row.product_name) || (fallback && fallback.product_name);
+
+        if (qty <= 0) {
             return '<div class="empty-bin">No stock</div>';
         }
 
-        return items.map(item => {
-            const qty = item.quantity || 0;
-            const allocated = item.allocated || 0;
-            const available = qty - allocated;
-            const hasAllocation = allocated > 0;
-
-            return `
-                <div class="stock-item ${hasAllocation ? 'has-allocation' : ''}" onclick="batchDetail.show(${item.pk})" style="cursor: pointer;">
-                    <div class="stock-item-name">${item.part_detail?.name || 'Unknown'}</div>
-                    <div class="stock-item-meta">
-                        <span class="stock-qty ${hasAllocation ? 'partial' : ''}">${available}/${qty}</span>
-                        <span class="stock-price">€${(item.purchase_price || 0).toFixed(2)}</span>
-                        ${hasAllocation ? `<span class="allocation-badge" title="${allocated} reserved"></span>` : ''}
-                    </div>
+        return `
+            <div class="stock-item">
+                <div class="stock-item-name">${sanitize(name || 'Unknown')}</div>
+                <div class="stock-item-meta">
+                    <span class="stock-qty">${qty}</span>
+                    <span class="stock-price">${sanitize('\u20AC')}${value.toFixed(2)}</span>
                 </div>
-            `;
-        }).join('');
+            </div>
+        `;
     },
 
     highlightCell(cellId) {
@@ -321,71 +309,70 @@ const wall = {
     },
 
     /**
-     * Load live stock data for all cells
+     * Occupancy cache — populated by loadLiveData(), consumed by
+     * processCellFromCache() and bin-info-modal.
+     * Key: "${zone}-${col}-${level}" or "${zone}-${col}-${level}-${bin}"
+     * Value: occupancy row {total_qty, total_value, batch_count, product_name, product_ean, capacity}
+     */
+    occupancyByCell: new Map(),
+
+    /**
+     * Load live stock data for all cells from v_shelf_occupancy (T-C02b).
      */
     async loadLiveData() {
-        console.log('Loading live wall data (bulk mode)...');
+        console.log('Loading live wall data (occupancy view)...');
         const startTime = performance.now();
 
-        // Get active zones from dynamic configuration
         const activeZones = zoneConfig.getAllZones();
-
         if (activeZones.length === 0) {
             console.warn('No active zones configured, skipping data load');
             return;
         }
 
-        // OPTIMIZATION: Fetch ALL stock in ONE API call
-        let allStock = [];
+        let rows = [];
         try {
-            allStock = await api.getAllStock();
-            console.log(`Fetched ${allStock.length} stock items in bulk`);
+            rows = await api.getShelfOccupancy();
+            console.log(`Fetched ${rows.length} shelf occupancy rows`);
         } catch (e) {
-            console.error('Failed to fetch bulk stock:', e);
+            console.error('Failed to fetch shelf occupancy:', e);
             return;
         }
 
-        // Build location ID -> stock items map for O(1) lookup
-        const stockByLocation = new Map();
-        for (const item of allStock) {
-            const locId = item.location;
-            if (!stockByLocation.has(locId)) {
-                stockByLocation.set(locId, []);
-            }
-            stockByLocation.get(locId).push(item);
+        // Build occupancy map keyed by cell-compatible ID
+        this.occupancyByCell.clear();
+        for (const r of rows) {
+            const key = r.bin
+                ? `${r.zone_name}-${r.col}-${r.level}-${r.bin}`
+                : `${r.zone_name}-${r.col}-${r.level}`;
+            this.occupancyByCell.set(key, r);
         }
 
-        // Process all cells using cached data (no additional API calls!)
-        for (let zone of activeZones) {
+        // Process all cells
+        for (const zone of activeZones) {
             for (let col = 1; col <= zone.columns; col++) {
                 for (let level = 1; level <= zone.levels; level++) {
                     const cellId = `${zone.name}-${col}-${level}`;
                     const isPowerSupply = `${zone.name}-${col}` === CONFIG.POWER_SUPPLY_COLUMN;
-
-                    this.processCellFromCache(cellId, isPowerSupply, stockByLocation);
+                    this.processCellFromCache(cellId, isPowerSupply);
                 }
             }
         }
 
         const endTime = performance.now();
         const loadTime = ((endTime - startTime) / 1000).toFixed(2);
-        console.log(`Wall data loaded in ${loadTime}s (bulk mode)`);
+        console.log(`Wall data loaded in ${loadTime}s (occupancy view)`);
     },
 
     /**
-     * Process cell data from cached stock (no API call)
+     * Process cell data from occupancy cache (no API call).
      */
-    processCellFromCache(cellId, isPowerSupply, stockByLocation) {
-        let totalQty = 0;
-        let qtyA = 0;
-        let qtyB = 0;
-
-        const getQty = (locName) => {
-            const loc = state.locations.get(locName);
-            if (!loc) return 0;
-            const items = stockByLocation.get(loc.pk) || [];
-            return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    processCellFromCache(cellId, isPowerSupply) {
+        const getQty = (key) => {
+            const row = this.occupancyByCell.get(key);
+            return row ? row.total_qty : 0;
         };
+
+        let totalQty, qtyA, qtyB;
 
         if (isPowerSupply) {
             qtyA = getQty(cellId);
@@ -396,72 +383,18 @@ const wall = {
             qtyB = getQty(`${cellId}-B`);
             const qtyBase = getQty(cellId);
             totalQty = qtyA + qtyB + qtyBase;
-            this.updateCellStatus(cellId, this.getStatus(totalQty), qtyA, qtyB);
+            this.updateCellStatus(cellId, this.getStatus(totalQty), qtyA + qtyBase, qtyB);
         }
     },
 
     /**
-     * Load data for a single cell and update its status
+     * Reload occupancy for a single cell and update its status.
+     * Re-fetches the full occupancy set (cheap view query) so the
+     * cache stays consistent after handshake / zone changes.
      */
     async loadCellData(cellId, isPowerSupply) {
-        let totalQty = 0;
-        let qtyA = 0;
-        let qtyB = 0;
-        let qtyBase = 0;
-
-        if (isPowerSupply) {
-            // Single bin for power supplies
-            const loc = state.locations.get(cellId);
-            if (loc) {
-                const stock = await api.getStockAtLocation(loc.pk);
-                totalQty = stock.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                qtyA = totalQty;
-            }
-            this.updateCellStatus(cellId, this.getStatus(totalQty), qtyA, null);
-        } else {
-            // Split bins (A = new, B = old)
-            const locA = state.locations.get(`${cellId}-A`);
-            const locB = state.locations.get(`${cellId}-B`);
-            const locBase = state.locations.get(cellId);
-
-            // Use a Set to track stock IDs and prevent double-counting
-            const seenStockIds = new Set();
-
-            if (locA) {
-                const stockA = await api.getStockAtLocation(locA.pk);
-                for (const item of stockA) {
-                    if (!seenStockIds.has(item.pk)) {
-                        seenStockIds.add(item.pk);
-                        qtyA += item.quantity || 0;
-                    }
-                }
-            }
-
-            if (locB) {
-                const stockB = await api.getStockAtLocation(locB.pk);
-                for (const item of stockB) {
-                    if (!seenStockIds.has(item.pk)) {
-                        seenStockIds.add(item.pk);
-                        qtyB += item.quantity || 0;
-                    }
-                }
-            }
-
-            // Also check base shelf location (stock may exist directly at shelf without A/B suffix)
-            if (locBase) {
-                const stockBase = await api.getStockAtLocation(locBase.pk);
-                for (const item of stockBase) {
-                    if (!seenStockIds.has(item.pk)) {
-                        seenStockIds.add(item.pk);
-                        qtyBase += item.quantity || 0;
-                    }
-                }
-            }
-
-            totalQty = qtyA + qtyB + qtyBase;
-            // Add base qty to A for display purposes (newer stock)
-            this.updateCellStatus(cellId, this.getStatus(totalQty), qtyA + qtyBase, qtyB);
-        }
+        // Refresh occupancy cache then process the single cell
+        await this.loadLiveData();
     },
 
     /**
