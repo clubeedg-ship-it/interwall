@@ -1,206 +1,160 @@
-# Interwall — Handoff Protocol
+# Interwall — Operator Packet Protocol
 
-Read this only when dispatching bounded operator work or resuming from a
-returned report.
+Use this when the coach prepares work for an external sequential
+operator session.
 
-This file is intentionally narrower than `.project/COACH-HANDOFF.md`.
+This file defines the active protocol. The packet replaces ad-hoc chat
+primers.
 
 ---
 
 ## 1. Purpose
 
-Handoffs exist for one thing:
+The coach's job is to pre-digest context so the operator can spend its
+context window on implementation, not repo archaeology.
 
-- move a bounded execution task from the coach to the operator
-  with minimal context loss
-
-Handoffs are not the place to restate the whole rebuild.
-
----
-
-## 2. When to create a handoff
-
-Create a primer only when all three are true:
-
-1. the task is already designed well enough to execute
-2. the task benefits from delegation
-3. the task has a clear finish line you can verify from a returned report
-
-If design is still moving, do not hand off yet.
+The packet must:
+- minimize operator reading
+- fence scope tightly
+- carry only the decisions and code facts needed for the task
+- define exact tests and exact stop conditions
 
 ---
 
-## 3. Primer shape
+## 2. Sequential model
 
-Each primer should fit this structure:
-
-### Header
-
-Always include:
-
-    You are the operator for Interwall in `/Users/ottogen/interwall` on branch `v2`.
-    Task group:
-    - T-XXX
-    ...
-    Report:
-    - Return only YAML per `.project/REPORT-SCHEMA.md`
-    Stop rule:
-    - After report, stop
-
-### Body
-
-Keep to five short sections:
-
-1. Task
-2. Scope fence
-3. Facts to extract
-4. Acceptance checks
-5. Report requirements
-
-Optional sixth section:
-
-6. Cold-rebuild check
-
-Only include it when the task changes startup wiring, docker, SQL init,
-or router registration.
+- One active operator packet at a time.
+- No parallel operator runs.
+- Coach prepares the next packet only after reviewing the previous
+  packet's `REPORT.yaml` and diff.
 
 ---
 
-## 4. What to include
+## 3. Packet directory
 
-Include only the facts the operator actually needs:
+Create one directory per task:
 
-- exact file paths
-- function names and signatures
-- table / column names
-- status enums
-- relevant D-### one-liners
-- exact tests or commands to run
+` .project/operator-runs/T-XXX/ `
 
-Good:
+Required files:
+- `PLAN.md`
+- `PROMPT.md`
+- `REPORT.yaml`
 
-- "extract `ingestion_events.status`, `retry_count`, and source values"
-- "D-034: failed ingestion must surface, not disappear"
-
-Bad:
-
-- full `DECISIONS.md`
-- full `TODO.md`
-- long narrative history
-- generic instructions like "understand the system first"
+Optional:
+- `REVIEW.md` — only when the coach sends the operator back for a fix
+- `ARTIFACTS.md` — only when the task produces a non-code artifact the
+  coach wants to review directly
 
 ---
 
-## 5. Facts manifest, not read-once novel
+## 4. PLAN.md
 
-Use a facts manifest, not a giant reading list.
+`PLAN.md` is coach-authored and concise.
+
+Keep it to:
+1. task objective
+2. in-scope files
+3. out-of-scope files
+4. exact symbols / seams to inspect
+5. cherry-picked decision snippets
+6. exact acceptance checks
+7. exact test commands
+
+Do not turn `PLAN.md` into a second `TODO.md` or `DECISIONS.md`.
+
+---
+
+## 5. PROMPT.md
+
+`PROMPT.md` is the exact text the user pastes into the operator
+session.
+
+It should:
+- point the operator at `CLAUDE.md`
+- point the operator at this task's `PLAN.md`
+- state the report file path
+- explicitly forbid scope expansion
+- explicitly forbid commits
+- explicitly forbid reading broad planning docs unless the packet says
+  so
+
+The operator prompt should read like a command, not a conversation.
+
+---
+
+## 6. REPORT.yaml
+
+The operator writes the report file defined by
+`.project/REPORT-SCHEMA.md`.
+
+Rules:
+- file-based only; do not rely on chat summary
+- one report per packet
+- if blocked, the report still gets written
+- if the task adds new tests, they belong in the source tree, not in
+  the packet directory
+
+---
+
+## 7. Facts manifest rule
+
+Every packet must include a facts manifest in `PLAN.md`.
 
 Format:
 
-    - <path> → extract: <specific symbols / columns / constraints>
+    - <path> → extract: <specific symbols / constraints / fields>
 
-If you cannot say what to extract from a file, that file probably does
-not belong in the primer.
+Good:
+- `inventory-interwall/frontend/profit.js` → extract:
+  `recordSale.showEdit`, `recordSale.submit`, `profitEngine.mapApiTransaction`
+- `apps/api/routers/profit.py` → extract:
+  PATCH route semantics for sale transactions
+
+Bad:
+- "read DECISIONS.md"
+- "understand the codebase first"
+- "inspect the frontend"
 
 ---
 
-## 6. Scope fence rules
+## 8. Scope fence rules
 
-Use explicit path lists.
-
-Primer must say:
-
+Every packet must say:
 - files allowed to change
 - files forbidden to change
 - legacy surfaces that must stay untouched
+- whether a cold rebuild is required
 
-This matters more than background prose.
-
----
-
-## 7. Report contract
-
-Every dispatched task returns YAML in chat following
-`.project/REPORT-SCHEMA.md`.
-
-The report must be structured enough to verify:
-
-- status
-- files changed
-- tests run
-- failures or deviations
-- next-ready note if relevant
-
-Do not accept prose-only "done" messages.
-
----
-
-## 8. Recommended task size
-
-Best handoff size:
-
-- one coherent task
-- or one tightly related batch where scope and invariants overlap
-
-Examples of good batching:
-
-- T-B02 + T-B05
-- one API router + its tests
-- one view + the page that consumes it, if tightly coupled
-
-Examples of bad batching:
-
-- backend ingestion + unrelated UI work
-- three tasks that touch different subsystems
-- anything where success depends on unresolved design choices
+Scope is the main anti-error mechanism.
 
 ---
 
 ## 9. Recovery
 
-### Operator session ran out of context, diff still exists
+### Operator failed a check
 
-Write a finisher primer:
+Coach writes `REVIEW.md` with:
+- failing check
+- exact correction
+- unchanged scope
 
-- no new research
-- only remaining steps
-- same report path
+Then coach updates `PROMPT.md` or creates `PROMPT-v2.md`.
 
-### Returned report is red or deviated
+### Operator got blocked on a real decision
 
-Write `T-XXX-primer-v2.md`.
+The operator writes `status: deviated` in `REPORT.yaml`.
 
-- cite the failed check
-- state the correction
-- keep original primer for audit trail
-
-### Session ended mid-design
-
-Do not create a fake primer.
-
-Instead:
-
-- update `TODO.md`
-- append any new design locks to `DECISIONS.md`
-- resume later from those files
+Coach then:
+- decides the issue
+- updates `DECISIONS.md` if needed
+- revises the packet
 
 ---
 
-## 10. Branch discipline
+## 10. Practical bias for this repo
 
-- All active Interwall work happens in:
-  - `/Users/ottogen/interwall`
-- All active Interwall work happens on:
-  - `v2`
-- Do not create, use, or recommend `.claude/worktrees/`
-- Do not split operator work onto side branches
-
-## 11. Practical guidance for this repo
-
-- Stream B backend execution is a good handoff candidate.
-- Stream C design prep is mostly a main-agent job.
-- Large UI rebuilds should not be delegated until the main agent has
-  narrowed the design enough that the operator is implementing,
-  not inventing.
-
-That is the line between useful delegation and expensive confusion.
+- Coach should own planning, narrowing, and cross-system reasoning.
+- Operators should own narrow implementation packets.
+- UI packets must be especially distilled so the operator reads only the
+  active runtime files, not duplicate or historical JS bundles.

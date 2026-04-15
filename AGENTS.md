@@ -1,4 +1,4 @@
-# Interwall — Agent Guide
+# Interwall — Coach / Operator Guide
 
 Active repo:
 `/Users/ottogen/interwall`
@@ -11,62 +11,59 @@ Single allowed write branch:
 
 ## Branch discipline
 
-- All agents working on Interwall use exactly one branch: `v2`
-- All agents work from exactly one checkout: `/Users/ottogen/interwall`
-- Do not create, use, or recommend `.claude/worktrees/`
-- Do not create side branches for task work
-- Do not spread concurrent agent work across multiple checkouts
-- Before starting substantive work, confirm:
+- All active work happens in `/Users/ottogen/interwall`.
+- All active work happens on `v2`.
+- Do not create, use, or recommend `.claude/worktrees/`.
+- Do not create side branches for task work.
+- Before substantive work, confirm:
   - `pwd` is `/Users/ottogen/interwall`
   - `git branch --show-current` is `v2`
 
 ## Roles
 
-Two-session model:
+### Coach
 
-- `coach`
-  - owns context, sequencing, and design
-  - loads only task-relevant docs and code
-  - decides direct execution vs delegation
-  - prepares the operator's first message
-  - reviews returned reports
-  - updates planning files and commits meaningful progress
-  - after accepting a task report, updates `.project/TODO.md` status and
-    the "Now (next up)" pointer before closing the task
+Default Codex role.
 
-- `operator`
-  - receives a bounded task group
-  - implements only that task group
-  - runs required tests
-  - returns a structured report
-  - stops after reporting
+Responsibilities:
+- read the active planning docs
+- inspect the codebase and decide the next bounded task
+- distill only the task-relevant facts the operator needs
+- create the operator packet under `.project/operator-runs/T-XXX/`
+- review the operator's file-based report and actual diff
+- update `.project/TODO.md` and `.project/COACH-HANDOFF.md`
+- commit accepted work
+
+Coach does not offload planning authority.
+
+### Operator
+
+External Claude / Opus session, run sequentially by the user.
+
+Responsibilities:
+- start from the same repo and same branch
+- read `CLAUDE.md` plus the assigned operator packet only
+- implement only the bounded task in the packet
+- add or update source tests
+- write the report file named by the packet
+- stop after the report is written
+
+Operator does not commit, does not reprioritize, and does not expand scope.
 
 ## Startup
 
-Read only:
+For a fresh coach session, read:
 1. `AGENTS.md`
 2. `.project/TODO.md`
 
-Then load only what the task needs:
-- `.project/DECISIONS.md` for relevant design locks
-- `.project/HANDOFFS.md` for delegation rules
-- `.project/REPORT-SCHEMA.md` for return format
-- `.project/COACH-HANDOFF.md` for coach workflow state, session carryover,
-  and close-session notes
-- `.project/PLAN.md` only for high-level direction
+Then load:
+- `.project/PLAN.md`
+- `.project/DECISIONS.md`
+- `.project/COACH-HANDOFF.md`
+- `.project/HANDOFFS.md`
+- `.project/REPORT-SCHEMA.md`
 
-Do not dump the full `.project/` tree into context.
-
-## CLI-first discovery
-
-Before broad reading, prefer:
-- `rg`
-- `rg --files`
-- `wc -l`
-- `sed -n`
-- `git log -S`
-
-Use docs selectively after locating the exact files and symbols involved.
+Do not dump the full repo or full `.project/` tree into context.
 
 ## Task unit
 
@@ -74,45 +71,34 @@ Default execution unit:
 - one `T-XXX`
 
 Allowed exception:
-- one tightly coupled task pair like `T-B02 + T-B05`
+- one tightly coupled pair such as `T-B02 + T-B05`
 
 Never use:
-- "continue Stream B"
+- "continue stream"
 - "keep going until blocked"
-- open-ended execution scopes
+- open-ended operator scopes
 
-## Documentation usage
+## Operator packet
 
-- `TODO.md`: next-action queue
-- `DECISIONS.md`: design lockfile
-- `PLAN.md`: high-level direction only
-- `COACH-HANDOFF.md`: single coach-side workflow/state/hygiene file
-- `HANDOFFS.md`: delegation protocol only
-- `REPORT-SCHEMA.md`: operator return contract
+Every delegated task gets one packet directory:
 
-## Task closure
+` .project/operator-runs/T-XXX/ `
 
-Coach closes a task only after all of the following are true:
-- returned report reviewed and accepted
-- `.project/TODO.md` updated to reflect the accepted task status
-- "Now (next up)" updated if the accepted task changes the queue head
-- any task-required planning/report artifact is written or verified
+Required files:
+- `PLAN.md` — coach's distilled implementation plan
+- `PROMPT.md` — paste-ready operator prompt
+- `REPORT.yaml` — operator writes this file, not chat
 
-## Handoff health
+Optional files:
+- `REVIEW.md` — coach's follow-up correction note
 
-A healthy handoff has:
-- one bounded task group
-- explicit scope fence
-- exact files/symbols to inspect
-- exact tests to run
-- explicit stop-after-report rule
-- no duplication of stable `AGENTS.md` content
-- no full project-history dump
+The operator should not need to read `TODO.md`, `PLAN.md`, or `DECISIONS.md`
+in full if the packet is prepared correctly.
 
-## Stop condition
+## Stop conditions
 
 Coach:
-- stop after context-state summary, execution decision, and operator first message
+- stop after protocol/design cleanup, packet prep, or review/acceptance
 
 Operator:
-- stop after implementation, tests, and structured report
+- stop after code, tests, and `REPORT.yaml`

@@ -56,9 +56,7 @@ Stream C: `T-C00` local audit artifact preserved under
 `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/C00-UI-STATE-AUDIT.md`,
 but not yet landed on `v2`.
 
-Stream C: `T-C01` DONE 2026-04-15 in the current `v2` checkout
-(replayed locally; backend immutability + frontend no-op edit verified;
-commit pending).
+Stream C: `T-C01` DONE 2026-04-15 (`123490f`).
 
 Stream C: `T-C02` is already sliced on `v2`:
 - `T-C02a` DONE 2026-04-15 (`3ce3be2`)
@@ -182,7 +180,7 @@ coherence before any deployment-readiness signoff.
 - Can run in parallel with Stream A
 - deps: none
 
-### `T-C01` — Immutable transaction fields + margin-bug fix (DONE 2026-04-15, local checkout verified)
+### `T-C01` — Immutable transaction fields + margin-bug fix (DONE 2026-04-15, 123490f)
 - Backend: confirm `transactions.cogs` / `transactions.profit` are
   written at sale time and never updated (D-025). Already the case
   after A-05 lands.
