@@ -1,1 +1,0 @@
-# Omiximo Email Automation
