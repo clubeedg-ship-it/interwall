@@ -220,10 +220,9 @@ fit as a concise note here.
 - Immediate next step: replay `T-C01` on top of current `v2`, then
   decide whether to land or refresh the preserved `T-B03` and `T-C00`
   artifacts, then move into browser/E2E truthing.
-- `T-B04` has now been replayed into the current `v2` checkout and
-  verified locally with
-  `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -v --tb=short`;
-  commit/push still pending.
+- `T-B04` has now been replayed into the current `v2` checkout as
+  commit `b103920` and verified locally with
+  `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -v --tb=short`.
 - Deployment bar is stricter than "stack boots": before any
   deploy-ready claim, prove via browser/E2E that core operator flows
   keep numbers coherent across the app: adding/editing/calculating and
@@ -235,3 +234,15 @@ fit as a concise note here.
   and reconciling `T-B03` / `T-C00`, it is E2E time. Use local
   Playwright to truth the browser against backend invariants before
   calling the system trusted for day-to-day use.
+- Branch cleanup completed after the `T-B04` replay:
+  - main checkout is clean on `v2`
+  - stale `.claude/worktrees/*` were archived under
+    `/Users/ottogen/interwall-preserve-2026-04-15/` and removed from
+    the repo worktree
+  - `claude/peaceful-rosalind` was preserved as an archive before
+    removal because it may contain unique commits
+  - preserved local-only artifacts (`T-B03`, `T-C00`, `T-C01` helper,
+    B02/B05 local files, reconcile backup) were moved out of the repo to
+    `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/`
+  - branch is now safe for `git fetch`; any future sync should account
+    for local commits `b103920` and `c1f7518`

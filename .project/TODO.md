@@ -49,9 +49,7 @@ Stream B: T-B02 + T-B05 DONE 2026-04-15 (`d48ccce`).
 Stream B: `T-B03` local reliability artifact preserved at
 `.project/B03-RELIABILITY.md`, but not yet landed on `v2`.
 
-Stream B: `T-B04` DONE 2026-04-15 in the current `v2` checkout
-(replayed locally, verified with `t_B04_email_poller_fallback.py`;
-commit still pending).
+Stream B: `T-B04` DONE 2026-04-15 (`b103920`).
 
 Stream C: `T-C00` local audit artifact preserved at
 `.project/C00-UI-STATE-AUDIT.md`, but not yet landed on `v2`.
@@ -133,7 +131,7 @@ coherence before any deployment-readiness signoff.
   after the branch sync.
 - deps: `T-B02`
 
-### `T-B04` — Retire Bol.com email path (DONE 2026-04-15, local checkout verified)
+### `T-B04` — Retire Bol.com email path (DONE 2026-04-15, b103920)
 - After T-B03 shows API polling is reliable (zero missed orders over
   the comparison window).
 - Email poller stops matching Bol.com senders; IMAP remains for
