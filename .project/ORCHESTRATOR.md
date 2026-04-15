@@ -1,146 +1,228 @@
-# Interwall — Desktop Orchestrator Playbook
+# Interwall — Orchestrator Workflow
 
-Session-start read for the desktop main agent (you). Complements
-HANDOFFS.md (transport), PROCESS.md (gating), PRIMER-TEMPLATE.md
-(primer shape), REPORT-SCHEMA.md (report shape). Do not duplicate
-those — this file is the operating loop only.
+Read this once at session start. This is the working loop for the main
+agent on `v2`.
 
-NOT auto-loaded. Read once at session start.
+Related files:
+- `CLAUDE.md` — minimal always-loaded invariants
+- `.project/TODO.md` — execution order and current focus
+- `.project/DECISIONS.md` — locked design calls and software choice
+- `.project/HANDOFFS.md` — only read when dispatching to server Sonnet
+- `.project/PROCESS.md` — durable gates and review standards
+
+Do not preload the whole `.project/` tree. Load only the file needed for
+the task in front of you.
 
 ---
 
-## Your role
+## 1. Current project reality
 
-Orchestrator + primer author + verifier. You think, the server
-Sonnet executes. You write code ONLY when the change is one file /
-<30 lines / no new deps / no tests needed. Everything else dispatches.
+Interwall is no longer in exploration mode.
 
-## Session start checklist (60 seconds, CLI-first)
+- Stream A backend foundation is substantially defined / landed.
+- Stream B ingestion is the active backend track.
+- Stream C UI rebuild is the next large track.
+- The highest-value context is design and software cherry-picking in
+  `DECISIONS.md`, then the next executable work in `TODO.md`.
 
-    cd /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney   # v2 lives here, NOT repo root
-    git fetch origin && git status -sb                                # sync state
-    git pull --ff-only                                                 # if behind
-    ls .project/handoffs/                                              # pending primers/reports
-    sed -n '41,55p' .project/TODO.md                                   # "Now" section only
-    git log --oneline origin/v2 -8                                     # recent traction
+The old coach/operator ritual created more context traffic than useful
+work. The default model is now:
 
-Do NOT cat full .project/*.md at session start. Load on demand.
+- one senior main agent
+- one active branch: `v2`
+- one active worktree:
+  `/Users/ottogen/interwall/.claude/worktrees/gracious-dewdney`
+- optional delegation to server Sonnet only when the task is genuinely
+  expensive or long-running
 
-## Dispatch a task (the loop)
+---
 
-1. **Plan in head.** If you can't name the task in one sentence,
-   re-read TODO.md "Now" + the last report's `next_ready` field.
-2. **Research gaps with CLI, not Reads.** `grep -rn`, `wc -l`,
-   `sed -n 'A,Bp'`, `head -n 25`, `git log -S "symbol"`. Only spawn
-   a Sonnet Explore subagent if the gap spans >5 files AND the facts
-   can't fit in a structured 10-bullet answer.
-3. **Write the primer** per PRIMER-TEMPLATE.md §1-8, + the adversarial
-   block. Save to `.project/handoffs/T-XXX-primer.md`.
-4. **Header** (verbatim, always `--dangerously-skip-permissions`):
+## 2. Session start
 
-        # T-XXX primer (Tier N, Sonnet 4.6)
-        # Run on server with:
-        #   claude --dangerously-skip-permissions --model claude-sonnet-4-6 \
-        #     < .project/handoffs/T-XXX-primer.md
-        # Report to: .project/handoffs/T-XXX-report.yaml
-        # When done: git add -A && git commit -m "chore(handoff): T-XXX report" && git push origin HEAD:v2
+    cd /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney
+    git status -sb
+    sed -n '1,80p' .project/TODO.md
 
-5. **Commit** `chore(handoff): dispatch T-XXX`, `git push origin HEAD:v2`.
-6. **Tell the user**: one line, command to run.
-7. **Verify report** on return: schema fields green, cases_failed == 0,
-   cold_rebuild_survival verified, touched_legacy false. Mark TODO.md
-   inline `→ DONE YYYY-MM-DD`, commit `chore(process): mark T-XXX done`.
+Then decide what kind of session this is:
 
-## Primer rules (session-learned — apply on every primer)
+- design / planning
+- direct implementation
+- delegated implementation
+- verification / cleanup
 
-- **Facts manifest, not read-once manifest.** Name the specific facts
-  the agent needs (column names, function signatures, status enum
-  values). Let the agent choose the extraction CLI. Never tell it to
-  "read file X" — that's what blew context in T-B02.
-- **Inline the short stuff** (D-### bodies under 5 lines, one-line
-  status flows). Pointer-only for long stuff (DECISIONS.md entry
-  group, full SQL file). Agent uses `sed -n 'A,Bp' <file>` to fetch.
-- **Scope fence is a list of file paths**, not prose. In/out, explicit.
-- **Cold-rebuild block only when needed** per PRIMER-TEMPLATE.md §7.
-- **Commit sequence** suggested, one logical change each. End with
-  `git push origin HEAD:v2`.
-- **Always `--dangerously-skip-permissions`** in the header.
+Do NOT read `PLAN.md`, `DECISIONS.md`, `PROCESS.md`, and templates by
+default. Pull only the one you need.
 
-## When NOT to dispatch (do it yourself)
+---
 
-- Marking TODO.md DONE after verifying a report.
-- Appending a D-### to DECISIONS.md.
-- A one-file fix under 30 lines with obvious diff.
-- Primer authoring / revision.
-- Recovery finisher primers (tiny, stateful — see below).
+## 3. Default operating loop
 
-## Subagent rules (orchestrator side, desktop session)
+1. Read `TODO.md` "Now" and the target task entry.
+2. Load only the design entries that constrain that task from
+   `DECISIONS.md`.
+3. Inspect code with CLI.
+4. Decide: do it here, or dispatch.
+5. If doing it here: implement, test, commit.
+6. If dispatching: write a small primer per `HANDOFFS.md`, then verify
+   the return.
 
-- **Sonnet only.** `subagent_type: Explore` with `model: sonnet`
-  explicit. Opus subagents are forbidden this project.
-- **Threshold**: spawn only if research spans >5 files or the answer
-  structure matters (table of column shapes, version sweep across
-  migrations). For a single grep, just grep.
-- **Brief shape**: one concrete question, structured 10-bullet answer
-  format, total output budget stated (<500 lines).
+The main agent is both coach and executor. Delegation is a tool, not the
+default posture.
 
-## Recovery patterns
+---
 
-**Agent ran out of context mid-task, work uncommitted on server FS.**
-Write a 30-line "finisher" primer: don't re-research; just enumerate
-the remaining commit-test-push steps with exact commands. Header
-points at the same report YAML path. Commit as `chore(handoff):
-T-XXX finisher`. Cheapest path; preserves the agent's in-progress
-diff.
+## 4. When to work directly
 
-**Agent session died, FS lost.** Redispatch the original primer —
-it's validated up to the wall. Check the primer for what caused the
-context blow (usually a too-large read-once manifest) before re-running.
+Work directly in the main session when the task is any of:
 
-**Report returns `status: deviated` or red tests.** Amend primer to
-`T-XXX-primer-v2.md`, cite the deviation in the header. Do not edit
-the original primer in place (audit trail).
+- design shaping or software/tool choice
+- doc cleanup, handoff cleanup, TODO/DECISIONS maintenance
+- one-file or obvious multi-file changes
+- work where the code inspection is cheap and the test loop is local
+- anything where the main difficulty is judgment, not typing
 
-## Anti-patterns (session-observed)
+This includes most planning around Stream B and nearly all sequencing /
+design prep for Stream C.
 
-- Reading .project/*.md whole at session start — they're long; load on demand.
-- Listing 15 files in a read-once manifest — agent context evaporates before coding.
-- Dispatching a 2-line edit — overhead > work.
-- Asking the user "should I proceed" after every dispatch — fire and move on to verification when report lands.
-- Editing CLAUDE.md to inject task context — busts KV cache; use primer.
+---
 
-## Branching rules (no-conflict discipline)
+## 5. When to dispatch
 
-- **`v2` is the only write target.** Agents push v2. Desktop pushes v2.
-  `main` is read-only locally; it only advances via GitHub PR merges
-  from v2. Never commit directly to `main`.
-- **Never merge `main` → `v2` mid-stream.** Until the rebuild ships,
-  main only receives v2. If a PR lands, resync v2 immediately:
+Dispatch to server Sonnet only when at least one is true:
 
-        git fetch origin && git checkout v2
-        git merge --ff-only origin/main   # expected: Already up to date
-                                           # (because main ≡ v2 at merge time)
+- the task needs long docker / DB / rebuild execution on the real server
+- the task is mostly bounded implementation with clear acceptance checks
+- the task spans enough files that local context would get polluted
+- the task is batchable execution work after design is already settled
 
-  If fast-forward fails, someone committed to main directly — stop
-  and investigate before continuing.
-- **One worktree per live branch.** `gracious-dewdney` holds v2. The
-  main repo dir holds `main` for read-only reference. Everything else
-  in `.claude/worktrees/` is stale and should be pruned
-  (`git worktree remove <path>` + `git branch -D <branch>`).
-- **No feature branches for rebuild work.** T-### tasks commit
-  directly to v2 via the handoff primer. Branching adds merge cost
-  that the rebuild doesn't benefit from at this team size.
+Do NOT dispatch:
 
-## Worktree gotcha
+- tiny fixes
+- design discussions
+- DECISIONS / TODO edits
+- primer-writing itself
+- any task whose main risk is choosing the right design
 
-The `v2` branch is checked out in a worktree
-(`.claude/worktrees/gracious-dewdney`), not the main repo dir.
-Always `cd` to the worktree before any git op. `git checkout v2` from
-the main dir fails with "already used by worktree".
+If the task still contains design uncertainty, the main agent resolves
+that first. Sonnet should execute settled work, not discover the plan.
 
-## KV cache discipline
+---
 
-System prompt + CLAUDE.md = stable prefix. Never edit CLAUDE.md
-mid-session. Per-task context goes in the first user message or the
-primer. When desktop context fills past ~60%, `/compact` and resume
-from TODO.md "Now" + last report's `next_ready` / `notes_to_human`.
+## 6. Model strategy
+
+Use models by role, not by habit.
+
+### Main agent
+
+Use the strongest model available for:
+
+- design decisions
+- architecture and software cherry-picking
+- sequencing work across streams
+- reviewing returned work
+- writing the first serious handoff for a task cluster
+
+This is the scarce-but-high-leverage spend.
+
+### Server Sonnet
+
+Use a faster / cheaper execution model for:
+
+- implementing already-specified backend tasks
+- running server-native tests and rebuild checks
+- writing bounded multi-file diffs
+- returning structured verification
+
+This is the cheap typing / testing / iteration engine.
+
+### Practical rule
+
+Do not run "two seniors" by default.
+
+If the coach already knows what to do, adding a second senior operator
+usually duplicates reasoning cost. The sweet spot for this repo is:
+
+- one senior coach/main agent
+- zero or one fast execution agent
+
+Only use a second senior pass for milestone review, risky migrations, or
+when a returned implementation conflicts with the intended design.
+
+---
+
+## 7. Handoff standard
+
+Primers must be short and factual.
+
+A good primer contains:
+
+- task sentence
+- scope fence
+- exact facts to extract
+- only the relevant D-### summaries
+- acceptance checks
+- exact report path
+
+A bad primer contains:
+
+- full project history
+- whole-doc dumps
+- 10-file read-once manifests
+- design debate that the main agent should have settled first
+
+If a primer exceeds what a competent engineer would need to start the
+task, it is too big.
+
+---
+
+## 8. Branch and worktree discipline
+
+- `v2` is the only active write branch for rebuild work.
+- `gracious-dewdney` is the active worktree.
+- repo root `main` is reference only unless explicitly needed.
+- stale Claude worktrees are historical context, not active workflow.
+
+Before any git operation that matters, confirm you are in:
+
+    /Users/ottogen/interwall/.claude/worktrees/gracious-dewdney
+
+---
+
+## 9. Context discipline
+
+The failure mode to avoid is context rot caused by restating the system.
+
+Rules:
+
+- keep `CLAUDE.md` minimal
+- do not dump `.project/*.md` into first messages
+- let `TODO.md` point to the next task
+- let `DECISIONS.md` carry durable design choices
+- let primers carry only task-local execution context
+- create handoffs only at real boundaries: session pause, dispatch, or
+  blocked state
+
+If a handoff is trying to reconstruct the entire project, the workflow
+has already failed upstream.
+
+---
+
+## 10. Recommended workflow from here
+
+For the next phase of this repo:
+
+1. Main agent drives Stream B design and task batching.
+2. Server Sonnet executes only the bounded Stream B implementation tasks.
+3. Main agent prepares Stream C by tightening design choices and
+   reducing ambiguity before any large UI execution run.
+4. Use handoffs sparingly and make them task-cluster oriented, not
+   atomic-task oriented.
+
+Current bias:
+
+- design here
+- execute there
+- verify here
+
+That is enough structure for this rebuild without recreating GSD in
+markdown.

@@ -213,16 +213,22 @@ Explicit "not this rebuild" list so we don't drift:
 
 ---
 
-## 9. Open questions (still to close before execution)
+## 9. Current execution focus
 
-Tracked so nothing silently defaults.
+Open design questions do not live here anymore. They belong in
+`TODO.md` until closed, then in `DECISIONS.md`.
 
-1. Direct-sale products (monitors, mini-PCs): confirm the legacy fallback path in `sale_writer.py` handles them without special-casing. (Expected: yes.)
-2. Bol.com Subscription API — does the event catalogue cover new order, shipment, and cancellation? One-afternoon verification.
-3. InvenTree v1.2 smoke test: confirm FIFO-per-lot-COGS is still absent post-1.0, for the record. (Expected: still absent.)
-4. Shelf-setup flow at Part creation: mandatory shelf assignment, or allow "pending setup" badge? UX decision for Stream C.
-5. JIT colour gradient: define the exact breakpoints and colours (in the database, not code).
-6. Fresh-start cleanup: which existing files/dirs to delete before reconstructing the `.project/` tree. (Handled in the follow-up cleanup turn.)
+Current focus:
+
+- Stream A is substantially complete at the planning level; remaining
+  work is execution and verification, not architecture discovery.
+- Stream B is the active execution track, with `T-B02` + `T-B05`
+  next: unified ingestion worker + dead-letter handling.
+- Stream C remains the next major stream, but should be narrowed via
+  design decisions before large execution handoffs.
+
+Use this file for direction and scope. Use `TODO.md` for next actions.
+Use `DECISIONS.md` for design locks.
 
 ---
 
@@ -231,4 +237,3 @@ Tracked so nothing silently defaults.
 - **PLAN.md** (this file) — direction and scope. Updated when direction changes, not when tasks are done.
 - **DECISIONS.md** — append-only log of every locked decision with rationale. Searchable in a year.
 - **TODO.md** — sequenced next actions across the three streams. Living document.
-

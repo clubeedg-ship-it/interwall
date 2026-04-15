@@ -1,105 +1,198 @@
-# Interwall — Desktop ↔ Server Sonnet Dispatch Protocol
+# Interwall — Handoff Protocol
 
-Single-agent operating model: desktop main agent (you) is both coach
-and executor. Sandbox-first; push directly to `v2` when the edit is
-obvious. Delegate heavy work (multi-file grep, docker-exec test runs,
-long research) to a Sonnet 4.6 running on the server terminal via
-files in `.project/handoffs/`.
+Read this only when dispatching work to server Sonnet or resuming from a
+returned report.
 
-NOT auto-loaded. Read this file once at the start of a session that
-plans to dispatch.
+This file is intentionally narrower than `ORCHESTRATOR.md`.
 
 ---
 
-## Why file-based
+## 1. Purpose
 
-- Desktop session cannot SSH to the server (port 22 not exposed).
-- Desktop CAN push to `origin/v2`. Server CAN pull and push.
-- Therefore the handoff medium is git.
-- Server Sonnet writes its report to a file and pushes. Desktop pulls
-  and reads. No paste-through-human in the loop.
+Handoffs exist for one thing:
 
-## Directory layout
+- move a bounded execution task from the main agent to the server agent
+  with minimal context loss
 
-    .project/handoffs/
-      T-XXX-primer.md          # desktop writes, commits, pushes
-      T-XXX-report.yaml        # server Sonnet writes, commits, pushes
-      T-XXX-scratch/           # optional: server's working notes,
-                               # not required for verification
+Handoffs are not the place to restate the whole rebuild.
 
-## Desktop side (you) — dispatch a task
+---
 
-1. Draft the primer per `.project/PRIMER-TEMPLATE.md`. Keep it
-   self-contained (inline every D-### rationale, every column the
-   task needs from init.sql). The server Sonnet will NOT load
-   CLAUDE.md @imports — it has none. First message IS the context.
-2. Prepend the fire-and-forget header to the primer:
+## 2. When to create a handoff
 
-        # T-XXX primer (Tier N, Sonnet 4.6)
-        # Desktop-dispatched YYYY-MM-DD HH:MM local
-        # Run on server with:
-        #   claude --model claude-sonnet-4-6 \
-        #     < .project/handoffs/T-XXX-primer.md
-        # Report back to: .project/handoffs/T-XXX-report.yaml
-        # When done: git add -A && git commit -m "chore(handoff): T-XXX report" && git push origin HEAD:v2
+Create a primer only when all three are true:
 
-3. Write to `.project/handoffs/T-XXX-primer.md`, commit with message
-   `chore(handoff): dispatch T-XXX`, push `HEAD:v2`.
-4. Tell the user: "T-XXX dispatched — run the command in the primer
-   header on the server."
-5. Either wait for user signal, or proceed with unrelated work. Do
-   NOT sit idle polling.
+1. the task is already designed well enough to execute
+2. the task benefits from server-side work or a cheaper model
+3. the task has a clear finish line you can verify from a returned report
 
-## Server Sonnet side — what the primer must make it do
+If design is still moving, do not hand off yet.
 
-Primer must be explicit because Sonnet has no project memory:
+---
 
-- CLAUDE.md on the server repo stays minimal (identity + paths +
-  invariants + push rules). No `.project/*.md` @imports.
-- Every fact Sonnet needs to complete the task must be in the primer,
-  inline. Cite D-###s with their one-line body pasted, not a pointer.
-- Primer's "Done report schema" section: paste the relevant subset
-  of REPORT-SCHEMA.md inline. Sonnet writes the YAML to
-  `.project/handoffs/T-XXX-report.yaml`, commits, pushes.
-- Primer's last instruction is always the commit+push sequence.
+## 3. Primer shape
 
-## Desktop side — verify a report
+Each primer should fit this structure:
 
-1. `git pull origin v2`.
-2. Read `.project/handoffs/T-XXX-report.yaml`.
-3. Run the REPORT-SCHEMA.md verification rules in your head:
-   all `cases_failed == 0`, `touched_legacy == false`, etc.
-4. If green: mark T-XXX DONE in TODO.md (append ` → DONE YYYY-MM-DD`
-   inline), commit as `chore(process): mark T-XXX done`, push.
-   Move the full entry to TODO-ARCHIVE.md at stream end, not per task.
-5. If red or deviated: amend the primer with the correction, bump to
-   `T-XXX-primer-v2.md`, dispatch again.
+### Header
 
-## KV cache discipline
+Always include:
 
-- System prompt + CLAUDE.md are the stable prefix. Do NOT edit
-  CLAUDE.md mid-session to inject task context — that busts the
-  cache.
-- Per-task context goes in the first user message of a fresh turn,
-  or in the primer file (which the server Sonnet reads as its first
-  message).
-- Desktop session: when context fills, `/compact` and resume from
-  TODO.md "Now" section + the last report's `next_ready` field.
+    # T-XXX primer
+    # Run on server with:
+    #   claude --dangerously-skip-permissions --model claude-sonnet-4-6 \
+    #     < .project/handoffs/T-XXX-primer.md
+    # Report to: .project/handoffs/T-XXX-report.yaml
+    # When done: git add -A && git commit -m "chore(handoff): T-XXX report" && git push origin HEAD:v2
 
-## When NOT to dispatch
+### Body
 
-- Trivial edits (one file, under 30 lines, no test suite). Just do it
-  in the sandbox and push.
-- Decision drafting (appending a new D-###). Desktop job.
-- Primer authoring itself. Desktop job.
-- Verification of a returned report. Desktop job.
+Keep to five short sections:
 
-Dispatch is for: multi-file implementation + test suite + cold-rebuild
-verification, research that would fill desktop context, long docker
-exec chains, any Tier 1/Tier 2 task that follows PRIMER-TEMPLATE.
+1. Task
+2. Scope fence
+3. Facts to extract
+4. Acceptance checks
+5. Report requirements
 
-## Server CLI assumption
+Optional sixth section:
 
-The server has `claude` (Claude Code CLI) installed and authenticated.
-Model flag is `--model claude-sonnet-4-6`. If that changes, update
-this file and every outstanding primer header.
+6. Cold-rebuild check
+
+Only include it when the task changes startup wiring, docker, SQL init,
+or router registration.
+
+---
+
+## 4. What to include
+
+Include only the facts the server agent actually needs:
+
+- exact file paths
+- function names and signatures
+- table / column names
+- status enums
+- relevant D-### one-liners
+- exact tests or commands to run
+
+Good:
+
+- "extract `ingestion_events.status`, `retry_count`, and source values"
+- "D-034: failed ingestion must surface, not disappear"
+
+Bad:
+
+- full `DECISIONS.md`
+- full `TODO.md`
+- long narrative history
+- generic instructions like "understand the system first"
+
+---
+
+## 5. Facts manifest, not read-once novel
+
+Use a facts manifest, not a giant reading list.
+
+Format:
+
+    - <path> → extract: <specific symbols / columns / constraints>
+
+If you cannot say what to extract from a file, that file probably does
+not belong in the primer.
+
+---
+
+## 6. Scope fence rules
+
+Use explicit path lists.
+
+Primer must say:
+
+- files allowed to change
+- files forbidden to change
+- legacy surfaces that must stay untouched
+
+This matters more than background prose.
+
+---
+
+## 7. Report contract
+
+Every dispatched task returns:
+
+- `.project/handoffs/T-XXX-report.yaml`
+
+The report must be structured enough to verify:
+
+- status
+- files changed
+- tests run
+- failures or deviations
+- next-ready note if relevant
+
+Do not accept prose-only "done" messages.
+
+---
+
+## 8. Recommended task size
+
+Best handoff size:
+
+- one coherent task
+- or one tightly related batch where scope and invariants overlap
+
+Examples of good batching:
+
+- T-B02 + T-B05
+- one API router + its tests
+- one view + the page that consumes it, if tightly coupled
+
+Examples of bad batching:
+
+- backend ingestion + unrelated UI work
+- three tasks that touch different subsystems
+- anything where success depends on unresolved design choices
+
+---
+
+## 9. Recovery
+
+### Server agent ran out of context, diff still exists
+
+Write a finisher primer:
+
+- no new research
+- only remaining steps
+- same report path
+
+### Returned report is red or deviated
+
+Write `T-XXX-primer-v2.md`.
+
+- cite the failed check
+- state the correction
+- keep original primer for audit trail
+
+### Session ended mid-design
+
+Do not create a fake primer.
+
+Instead:
+
+- update `TODO.md`
+- append any new design locks to `DECISIONS.md`
+- resume later from those files
+
+---
+
+## 10. Practical guidance for this repo
+
+For Interwall right now:
+
+- Stream B backend execution is a good handoff candidate.
+- Stream C design prep is mostly a main-agent job.
+- Large UI rebuilds should not be delegated until the main agent has
+  narrowed the design enough that the server agent is implementing,
+  not inventing.
+
+That is the line between useful delegation and expensive confusion.

@@ -61,19 +61,19 @@ rejected; agent is asked to resubmit as schema.
 
 ---
 
-## 3. Read-once rule
+## 3. Facts-manifest rule
 
-Agents waste tool calls re-reading files they already opened. Every primer
-includes a read-once manifest (see PRIMER-TEMPLATE.md §3). Rules:
+Avoid giant read-once manifests. They caused more context blow than they
+saved.
 
-- On first read, the agent extracts the specific facts named in the
-  manifest into a scratch comment at the top of its working file.
-- Re-reads are forbidden unless a specific failure requires re-checking
-  a file that may have changed since first read.
-- If the agent finds itself reaching for Read/Grep to "double-check"
-  something, the rule is: either it's in the scratch comment already
-  (scroll up), or it's a gap in the primer (report the gap, do not
-  silently expand scope).
+Rules:
+
+- Primers list only the files that are truly needed for execution.
+- Each listed file must name the exact facts to extract.
+- Re-reading is allowed when needed for implementation or debugging;
+  the constraint is token discipline, not a fake purity rule.
+- If a primer cannot state what facts a file is needed for, remove that
+  file from the primer.
 
 ---
 
@@ -154,11 +154,11 @@ before review.
   do not overlap.
 - 60% context watchline: stop adding new work, flush state into
   TODO/DECISIONS via draft entries, either /compact or close.
-- Every fresh session auto-loads CLAUDE.md and .project/*.md — do not
-  paste those in primers. Reference by path.
-- Handoff between sessions: TODO.md "Now" section carries the next
-  primer's pointer; last report's `next_ready` and `notes_to_human`
-  fields drive the handoff.
+- Fresh sessions should load `CLAUDE.md`, then `TODO.md`, then only the
+  specific planning file needed next. Do NOT auto-dump the whole
+  `.project/` tree into context.
+- Handoff between sessions: `TODO.md` "Now" is the primary restart
+  point. Reports and notes are secondary.
 
 ---
 
