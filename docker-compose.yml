@@ -15,6 +15,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./apps/api/sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
       - ./apps/api/sql/02_seed_gs1_products.sql:/docker-entrypoint-initdb.d/02_seed_gs1_products.sql:ro
+      - ./apps/api:/app:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U interwall -d interwall"]
       interval: 5s
