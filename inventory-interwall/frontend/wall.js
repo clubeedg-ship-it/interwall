@@ -323,6 +323,21 @@ const wall = {
         console.log('Loading live wall data (occupancy view)...');
         const startTime = performance.now();
 
+        // T-C03: zones come from /api/zones, not localStorage. Refresh the
+        // topology cache first, and re-render the grid if it changed so
+        // cells exist before we paint stock onto them.
+        await zoneConfig.load();
+        const zoneSig = JSON.stringify(
+            state.zones.map(z => ({
+                n: z.name, c: z.columns, l: z.levels,
+                r: z.layoutRow, co: z.layoutCol, a: z.isActive,
+            }))
+        );
+        if (zoneSig !== this._lastZoneSig) {
+            this._lastZoneSig = zoneSig;
+            this.render();
+        }
+
         const activeZones = zoneConfig.getAllZones();
         if (activeZones.length === 0) {
             console.warn('No active zones configured, skipping data load');

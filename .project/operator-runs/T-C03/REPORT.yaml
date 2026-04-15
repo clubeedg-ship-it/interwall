@@ -1,0 +1,82 @@
+task_id: T-C03
+status: done
+summary: |
+  Moved wall zone topology off localStorage (D-040). New /api/zones
+  router (GET list with shelf-derived cols/levels, POST create, PATCH
+  rename/activate) registered in main.py. zone-config.js now keeps an
+  in-memory cache populated by api.request('/api/zones', ...), and
+  wall.loadLiveData refreshes the cache + re-renders on topology change.
+  zone-manager's dead InvenTree createZoneLocations path was removed.
+  bin-info-modal.js already reads zone metadata via wall.occupancyByCell
+  with no localStorage, so no change was required there — smaller diff
+  than the packet's expected list but no feature gap.
+files_changed:
+  - apps/api/main.py
+  - apps/api/routers/zones.py
+  - apps/api/tests/t_C03_zones_endpoints.py
+  - inventory-interwall/frontend/zone-config.js
+  - inventory-interwall/frontend/zone-manager.js
+  - inventory-interwall/frontend/wall.js
+  - inventory-interwall/frontend/t_c03_zones_verify.mjs
+tests:
+  - file: apps/api/tests/t_C03_zones_endpoints.py
+    runner: docker compose exec -T api python -m pytest /app/tests/t_C03_zones_endpoints.py -v --tb=short
+    result: pass
+    final_line: 7 passed, 1 warning in 0.17s
+  - file: inventory-interwall/frontend/t_c03_zones_verify.mjs
+    runner: node inventory-interwall/frontend/t_c03_zones_verify.mjs
+    result: pass
+    final_line: 19 passed, 0 failed
+decisions_cited:
+  - D-020
+  - D-021
+  - D-040
+  - D-045
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+cold_rebuild:
+  required: true
+  command: docker compose build api && docker compose up -d api
+  result: api image rebuilt and container restarted — routers/zones.py is
+    COPY'd into the image, so the new module is only visible after a rebuild
+adversarial_review:
+  - |
+    zones.columns / zones.levels are NOT NULL with CHECK > 0, but the
+    packet's POST body only carries {name, is_active}. The router inserts
+    placeholder 1 / 1 so the check passes. These fields are no longer
+    read by any endpoint (GET derives cols/levels from shelves) so the
+    placeholders cannot drift — but leaving them in the schema is a
+    gotcha for anyone who later expects zones.columns to be authoritative.
+    Should be retired in a follow-up migration packet.
+  - |
+    Without a DELETE route, the legacy zoneManager.confirmDelete UX
+    opens a modal that ultimately surfaces a "not supported" toast.
+    That's honest but looks like a broken button; consider hiding the
+    delete button from the zone header in a later UI slice once we
+    design the shelf-cascade behaviour.
+  - |
+    wall.loadLiveData now re-renders whenever the zone signature changes,
+    which means the refresh-interval (60s) path could visibly rebuild
+    the grid if a zone is added/renamed from another tab. In practice
+    the signature is stable, but the DOM swap will briefly blank any
+    highlighted cell — acceptable for MVP, worth revisiting if the
+    refresh cadence is shortened.
+  - |
+    /api/zones layout metadata is not exposed in T-C03, so the frontend
+    synthesises a 2-per-row grid from the returned array order
+    (layoutRow = idx/2, layoutCol = idx%2). With the currently seeded
+    zones (A, B) this matches the prior DB layout_row=0/col=0 state;
+    once zone layout becomes user-editable the server will need to own
+    layout_row / layout_col too.
+open_questions:
+  - |
+    The zones table still has columns/levels and layout_row/layout_col
+    columns that are effectively dead code after T-C03. Drop them in a
+    migration packet or keep as display-only hints?
+  - |
+    Should the POST body surface warehouse_id explicitly once multi-
+    warehouse support lands? Right now the router picks the first
+    warehouse row, which works for single-tenant dev but is implicit.
+next_ready: true

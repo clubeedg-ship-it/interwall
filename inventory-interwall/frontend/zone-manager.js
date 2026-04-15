@@ -2,6 +2,11 @@
  * =============================================================================
  * INTERWALL INVENTORY OS - Zone Manager - UI for Zone Configuration
  * =============================================================================
+ *
+ * T-C03: zones are persisted by /api/zones. This module handles the form
+ * and delegates all mutations to zoneConfig, which calls api.request.
+ * Column/level counts are shelf-derived server-side; the form still shows
+ * them for display, but they are not part of POST/PATCH payloads.
  */
 
 // =============================================================================
@@ -56,7 +61,7 @@ const zoneManager = {
 
         // Reset help text for editing mode
         const helpEl = document.querySelector('#zoneConfigName + .form-help');
-        if (helpEl) helpEl.textContent = 'Zone name cannot be changed';
+        if (helpEl) helpEl.textContent = 'Dimensions are shelf-derived; see shelves to change the grid.';
 
         document.getElementById('zoneConfigModal').classList.add('active');
     },
@@ -70,152 +75,46 @@ const zoneManager = {
         const template = zoneConfig.TEMPLATES[templateName];
         if (!template) return;
 
+        // Only updates the form DOM — POST/PATCH do not accept cols/levels.
         document.getElementById('zoneConfigColumns').value = template.columns;
         document.getElementById('zoneConfigLevels').value = template.levels;
-    },
-
-    /**
-     * Create InvenTree stock locations for a new zone
-     * Creates: Zone-X, X-1...X-N columns, X-1-1...X-N-M shelves, X-1-1-A/B bins
-     */
-    async createZoneLocations(zoneName, columns, levels) {
-        try {
-            notifications.show(`Creating locations for Zone ${zoneName}...`, 'info');
-
-            // Find or create Warehouse root
-            let warehouse = await api.getLocationByName('Warehouse');
-            if (!warehouse) {
-                warehouse = await api.createLocation('Warehouse', 'Main warehouse - Lean Inventory System');
-            }
-            const warehouseId = warehouse.pk;
-
-            // Create Zone-X
-            const zoneLocation = await api.createLocation(
-                `Zone-${zoneName}`,
-                `Zone ${zoneName} - Dynamic Zone`,
-                warehouseId
-            );
-            const zoneId = zoneLocation?.pk;
-            if (!zoneId) {
-                throw new Error(`Failed to create Zone-${zoneName}`);
-            }
-
-            let createdCount = 0;
-
-            // Create columns: X-1, X-2, etc.
-            for (let col = 1; col <= columns; col++) {
-                const colName = `${zoneName}-${col}`;
-                const colLocation = await api.createLocation(
-                    colName,
-                    `Column ${col} in Zone ${zoneName}`,
-                    zoneId
-                );
-                const colId = colLocation?.pk;
-                if (!colId) continue;
-
-                // Create shelves: X-1-1, X-1-2, etc.
-                for (let level = 1; level <= levels; level++) {
-                    const shelfName = `${colName}-${level}`;
-                    const shelfLocation = await api.createLocation(
-                        shelfName,
-                        `Level ${level} (1=Bottom)`,
-                        colId
-                    );
-                    const shelfId = shelfLocation?.pk;
-                    if (!shelfId) continue;
-
-                    // Create bins A and B
-                    await api.createLocation(
-                        `${shelfName}-A`,
-                        'IN - New Stock (FIFO: Use Last)',
-                        shelfId
-                    );
-                    await api.createLocation(
-                        `${shelfName}-B`,
-                        'OUT - Old Stock (FIFO: Use First)',
-                        shelfId
-                    );
-
-                    createdCount += 2;
-                }
-            }
-
-            // Reload locations into state
-            await loadLocations();
-
-            notifications.show(`Zone ${zoneName} created with ${createdCount} bins`, 'success');
-            return true;
-        } catch (e) {
-            console.error('Failed to create zone locations:', e);
-            notifications.show(`Failed to create Zone ${zoneName} locations: ${e.message}`, 'error');
-            return false;
-        }
     },
 
     async submitConfig(e) {
         e.preventDefault();
 
         const name = document.getElementById('zoneConfigName').value.trim().toUpperCase();
-        const columns = parseInt(document.getElementById('zoneConfigColumns').value);
-        const levels = parseInt(document.getElementById('zoneConfigLevels').value);
 
-        // Validation
+        // Validation — a zone name is a single uppercase letter.
         if (!/^[A-Z]$/.test(name)) {
             notifications.show('Zone name must be a single letter (A-Z)', 'error');
             return;
         }
 
-        if (columns < 1 || columns > 10) {
-            notifications.show('Columns must be between 1 and 10', 'error');
-            return;
-        }
-
-        if (levels < 1 || levels > 15) {
-            notifications.show('Levels must be between 1 and 15', 'error');
-            return;
-        }
-
-        // Add or update zone
-        let success;
         if (this.currentZone) {
-            // Update existing zone
-            success = zoneConfig.update(this.currentZone.name, { columns, levels });
-            if (success) {
-                this.closeConfigModal();
-                wall.render();
-                wall.loadLiveData();
-            }
-        } else {
-            // Add new zone
-            // Calculate layout position: max 2 zones per row
-            const zoneIndex = state.zones.length;
-            const layoutRow = Math.floor(zoneIndex / 2);  // 0-1 in row 0, 2-3 in row 1, etc.
-            const layoutCol = zoneIndex % 2;              // Alternates 0, 1, 0, 1...
+            // Existing zone: T-C03 cannot change cols/levels via /api/zones.
+            // Nothing to PATCH here unless we expose rename/deactivate in
+            // the form later. Close the modal with an informative toast.
+            this.closeConfigModal();
+            notifications.show(
+                'Zone dimensions are shelf-derived; edit shelves to change the grid.',
+                'info'
+            );
+            wall.render();
+            await wall.loadLiveData();
+            return;
+        }
 
-            // First add to frontend config
-            success = zoneConfig.add({
-                name,
-                columns,
-                levels,
-                layoutRow,
-                layoutCol
-            });
-
-            if (success) {
-                this.closeConfigModal();
-
-                // Create InvenTree backend locations
-                const locationsCreated = await this.createZoneLocations(name, columns, levels);
-                if (!locationsCreated) {
-                    notifications.show(`Zone ${name} added but backend locations may be incomplete`, 'warning');
-                }
-
-                // Re-populate location dropdown for part creation
+        // New zone: POST /api/zones. No InvenTree location calls — shelves
+        // are seeded via DB migration / separate tooling, not from the UI.
+        const success = await zoneConfig.add({ name });
+        if (success) {
+            this.closeConfigModal();
+            if (typeof partForm !== 'undefined' && partForm.populateLocations) {
                 partForm.populateLocations();
-
-                wall.render();
-                wall.loadLiveData();
             }
+            wall.render();
+            await wall.loadLiveData();
         }
     },
 
@@ -224,7 +123,7 @@ const zoneManager = {
         if (!zone) return;
 
         this.currentZone = zone;
-        const cellCount = zone.columns * zone.levels;
+        const cellCount = (zone.columns || 0) * (zone.levels || 0);
 
         document.getElementById('deleteZoneName').textContent = zoneName;
         document.getElementById('deleteZoneNameRepeat').textContent = zoneName;
@@ -247,11 +146,10 @@ const zoneManager = {
     async executeDelete() {
         if (!this.currentZone) return;
 
-        const success = zoneConfig.delete(this.currentZone.name);
-        if (success) {
-            this.closeDeleteModal();
-            wall.render();
-        }
+        // zoneConfig.delete surfaces a not-supported toast — T-C03 ships
+        // without DELETE /api/zones. Close the modal either way.
+        await zoneConfig.delete(this.currentZone.name);
+        this.closeDeleteModal();
     }
 };
 

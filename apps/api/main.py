@@ -32,6 +32,7 @@ from routers.vat_rates import router as vat_rates_router
 from routers.item_groups import router as item_groups_router
 from routers.builds import router as builds_router
 from routers.external_xref import router as external_xref_router
+from routers.zones import router as zones_router
 from email_poller.poller import poll_once
 from poller.bol_poller import poll_bol_once
 from ingestion.worker import process_pending_events
@@ -139,3 +140,4 @@ app.include_router(vat_rates_router)
 app.include_router(item_groups_router)
 app.include_router(builds_router)
 app.include_router(external_xref_router)
+app.include_router(zones_router)
