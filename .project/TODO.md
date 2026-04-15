@@ -33,8 +33,8 @@
 
 ## Now (next up)
 
-- `T-A00` — Schema audit of current `init.sql` — blocks all of Stream A ← **START HERE**
-- `T-X01` — Resolve clean-state cleanup (bash command + deletion list) — blocks nothing technically but unblocks peace of mind
+T-A01 DONE. T-A02 DONE.
+Next: T-A03 backfill (Tier 1 manual gate + test discipline).
 
 ---
 
@@ -73,13 +73,13 @@
 
 ## Stream A — Backend rework
 
-### `T-A00` — Schema audit session (TODO)
+### `T-A00` — Schema audit session → DONE 2026-04-15
 - Subagent reads `apps/api/sql/init.sql` table-by-table
 - Output: structured audit per table (keep / rename / add / deprecate), column-level notes, integrity gaps (missing CHECK / FK / index)
 - Review with user; lock decisions in DECISIONS.md before execution
 - deps: none
 
-### `T-A01` — Add AVL + Build schema (TODO)
+### `T-A01` — Add AVL + Build schema → DONE 2026-04-15
 - DDL: `item_groups`, `item_group_members`, `builds`, `build_components`, `external_item_xref`, `stock_ledger_entries` (D-012, D-013, D-017)
 - Forward-compat columns unwired: `item_group_members.priority`, `build_components.valid_from/valid_to`, `stock_lots.serial_number` (D-015, D-085, D-086, D-087)
 - Idempotent: `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`
