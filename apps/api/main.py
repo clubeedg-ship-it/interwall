@@ -32,6 +32,7 @@ from routers.item_groups import router as item_groups_router
 from routers.builds import router as builds_router
 from routers.external_xref import router as external_xref_router
 from email_poller.poller import poll_once
+from poller.bol_poller import poll_bol_once
 
 scheduler = BackgroundScheduler()
 
@@ -54,6 +55,24 @@ async def lifespan(app: FastAPI):
         run_date=None,  # runs immediately
         max_instances=1,
     )
+    # Bol.com API order poller (D-097): runs every N minutes if configured
+    bol_interval = int(os.environ.get("BOL_POLL_INTERVAL_MINUTES", "10"))
+    if os.environ.get("BOL_CLIENT_ID"):
+        scheduler.add_job(
+            poll_bol_once,
+            'interval',
+            minutes=bol_interval,
+            id='bol_poll',
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            poll_bol_once,
+            'date',
+            id='bol_poll_startup',
+            run_date=None,
+            max_instances=1,
+        )
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)

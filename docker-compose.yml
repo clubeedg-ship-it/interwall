@@ -35,6 +35,10 @@ services:
       IMAP_EMAIL: ${IMAP_EMAIL:-}
       IMAP_PASSWORD: ${IMAP_PASSWORD:-}
       IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
+      BOL_CLIENT_ID: ${BOL_CLIENT_ID:-}
+      BOL_CLIENT_SECRET: ${BOL_CLIENT_SECRET:-}
+      BOL_POLL_INTERVAL_MINUTES: ${BOL_POLL_INTERVAL_MINUTES:-10}
+      BOL_CHANGE_INTERVAL_MINUTES: ${BOL_CHANGE_INTERVAL_MINUTES:-15}
     volumes:
       - ./apps/api/tests:/app/tests:ro
     depends_on:

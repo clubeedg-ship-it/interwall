@@ -14,13 +14,18 @@
 -- Serialization: inherits SELECT FOR UPDATE from deduct_fifo_for_group (D-021).
 -- =============================================================================
 
+-- Drop the old 6-param overload if it exists (T-B01 added p_commission_override).
+-- Without this, PostgreSQL creates a second function instead of replacing.
+DROP FUNCTION IF EXISTS process_bom_sale(TEXT, INTEGER, NUMERIC, TEXT, TEXT, UUID);
+
 CREATE OR REPLACE FUNCTION process_bom_sale(
-    p_build_code   TEXT,
-    p_quantity     INTEGER,
-    p_sale_price   NUMERIC,
-    p_marketplace  TEXT,
-    p_order_ref    TEXT    DEFAULT NULL,
-    p_source_id    UUID    DEFAULT NULL
+    p_build_code            TEXT,
+    p_quantity              INTEGER,
+    p_sale_price            NUMERIC,
+    p_marketplace           TEXT,
+    p_order_ref             TEXT     DEFAULT NULL,
+    p_source_id             UUID     DEFAULT NULL,
+    p_commission_override   NUMERIC  DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -115,15 +120,29 @@ BEGIN
         END LOOP;
     END LOOP;
 
-    -- Compute fixed costs (commission + overhead from fixed_costs table)
-    SELECT COALESCE(SUM(
-        CASE WHEN is_percentage
-             THEN v_total_price * value / 100
-             ELSE value
-        END
-    ), 0)
-    INTO v_fixed_cost
-    FROM fixed_costs;
+    -- Compute fixed costs (D-098: use commission override when provided)
+    IF p_commission_override IS NOT NULL THEN
+        -- API provides exact commission; exclude DB commission, add override
+        SELECT COALESCE(SUM(
+            CASE WHEN is_percentage
+                 THEN v_total_price * value / 100
+                 ELSE value
+            END
+        ), 0)
+        INTO v_fixed_cost
+        FROM fixed_costs
+        WHERE LOWER(name) != 'commission';
+        v_fixed_cost := v_fixed_cost + p_commission_override;
+    ELSE
+        SELECT COALESCE(SUM(
+            CASE WHEN is_percentage
+                 THEN v_total_price * value / 100
+                 ELSE value
+            END
+        ), 0)
+        INTO v_fixed_cost
+        FROM fixed_costs;
+    END IF;
 
     -- Add marketplace-specific VAT (D-027: guaranteed to exist — checked above)
     v_fixed_cost := v_fixed_cost + (v_total_price * v_vat_rate / 100);
