@@ -789,7 +789,7 @@ const recordSale = {
         const dynContainer = document.getElementById('dynamicCostsContainer');
         if (dynContainer) {
             dynContainer.innerHTML = [
-                bd.vat > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">VAT ${bd.vatCountry || ''} <span class="cost-badge">${bd.vatRate || 21}%</span></span><span class="cost-value">€${bd.vat.toFixed(2)}</span></div>` : '',
+                bd.vat > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">VAT ${sanitize(bd.vatCountry || '')} <span class="cost-badge">${sanitize(bd.vatRate || 21)}%</span></span><span class="cost-value">€${bd.vat.toFixed(2)}</span></div>` : '',
                 bd.commission > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Commission <span class="cost-badge">${((bd.commissionRate || 0) * 100).toFixed(1)}%</span></span><span class="cost-value">€${bd.commission.toFixed(2)}</span></div>` : '',
                 bd.staticOverhead > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Overhead <span class="cost-badge">€${bd.staticOverhead.toFixed(0)}</span></span><span class="cost-value">€${bd.staticOverhead.toFixed(2)}</span></div>` : '',
             ].join('');
@@ -1098,7 +1098,7 @@ const recordSale = {
         container.innerHTML = profitState.components.map((c, idx) => `
             <div class="component-item" data-idx="${idx}">
                 <div class="component-info">
-                    <span class="component-name">${c.partName} × ${c.qty}</span>
+                    <span class="component-name">${sanitize(c.partName)} × ${sanitize(c.qty)}</span>
                     <span class="component-cost">FIFO Cost: €${c.fifoCost.toFixed(2)}</span>
                 </div>
                 <button type="button" class="component-remove" data-idx="${idx}">×</button>
@@ -1168,13 +1168,13 @@ const recordSale = {
                             isFixed: true
                         });
 
-                        stockStatus = `<span class="fixed-comp-stock ok">${inStock} in stock</span>`;
+                        stockStatus = `<span class="fixed-comp-stock ok">${sanitize(inStock)} in stock</span>`;
                     } else {
                         stockStatus = `<span class="fixed-comp-stock warning">Insufficient stock</span>`;
                         hasWarnings = true;
                     }
                 } else {
-                    stockStatus = `<span class="fixed-comp-stock warning">Need ${comp.quantity}, have ${inStock}</span>`;
+                    stockStatus = `<span class="fixed-comp-stock warning">Need ${sanitize(comp.quantity)}, have ${sanitize(inStock)}</span>`;
                     hasWarnings = true;
                 }
             } else {
@@ -1183,11 +1183,11 @@ const recordSale = {
 
             html += `
                 <div class="fixed-component-item ${disabledClass} ${warningClass}"
-                     onclick="fixedComponentsEditor.showEdit('${comp.id}')"
+                     onclick="fixedComponentsEditor.showEdit('${sanitize(comp.id)}')"
                      title="Click to edit">
                     <div class="fixed-comp-info">
-                        <span class="fixed-comp-name">${comp.partName}</span>
-                        <span class="fixed-comp-qty">× ${comp.quantity}</span>
+                        <span class="fixed-comp-name">${sanitize(comp.partName)}</span>
+                        <span class="fixed-comp-qty">× ${sanitize(comp.quantity)}</span>
                     </div>
                     <div class="fixed-comp-right">
                         ${stockStatus}
@@ -1233,17 +1233,17 @@ const recordSale = {
 
             return `
                 <div class="cost-item cost-item-automatic cost-item-editable ${disabledClass}"
-                     onclick="costEditor.showEdit('${cost.id}')"
+                     onclick="costEditor.showEdit('${sanitize(cost.id)}')"
                      title="Click to edit">
                     <span class="cost-label">
-                        ${cost.name}
-                        <span class="cost-badge">${cost.type === 'fixed' ? '€' + cost.value.toFixed(0) : cost.value + '%'}</span>
+                        ${sanitize(cost.name)}
+                        <span class="cost-badge">${cost.type === 'fixed' ? '€' + cost.value.toFixed(0) : sanitize(cost.value) + '%'}</span>
                         <svg class="cost-edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
                     </span>
-                    <span class="cost-value" data-cost-id="${cost.id}">€${calculatedValue.toFixed(2)}</span>
+                    <span class="cost-value" data-cost-id="${sanitize(cost.id)}">€${calculatedValue.toFixed(2)}</span>
                 </div>
             `;
         }).join('');
@@ -2597,20 +2597,20 @@ const profitConfig = {
         container.innerHTML = costs.map(cost => {
             const disabledClass = cost.enabled ? '' : 'disabled';
             let valueDisplay = '';
-            
+
             if (cost.type === 'fixed') {
                 valueDisplay = `€${cost.value.toFixed(2)}`;
             } else if (cost.type === 'percentage') {
-                valueDisplay = `${cost.value}%`;
+                valueDisplay = `${sanitize(cost.value)}%`;
             } else if (cost.type === 'vat') {
-                valueDisplay = `${cost.value}% VAT`;
+                valueDisplay = `${sanitize(cost.value)}% VAT`;
             }
 
             return `
-                <div class="config-item ${disabledClass}" onclick="profitConfig.editCost('${cost.id}')">
+                <div class="config-item ${disabledClass}" onclick="profitConfig.editCost('${sanitize(cost.id)}')">
                     <div class="config-item-info">
-                        <div class="config-item-name">${cost.name}</div>
-                        <div class="config-item-detail">${cost.type} ${cost.basis ? `(${cost.basis})` : ''}</div>
+                        <div class="config-item-name">${sanitize(cost.name)}</div>
+                        <div class="config-item-detail">${sanitize(cost.type)} ${cost.basis ? `(${sanitize(cost.basis)})` : ''}</div>
                     </div>
                     <div class="config-item-value">${valueDisplay}</div>
                 </div>
@@ -2632,12 +2632,12 @@ const profitConfig = {
         container.innerHTML = components.map(comp => {
             const disabledClass = comp.enabled ? '' : 'disabled';
             return `
-                <div class="config-item ${disabledClass}" onclick="profitConfig.editComponent('${comp.id}')">
+                <div class="config-item ${disabledClass}" onclick="profitConfig.editComponent('${sanitize(comp.id)}')">
                     <div class="config-item-info">
-                        <div class="config-item-name">${comp.partName}</div>
-                        <div class="config-item-detail">SKU: ${comp.sku || 'N/A'}</div>
+                        <div class="config-item-name">${sanitize(comp.partName)}</div>
+                        <div class="config-item-detail">SKU: ${sanitize(comp.sku || 'N/A')}</div>
                     </div>
-                    <div class="config-item-value">× ${comp.quantity}</div>
+                    <div class="config-item-value">× ${sanitize(comp.quantity)}</div>
                 </div>
             `;
         }).join('');

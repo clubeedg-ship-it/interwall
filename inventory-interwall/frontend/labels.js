@@ -87,7 +87,10 @@ const labels = {
         // Create print container
         const printContainer = document.createElement('div');
         printContainer.className = 'print-container';
-        printContainer.innerHTML = items.map(item => this.createLabelHTML(item)).join('');
+        printContainer.innerHTML = '';
+        for (const item of items) {
+            printContainer.insertAdjacentHTML('beforeend', this.createLabelHTML(item));
+        }
 
         // Add to document temporarily
         document.body.appendChild(printContainer);
