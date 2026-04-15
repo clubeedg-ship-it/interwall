@@ -1,0 +1,110 @@
+task_id: T-C00
+status: complete
+
+summary: |
+  Refreshed the C00 UI-state audit against current v2 truth and wrote it to
+  .project/C00-UI-STATE-AUDIT.md. The preserved off-branch audit at
+  interwall-preserve-2026-04-15/live-tree/.project/C00-UI-STATE-AUDIT.md is
+  stale on several points — most importantly it treats shelf-config.js as
+  active runtime, but shelf-config.js is neither loaded by index.html nor
+  present in inventory-interwall/frontend/ on v2.
+
+  Current active runtime (confirmed against inventory-interwall/frontend/
+  index.html:1371-1396): env.js, config.js, api.js, router.js, settings.js,
+  zone-config.js, zone-manager.js, bin-info-modal.js, wall.js, scanner.js,
+  handshake.js, catalog-core.js, catalog-detail.js, part-manager.js,
+  bin-modal.js, ui.js, history.js, auth.js, compositions.js, labels.js,
+  profit.js, tenant.js, app-init.js. index.html loads none of app.js,
+  app-1770129675.js, profit-1770129675.js, or shelf-config.js.
+
+  Corrections vs. preserved audit:
+    - wall.js no longer bulk-aggregates stock client-side; it now consumes
+      v_shelf_occupancy via api.getShelfOccupancy(). Only A+B+base sum,
+      A+base display merge (renderOccupancy), and hardcoded status bands
+      remain in browser.
+    - bin-info-modal.js reads from wall.occupancyByCell and writes via
+      api.updateShelf(); shelfConfig localStorage path is gone.
+    - api.js getAvailableStock() was removed; helpers are now
+      getShelfOccupancy / getPartStockSnapshot / getProductsWithStock /
+      updateShelf.
+    - catalog-core.js no longer hardcodes in_stock: 0; in_stock comes from
+      canonical v_part_stock via api.getProductsWithStock.
+
+  Still live D-040 / D-041 / D-045 / D-046 surfaces remain (zone-config
+  localStorage, jit_config + browser ROP, profit.js transaction +
+  totalMargin + fixed_components localStorage, renderSummary mis-using
+  totalMargin as Today's Margin, fetchInvenTreeSalesOrders repricing,
+  handshake client-authored FIFO, hardcoded thresholds in wall.js 5/15,
+  bin-info-modal 20% fill, catalog-core 0.5*minStock, profit.js VAT /
+  commission / overhead DEFAULTS, and unsanitized innerHTML sinks in
+  profit.js / history.js / labels.js / tenant.js / catalog-detail.js).
+
+  Task routing: T-C02c for browser stock authority / business storage,
+  T-C11 for sanitize + hardcoded-value debt, T-C03 only for the
+  zone-config localStorage topology move.
+
+files_changed:
+  - path: .project/C00-UI-STATE-AUDIT.md
+    state: untracked_new
+    purpose: refreshed audit artifact
+  - path: .project/operator-runs/T-C00/REPORT.yaml
+    state: modified
+    purpose: filled operator report
+
+tests: []
+
+decisions_cited:
+  - D-040
+  - D-041
+  - D-045
+  - D-046
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+verification:
+  - command: test -f .project/C00-UI-STATE-AUDIT.md
+    result: pass
+  - command: >-
+      rg -n "app-1770129675|profit-1770129675|app\.js|shelf-config\.js|D-040|D-041|D-045|D-046|T-C02c|T-C11"
+      .project/C00-UI-STATE-AUDIT.md
+    result: pass
+    note: all 10 tokens present
+  - command: "git diff --name-only -- . ':(exclude).project/operator-runs/T-C00/*'"
+    raw_output: ""
+    result: pass_with_note
+    note: >-
+      `git diff --name-only` returns empty because the new audit file is
+      untracked (not a modification to a tracked file). `git status --short`
+      shows only `?? .project/C00-UI-STATE-AUDIT.md` and `?? .project/
+      operator-runs/T-C00/` outside the excluded task directory, so the
+      intent of the check — exactly one non-T-C00 artifact added
+      (.project/C00-UI-STATE-AUDIT.md) and no product code touched — is
+      satisfied.
+
+acceptance_checks:
+  audit_reflects_current_v2: true
+  index_html_loads_split_runtime_no_legacy_bundles: true
+  shelf_config_absent_and_preserved_audit_stale_on_that_point: true
+  cites_D-040_D-041_D-045_D-046: true
+  routes_to_T-C02c_and_T-C11: true
+  no_product_code_changed: true
+
+adversarial_review:
+  - concern: "profit.js is 2600+ lines; not every innerHTML site was read line-by-line."
+    mitigation: "Grep counted 26 innerHTML hits in profit.js; the audit names the highest-signal sinks reachable from renderTransactions / renderInventoryBreakdown / mapApiTransaction paths and flags the file as the densest T-C11 debt source rather than claiming exhaustive coverage."
+  - concern: "fixedComponentsConfig.save() still writes localStorage on every save (profit.js:354), even though backendConfigSync.syncComponents is a documented no-op (profit.js:29-31)."
+    mitigation: "Called out explicitly in section 2 as an active D-040 violation so T-C02c does not assume backend is authoritative for fixed_components today."
+  - concern: "bin-info-modal.js and wall.js still compute presentation-level math (fillPercent, A+base merge) even though the underlying numbers are canonical."
+    mitigation: "Section 3 separates 'source of truth is canonical' from 'derived display math is client-side' so T-C02c scoping can decide whether presentation math needs to move server-side too."
+
+open_questions: []
+
+next_ready: T-C01
