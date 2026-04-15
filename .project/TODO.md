@@ -33,13 +33,14 @@
 
 ## Now (next up)
 
-T-A01 through T-A05 DONE on v2. Protocol substrate landed
-(PROCESS / PRIMER-TEMPLATE / REPORT-SCHEMA / RETROSPECTIVES /
-COMPONENTS + CLAUDE.md rewire — commits f3b203d, 1ec5663).
+Stream A: COMPLETE 2026-04-15. Tier 3 acceptance green (f095131).
+All 11 cited decisions verified in practice (D-017, D-019, D-020,
+D-021, D-022, D-023, D-025, D-026, D-027, D-033, D-041).
+Stream A retrospective entry landed in RETROSPECTIVES.md (b0c8e07).
 
-Next: short cleanup session batching T-X07 (relocate T-A04 test)
-and T-X08 (verify deduct_fifo_for_group function body at 3b65501).
-Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
+Next stream: B (marketplace ingestion). Starts with T-B00 — Bol.com
+Retailer API v10 subscription catalogue audit. Research-only session
+(no code). Produces the contract doc the T-B01 primer will reference.
 
 ---
 
@@ -80,14 +81,14 @@ Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
   COMPONENTS.md (stub) all live on v2
 - CLAUDE.md imports now include PROCESS / PRIMER-TEMPLATE / REPORT-SCHEMA
 
-### `T-X07` — Relocate T-A04 test file (TODO)
+### `T-X07` — Relocate T-A04 test file → DONE 2026-04-15 (f3b848c)
 - `git mv apps/api/sql/07_test_deduct_fifo.sql apps/api/tests/t_A04_deduct_fifo_for_group.sql`
 - Ensure final line prints `T-A04 ALL TESTS PASSED`
 - Re-run to confirm green
 - Commit: `chore(tests): relocate T-A04 test per new discipline`
 - deps: T-X06
 
-### `T-X08` — Verify 3b65501 contains full deduct_fifo_for_group body (TODO)
+### `T-X08` — Verify 3b65501 contains full deduct_fifo_for_group body → DONE 2026-04-15
 - Confirm commit 3b65501 has `CREATE OR REPLACE FUNCTION` with full body,
   not a stub
 - If stub, re-commit full body and report new SHA
@@ -99,12 +100,17 @@ Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
 - Low priority — do only if future session has idle capacity
 - deps: T-X06
 
-### `T-X10` — Stream A retrospective (TODO)
-- After T-A09 ships, before Tier 3 acceptance test
-- Entry in RETROSPECTIVES.md per template
-- Land any patches to PROCESS.md / PRIMER-TEMPLATE.md / REPORT-SCHEMA.md
-  that surfaced during Stream A
-- deps: T-A09
+### `T-X10` — Stream A retrospective → DONE 2026-04-15 (b0c8e07)
+- RETROSPECTIVES.md entry + patches to REPORT-SCHEMA (tests array
+  form, split deps fields, cold_rebuild_survival block) +
+  PRIMER-TEMPLATE (§7 cold-rebuild declaration) +
+  PROCESS (§11 post-merge cold-rebuild sanity check) +
+  CLAUDE.md (port 1441 note).
+
+### `T-A07a` — Durable test harness for T-A07 → DONE 2026-04-15 (a53156b)
+- Added httpx + pytest + pytest-asyncio to requirements.txt
+- Added bind mount for apps/api → /app in api service
+- Cold-rebuild verification green (all prior tests pass)
 
 ---
 
@@ -139,13 +145,11 @@ Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
 - Verify: every product with stock_lots has a reachable build; count(sku_aliases) == count(new external_item_xref rows from migration); count(distinct parent_ean) + count(auto-generated builds) == count(builds)
 - deps: `T-A01`
 
-### `T-A03a` — Retire `sku_aliases` writes (TODO)
-- After T-A03 backfill is verified, update email poller to stop writing to `sku_aliases`
-- All new SKU resolution writes go to `external_item_xref` only (D-019)
-- `sku_aliases` table stays readable (D-010) but receives no new inserts
-- deps: `T-A03`, `T-A08`
+### `T-A03a` — Retire `sku_aliases` writes → DONE 2026-04-15 (7669ffa)
+- Poller never wrote to sku_aliases; test guards the invariant going forward
+- sku_aliases reads remain in place per D-010
 
-### `T-A04` — `deduct_fifo_for_group` PL/pgSQL function (TODO)
+### `T-A04` — `deduct_fifo_for_group` PL/pgSQL function → DONE 2026-04-15 (3b65501)
 - Signature: `(item_group_id UUID, qty INT) RETURNS TABLE (stock_lot_id, product_id, qty_taken, unit_cost)`
 - `SELECT FOR UPDATE` ordered by `received_at ASC, id ASC` (D-021, D-023)
 - Raises on insufficient stock
@@ -153,20 +157,20 @@ Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
 - Tests: two-product group, oldest-wins scenario; overflow RAISE
 - deps: `T-A01`
 
-### `T-A05` — `process_bom_sale` PL/pgSQL function (TODO)
+### `T-A05` — `process_bom_sale` PL/pgSQL function → DONE 2026-04-15 (665be4e, 147f512)
 - Single-transaction atomic (D-022)
 - Flow: lookup build → insert txn shell → loop build_components (filtered by valid_from/valid_to) → call deduct_fifo_for_group per line → write stock_ledger_entries row per lot consumed → apply fixed_costs → update cogs + profit (D-017, D-025)
 - Raises on any error; rolls back entire transaction
 - Tests: happy path, stock-out rollback, multi-line build, fixed-cost math
 - deps: `T-A04`
 
-### `T-A06` — `v_part_stock` canonical stock view (TODO)
+### `T-A06` — `v_part_stock` canonical stock view → DONE 2026-04-15 (90604be)
 - One SQL view returning `(product_id, ean, name, total_qty, total_value, last_received_at)`
 - Filtered by `quantity > 0`, joined through `stock_lots`
 - Used by Parts page AND Profit/Valuation page (D-041)
 - deps: `T-A01`
 
-### `T-A07` — FastAPI routers (TODO)
+### `T-A07` — FastAPI routers → DONE 2026-04-15 (b649018, 4ef7eca; durability a53156b)
 - `/api/item-groups` — CRUD + member attach/detach; 409 on detach if orphan risk
 - `/api/builds` — CRUD + full-replace PUT for components; auto-assign BLD-NNN if no code provided (D-014)
 - `/api/external-xref` — CRUD + `/resolve?marketplace=&sku=` utility
@@ -174,17 +178,23 @@ Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
 - Register in `main.py`
 - deps: `T-A01`, `T-A05`
 
-### `T-A08` — Email poller BOM-first routing (TODO)
+### `T-A08` — Email poller BOM-first routing → DONE 2026-04-15 (504977e)
 - Extend `email_poller/sale_writer.py` with `resolve_build_code(marketplace, external_sku)`
 - Prefer `process_bom_sale`; fall back to legacy `process_sale` only when no xref AND no build match (D-024)
 - If xref exists for (marketplace, sku) but build inactive → raise (D-033)
 - Log path taken at INFO
 - deps: `T-A05`, `T-A07`
 
-### `T-A09` — Health page invariant queries (TODO)
-- SQL views for: parts without shelf, parts without reorder point, batches without receipts, builds without marketplace mappings, sale txns with zero ledger rows
-- Expose via `/api/health/*` endpoints
-- deps: `T-A01`
+### `T-A09` — Health page invariant queries → DONE 2026-04-15 (e5015ae)
+- 4 SQL views (v_health_parts_without_shelf, _parts_without_reorder,
+  _builds_without_xref, _sales_without_ledger)
+- /api/health router with roll-up + drill-downs
+- /api/health/ping unauthenticated for monitoring
+
+### Stream A Tier 3 acceptance → DONE 2026-04-15 (f095131)
+- Single e2e scenario, 7 steps, ~20 assertions (t_A_acceptance.py)
+- All 11 cited decisions verified in practice
+- Retrospective: see RETROSPECTIVES.md Stream A entry
 
 ---
 
@@ -371,6 +381,14 @@ Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
 ### `P-11` — Builds page search by composition fingerprint
 - Users should filter builds by item_groups they contain, to attach new marketplace codes to existing builds quickly
 - Address in Stream C
+
+### `P-12` — pytest combined-run APScheduler conflict
+- T-A09 health router tests ERROR when run in same pytest process
+  as other test files (ConflictingIdError on app lifespan restart)
+- Passes in isolation; only affects full-suite runs
+- Fix options: app factory + per-test lifespan fixture, OR set
+  SCHEDULER_JOB_DEFAULTS replace_existing=True for tests
+- Address in Stream B retro or when pytest harness is hardened
 
 ---
 
