@@ -739,6 +739,65 @@ const profitState = {
 const recordSale = {
     fixedComponentsCost: 0, // Track fixed components cost separately
     currentEditOrderId: null, // Track if we're editing an existing sale
+    currentEditSource: null,
+
+    resetEditMode() {
+        this.currentEditOrderId = null;
+        this.currentEditSource = null;
+    },
+
+    setDatabaseEditReadonly(isReadonly) {
+        const productInput = document.getElementById('saleProductName');
+        const salePriceInput = document.getElementById('salePrice');
+        const componentSelect = document.getElementById('componentSelect');
+        const componentQty = document.getElementById('componentQty');
+        const addBtn = document.getElementById('addComponentBtn');
+        const submitBtn = document.querySelector('#recordSaleForm button[type="submit"]');
+
+        if (productInput) productInput.disabled = isReadonly;
+        if (salePriceInput) salePriceInput.disabled = isReadonly;
+        if (componentSelect) componentSelect.disabled = isReadonly;
+        if (componentQty) componentQty.disabled = isReadonly;
+        if (addBtn) addBtn.disabled = isReadonly;
+        if (submitBtn) submitBtn.textContent = isReadonly ? 'Close' : 'Save Sale';
+    },
+
+    applyStoredDatabaseBreakdown(tx) {
+        const bd = tx.costBreakdown || {};
+        const manualCostEl = document.getElementById('componentsCostDisplay');
+        const fixedCostEl = document.getElementById('fixedComponentsCostDisplay');
+        const totalCostEl = document.getElementById('totalCostDisplay');
+        const salePriceEl = document.getElementById('salePriceDisplay');
+        const marginEl = document.getElementById('marginDisplay');
+        const oldTotalCost = document.getElementById('saleTotalCost');
+        const oldMarginPreview = document.getElementById('saleMarginPreview');
+
+        if (manualCostEl) manualCostEl.textContent = `€${(bd.manualComponents || 0).toFixed(2)}`;
+        if (fixedCostEl) fixedCostEl.textContent = `€0.00`;
+        if (totalCostEl) totalCostEl.textContent = `€${tx.cost.toFixed(2)}`;
+        if (salePriceEl) salePriceEl.textContent = `€${tx.sale.toFixed(2)}`;
+        if (marginEl) {
+            marginEl.textContent = `€${tx.margin.toFixed(2)}`;
+            marginEl.style.color = tx.margin >= 0 ? 'var(--signal-healthy-text)' : 'var(--signal-critical-text)';
+        }
+        if (oldTotalCost) oldTotalCost.textContent = `€${tx.cost.toFixed(2)}`;
+        if (oldMarginPreview) {
+            oldMarginPreview.textContent = `${tx.margin >= 0 ? '+' : ''}€${tx.margin.toFixed(2)}`;
+            oldMarginPreview.className = `value ${tx.margin >= 0 ? 'positive' : 'negative'}`;
+        }
+
+        const dynContainer = document.getElementById('dynamicCostsContainer');
+        if (dynContainer) {
+            dynContainer.innerHTML = [
+                bd.vat > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">VAT ${bd.vatCountry || ''} <span class="cost-badge">${bd.vatRate || 21}%</span></span><span class="cost-value">€${bd.vat.toFixed(2)}</span></div>` : '',
+                bd.commission > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Commission <span class="cost-badge">${((bd.commissionRate || 0) * 100).toFixed(1)}%</span></span><span class="cost-value">€${bd.commission.toFixed(2)}</span></div>` : '',
+                bd.staticOverhead > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Overhead <span class="cost-badge">€${bd.staticOverhead.toFixed(0)}</span></span><span class="cost-value">€${bd.staticOverhead.toFixed(2)}</span></div>` : '',
+            ].join('');
+        }
+
+        const fixedCompContainer = document.getElementById('fixedComponentsContainer');
+        if (fixedCompContainer) fixedCompContainer.innerHTML = '';
+    },
 
     init() {
         console.log('recordSale.init() starting...');
@@ -789,7 +848,8 @@ const recordSale = {
         const modal = document.getElementById('recordSaleModal');
 
         // Reset edit mode
-        this.currentEditOrderId = null;
+        this.resetEditMode();
+        this.setDatabaseEditReadonly(false);
 
         // Update modal title for new sale
         const titleEl = document.querySelector('#recordSaleModal .modal-title');
@@ -838,6 +898,7 @@ const recordSale = {
 
         // Set edit mode
         this.currentEditOrderId = orderId;
+        this.currentEditSource = tx.source || null;
 
         // Update modal title for edit
         const titleEl = document.querySelector('#recordSaleModal .modal-title');
@@ -849,6 +910,7 @@ const recordSale = {
 
         // DB-sourced transactions: show stored values directly, no client-side recalc
         if (tx.source === 'database') {
+            this.setDatabaseEditReadonly(true);
             profitState.components = (tx.components || []).map(c => ({
                 partName: c.partName,
                 qty: c.qty,
@@ -859,37 +921,7 @@ const recordSale = {
             this.fixedComponentsCost = 0;
 
             this.renderComponentsList();
-
-            // Show DB cost breakdown directly in the popup displays
-            const bd = tx.costBreakdown || {};
-            const manualCostEl = document.getElementById('componentsCostDisplay');
-            const fixedCostEl = document.getElementById('fixedComponentsCostDisplay');
-            const totalCostEl = document.getElementById('totalCostDisplay');
-            const salePriceEl = document.getElementById('salePriceDisplay');
-            const marginEl = document.getElementById('marginDisplay');
-
-            if (manualCostEl) manualCostEl.textContent = `€${(bd.manualComponents || 0).toFixed(2)}`;
-            if (fixedCostEl) fixedCostEl.textContent = `€0.00`;
-            if (totalCostEl) totalCostEl.textContent = `€${tx.cost.toFixed(2)}`;
-            if (salePriceEl) salePriceEl.textContent = `€${tx.sale.toFixed(2)}`;
-            if (marginEl) {
-                marginEl.textContent = `€${tx.margin.toFixed(2)}`;
-                marginEl.style.color = tx.margin >= 0 ? 'var(--signal-healthy-text)' : 'var(--signal-critical-text)';
-            }
-
-            // Show fixed costs in the dynamic costs container
-            const dynContainer = document.getElementById('dynamicCostsContainer');
-            if (dynContainer) {
-                dynContainer.innerHTML = (tx.costBreakdown ? [
-                    bd.vat > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">VAT ${bd.vatCountry || ''} <span class="cost-badge">${bd.vatRate || 21}%</span></span><span class="cost-value">€${bd.vat.toFixed(2)}</span></div>` : '',
-                    bd.commission > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Commission <span class="cost-badge">${((bd.commissionRate || 0) * 100).toFixed(1)}%</span></span><span class="cost-value">€${bd.commission.toFixed(2)}</span></div>` : '',
-                    bd.staticOverhead > 0 ? `<div class="cost-item cost-item-automatic"><span class="cost-label">Overhead <span class="cost-badge">€${bd.staticOverhead.toFixed(0)}</span></span><span class="cost-value">€${bd.staticOverhead.toFixed(2)}</span></div>` : '',
-                ] : []).join('');
-            }
-
-            // Hide fixed components container for DB transactions
-            const fixedCompContainer = document.getElementById('fixedComponentsContainer');
-            if (fixedCompContainer) fixedCompContainer.innerHTML = '';
+            this.applyStoredDatabaseBreakdown(tx);
 
             modal.classList.add('active');
             document.getElementById('salePrice').focus();
@@ -897,6 +929,7 @@ const recordSale = {
         }
 
         // Legacy flow for non-DB transactions
+        this.setDatabaseEditReadonly(false);
         profitState.components = [];
         profitState.stockCache.clear();
         this.fixedComponentsCost = 0;
@@ -925,7 +958,8 @@ const recordSale = {
 
     hide() {
         document.getElementById('recordSaleModal').classList.remove('active');
-        this.currentEditOrderId = null;
+        this.resetEditMode();
+        this.setDatabaseEditReadonly(false);
     },
 
     async populatePartsDropdown() {
@@ -1216,6 +1250,14 @@ const recordSale = {
     },
 
     updateCostBreakdown() {
+        if (this.currentEditSource === 'database' && this.currentEditOrderId) {
+            const tx = profitState.transactions.find(t => t.orderId === this.currentEditOrderId);
+            if (tx) {
+                this.applyStoredDatabaseBreakdown(tx);
+                return;
+            }
+        }
+
         // Get current values
         const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
         const manualComponentsCost = this.calculateManualComponentsCost();
@@ -1287,31 +1329,20 @@ const recordSale = {
         const productName = document.getElementById('saleProductName').value.trim();
         const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
 
-        // DB-sourced transactions: update via API, then reload from DB
+        // DB-sourced transactions are immutable in the UI; close without PATCH.
         if (isEditMode) {
             const existingTx = profitState.transactions.find(t => t.orderId === this.currentEditOrderId);
             if (existingTx && existingTx.source === 'database' && existingTx.dbId) {
-                try {
-                    const resp = await fetch(`/api/profit/transactions/${existingTx.dbId}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ unit_price: salePrice }),
-                    });
-                    if (!resp.ok) throw new Error('Failed to update');
-                    // Reload all transactions from DB
-                    const apiTxns = await profitEngine.loadTransactionsFromAPI(100);
-                    if (apiTxns.length > 0) {
-                        profitState.transactions = apiTxns.map(tx => profitEngine.mapApiTransaction(tx));
-                        profitState.totalMargin = profitState.transactions.reduce((sum, tx) => sum + (tx.margin || 0), 0);
-                    }
-                    profitEngine.render();
-                    this.hide();
-                    toast.show('Sale updated!', 'success');
-                    return;
-                } catch (err) {
-                    toast.show('Failed to update sale: ' + err.message, 'error');
-                    return;
+                if (
+                    salePrice !== Number(existingTx.sale || 0) ||
+                    productName !== String(existingTx.productName || '')
+                ) {
+                    toast.show('Stored sale values are immutable; use the recorded transaction as history.', 'warning');
+                } else {
+                    toast.show('Stored sale values are immutable.', 'info');
                 }
+                this.hide();
+                return;
             }
         }
 

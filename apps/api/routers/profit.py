@@ -205,11 +205,11 @@ class TransactionUpdate(BaseModel):
 
 @router.patch("/transactions/{txn_id}")
 def update_transaction(txn_id: str, body: TransactionUpdate, session=Depends(require_session)):
-    """Update a sale transaction. Recalculates profit if price changes."""
+    """Update non-financial sale metadata without mutating stored economics."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, quantity, unit_price, total_price, cogs, marketplace "
+                "SELECT id, unit_price, marketplace, order_reference "
                 "FROM transactions WHERE id = %s",
                 (txn_id,),
             )
@@ -217,38 +217,20 @@ def update_transaction(txn_id: str, body: TransactionUpdate, session=Depends(req
             if not tx:
                 raise HTTPException(404, "Transaction not found")
 
-            new_price = body.unit_price if body.unit_price is not None else float(tx["unit_price"])
+            current_price = float(tx["unit_price"] or 0)
+            if body.unit_price is not None and float(body.unit_price) != current_price:
+                raise HTTPException(
+                    status_code=409,
+                    detail="D-025: unit_price/profit are immutable after sale time",
+                )
+
             new_marketplace = body.marketplace if body.marketplace is not None else tx["marketplace"]
             new_ref = body.order_reference if body.order_reference is not None else tx.get("order_reference")
-            qty = tx["quantity"]
-            new_total = new_price * qty
-            cogs = float(tx["cogs"] or 0)
-
-            # Recalculate fixed costs + VAT for new price
-            cur.execute("SELECT name, value, is_percentage FROM fixed_costs")
-            fixed_total = 0.0
-            for fc in cur.fetchall():
-                if fc["is_percentage"]:
-                    fixed_total += new_total * float(fc["value"]) / 100
-                else:
-                    fixed_total += float(fc["value"])
-
-            # VAT
-            cur.execute(
-                "SELECT rate FROM vat_rates WHERE LOWER(marketplace) = LOWER(%s)",
-                (new_marketplace,),
-            )
-            vat_row = cur.fetchone()
-            vat_rate = float(vat_row["rate"]) if vat_row else 21.0
-            fixed_total += new_total * vat_rate / 100
-
-            new_profit = new_total - cogs - fixed_total
 
             cur.execute(
-                "UPDATE transactions SET unit_price = %s, total_price = %s, "
-                "marketplace = %s, order_reference = %s, profit = %s "
+                "UPDATE transactions SET marketplace = %s, order_reference = %s "
                 "WHERE id = %s RETURNING id",
-                (new_price, new_total, new_marketplace, new_ref, round(new_profit, 4), txn_id),
+                (new_marketplace, new_ref, txn_id),
             )
             conn.commit()
-            return {"ok": True, "profit": round(new_profit, 2)}
+            return {"ok": True}

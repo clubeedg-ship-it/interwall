@@ -223,6 +223,16 @@ fit as a concise note here.
 - `T-B04` has now been replayed into the current `v2` checkout as
   commit `b103920` and verified locally with
   `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -v --tb=short`.
+- `T-C01` has now been replayed into the current `v2` checkout and
+  verified locally with:
+  - `docker compose exec -T api python -m pytest /app/tests/t_C01_profit_immutability.py -v --tb=short`
+  - `node inventory-interwall/frontend/t_c01_noop_edit_verify.mjs`
+- Cold-rebuild truth surfaced during `T-C01`: the `T-B04` replay had
+  depended on preserved local files not yet landed on `v2`.
+  `apps/api/ingestion_worker.py`, `apps/api/sql/12_ingestion_event_attempts.sql`,
+  and `apps/api/tests/t_B02_B05_ingestion_worker.py` were restored into
+  the repo so the rebuilt `api` container starts and the email-poller
+  fallback path has its actual shared-worker dependency on branch.
 - Deployment bar is stricter than "stack boots": before any
   deploy-ready claim, prove via browser/E2E that core operator flows
   keep numbers coherent across the app: adding/editing/calculating and
@@ -230,10 +240,11 @@ fit as a concise note here.
   total fetched in/out; profit/margin; inventory valuation; JIT reorder
   logic; FIFO behavior; product location; builds →
   `build_components`. Login is explicitly de-prioritized for now.
-- Short-memory signal for next coach: after replaying/landing `T-C01`
-  and reconciling `T-B03` / `T-C00`, it is E2E time. Use local
-  Playwright to truth the browser against backend invariants before
-  calling the system trusted for day-to-day use.
+- Short-memory signal for next coach: `T-C01` is now replayed/verified.
+  Remaining pre-E2E cleanup is to reconcile `T-B03` / `T-C00`. After
+  that, it is E2E time. Use local Playwright to truth the browser
+  against backend invariants before calling the system trusted for
+  day-to-day use.
 - Branch cleanup completed after the `T-B04` replay:
   - main checkout is clean on `v2`
   - stale `.claude/worktrees/*` were archived under

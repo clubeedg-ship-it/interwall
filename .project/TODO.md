@@ -46,17 +46,19 @@ Stream B: T-B00 + T-B01 DONE.
 
 Stream B: T-B02 + T-B05 DONE 2026-04-15 (`d48ccce`).
 
-Stream B: `T-B03` local reliability artifact preserved at
-`.project/B03-RELIABILITY.md`, but not yet landed on `v2`.
+Stream B: `T-B03` local reliability artifact preserved under
+`/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/B03-RELIABILITY.md`,
+but not yet landed on `v2`.
 
 Stream B: `T-B04` DONE 2026-04-15 (`b103920`).
 
-Stream C: `T-C00` local audit artifact preserved at
-`.project/C00-UI-STATE-AUDIT.md`, but not yet landed on `v2`.
+Stream C: `T-C00` local audit artifact preserved under
+`/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/C00-UI-STATE-AUDIT.md`,
+but not yet landed on `v2`.
 
-Stream C: `T-C01` was accepted locally before sync, but its code is not
-present on the synced branch. Replay required before it can be marked
-DONE.
+Stream C: `T-C01` DONE 2026-04-15 in the current `v2` checkout
+(replayed locally; backend immutability + frontend no-op edit verified;
+commit pending).
 
 Stream C: `T-C02` is already sliced on `v2`:
 - `T-C02a` DONE 2026-04-15 (`3ce3be2`)
@@ -64,11 +66,10 @@ Stream C: `T-C02` is already sliced on `v2`:
 - `T-C02d` DONE 2026-04-15 (`0e6442d`)
 - `T-C02e` DONE 2026-04-15 (`fc81d28`)
 
-Next: **Replay remaining unlanded accepted work**. Finish `T-C01`, then
-re-evaluate whether `T-B03` and `T-C00` should be landed as-is or
-refreshed against current `v2`. After the replay/landing pass, shift to
-Playwright-backed E2E/browser truthing for cross-page numeric
-coherence before any deployment-readiness signoff.
+Next: **Resolve preserved branch-truth artifacts**. Decide whether
+`T-B03` and `T-C00` should be landed as-is or refreshed against current
+`v2`. After that, move into Playwright-backed E2E/browser truthing for
+cross-page numeric coherence before any deployment-readiness signoff.
 
 ---
 
@@ -127,8 +128,9 @@ coherence before any deployment-readiness signoff.
 - Log discrepancies: orders seen by one path and not the other,
   timing differences, field mismatches.
 - Output: reliability report as `.project/B03-RELIABILITY.md`.
-- Local development report exists, but it has not been landed on `v2`
-  after the branch sync.
+- Local development report exists at
+  `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/B03-RELIABILITY.md`,
+  but it has not been landed on `v2` after the branch sync.
 - deps: `T-B02`
 
 ### `T-B04` — Retire Bol.com email path (DONE 2026-04-15, b103920)
@@ -166,12 +168,13 @@ coherence before any deployment-readiness signoff.
 - Inventory every `innerHTML` assignment with dynamic data (for
   sanitize() coverage)
 - Output: audit doc with bug origin per page
-- Local audit file exists, but it has not been landed on `v2` after the
-  branch sync.
+- Local audit file exists at
+  `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/C00-UI-STATE-AUDIT.md`,
+  but it has not been landed on `v2` after the branch sync.
 - Can run in parallel with Stream A
 - deps: none
 
-### `T-C01` — Immutable transaction fields + margin-bug fix (TODO, replay required)
+### `T-C01` — Immutable transaction fields + margin-bug fix (DONE 2026-04-15, local checkout verified)
 - Backend: confirm `transactions.cogs` / `transactions.profit` are
   written at sale time and never updated (D-025). Already the case
   after A-05 lands.
@@ -179,9 +182,9 @@ coherence before any deployment-readiness signoff.
   recorded-sale card, sale-edit view
 - Test: open sale, edit, save without changes → margin identical to
   first render
-- Accepted locally before branch sync, but the synced `v2` checkout
-  does not currently contain the implementation. Reapply from the
-  preserved patch before marking done.
+- Replayed into the current `v2` checkout and verified with:
+  - `docker compose exec -T api python -m pytest /app/tests/t_C01_profit_immutability.py -v --tb=short`
+  - `node inventory-interwall/frontend/t_c01_noop_edit_verify.mjs`
 - deps: `T-A05`, `T-C00`
 
 ### `T-C02` — Single-source-of-truth refactor (IN PROGRESS, sliced)
