@@ -33,7 +33,13 @@
 
 ## Now (next up)
 
-T-A03 DONE. Next: T-A04 deduct_fifo_for_group — fresh session.
+T-A01 through T-A05 DONE on v2. Protocol substrate landed
+(PROCESS / PRIMER-TEMPLATE / REPORT-SCHEMA / RETROSPECTIVES /
+COMPONENTS + CLAUDE.md rewire — commits f3b203d, 1ec5663).
+
+Next: short cleanup session batching T-X07 (relocate T-A04 test)
+and T-X08 (verify deduct_fifo_for_group function body at 3b65501).
+Then T-A06 + T-A03a (first Tier 2 batch under new primer shape).
 
 ---
 
@@ -56,17 +62,49 @@ T-A03 DONE. Next: T-A04 deduct_fifo_for_group — fresh session.
 - Output: one paste-ready message the user gives to local Claude Code to begin executing the rebuild
 - deps: `T-X01`, `T-X02`
 
-### `T-X04` — Validate local Claude Code can push (TODO)
-- On production machine: verify git credentials push to `clubeedg-ship-it/interwall`
-- Verify GitHub App permissions on the local install (if different from sandbox)
-- Output: green/red confirmation; if red, escalate before committing to next steps
-- deps: none
+### `T-X04` — Validate local Claude Code can push → DONE 2026-04-15
+- Verified by direct push of commits df737aa, f3b203d, 1ec5663 on v2
+- Local CLI has full write access; coaching session (desktop) remains read-only per D-090
 
 ### `T-X05` — Evaluate full-stack-orchestration plugin (TODO)
 - Look at https://github.com/wshobson/agents specifically `full-stack-orchestration`
 - Decide: adopt as sub-agent helper, adopt partially, or skip
+- Defer evaluation until end of Stream A — decide with real data on whether
+  the primer-per-task model cracks at Stream C volume
 - Output: decision logged in DECISIONS.md
-- deps: `T-X02` (we're not using it if the kickoff prompt doesn't reference it)
+- deps: T-A09 (end of Stream A)
+
+### `T-X06` — Land protocol substrate → DONE 2026-04-15
+- Commits f3b203d (.project/ files) and 1ec5663 (CLAUDE.md rewire)
+- PROCESS.md, PRIMER-TEMPLATE.md, REPORT-SCHEMA.md, RETROSPECTIVES.md,
+  COMPONENTS.md (stub) all live on v2
+- CLAUDE.md imports now include PROCESS / PRIMER-TEMPLATE / REPORT-SCHEMA
+
+### `T-X07` — Relocate T-A04 test file (TODO)
+- `git mv apps/api/sql/07_test_deduct_fifo.sql apps/api/tests/t_A04_deduct_fifo_for_group.sql`
+- Ensure final line prints `T-A04 ALL TESTS PASSED`
+- Re-run to confirm green
+- Commit: `chore(tests): relocate T-A04 test per new discipline`
+- deps: T-X06
+
+### `T-X08` — Verify 3b65501 contains full deduct_fifo_for_group body (TODO)
+- Confirm commit 3b65501 has `CREATE OR REPLACE FUNCTION` with full body,
+  not a stub
+- If stub, re-commit full body and report new SHA
+- Blocking for T-A06
+
+### `T-X09` — Retrofit T-A01 through T-A05 reports into schema (TODO, optional)
+- For audit continuity, convert past reports to REPORT-SCHEMA.md format
+- Append to `.project/REPORTS-ARCHIVE.md`
+- Low priority — do only if future session has idle capacity
+- deps: T-X06
+
+### `T-X10` — Stream A retrospective (TODO)
+- After T-A09 ships, before Tier 3 acceptance test
+- Entry in RETROSPECTIVES.md per template
+- Land any patches to PROCESS.md / PRIMER-TEMPLATE.md / REPORT-SCHEMA.md
+  that surfaced during Stream A
+- deps: T-A09
 
 ---
 
