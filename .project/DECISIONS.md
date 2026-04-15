@@ -469,11 +469,40 @@
 - **Rationale:** Even if InvenTree added lot-level COGS, it still lacks AVL-across-group FIFO (our core differentiator). Re-checking would not change the decision.
 - **Reversibility:** High (can re-evaluate anytime).
 
+### D-097 — Bol.com ingestion is API order polling, not webhook (supersedes D-030)
+- **Date:** 2026-04-15
+- **Decision:** Bol.com new orders are ingested by polling
+  `GET /retailer/orders?change-interval-minute=N` every 10 minutes via
+  APScheduler, not via webhook push notifications. Webhooks in the
+  Bol.com Retailer API v10 are available only for PROCESS_STATUS and
+  SHIPMENT events, which do not include new orders. A webhook receiver
+  for shipment tracking is optional and lower priority (parked as P-13).
+- **Rationale:** The Bol.com Retailer API v10 subscription system does
+  NOT support order-arrival events over webhooks — only GCP Pub/Sub and
+  AWS SQS carry the full event catalogue; webhooks are limited to
+  PROCESS_STATUS and SHIPMENT. The signature scheme is RSA-SHA256 (not
+  HMAC as D-030 asserted). API polling is the documented recommended
+  approach for order retrieval, and is strictly more reliable than the
+  current IMAP email parser.
+- **Rejected alternatives:**
+  - GCP Pub/Sub / AWS SQS — adds cloud infrastructure dependency for a
+    solo-maintainer project; contradicts D-091 (minimal process count).
+  - Keep email parsing as primary — D-030's original motivation (IMAP
+    reliability gap) still holds; API polling closes that gap without
+    a webhook receiver.
+  - Webhook receiver for PROCESS_STATUS/SHIPMENT as primary ingestion —
+    misses the critical new-order event entirely.
+- **Reversibility:** High (can add a shipment webhook receiver later
+  for richer event coverage without undoing the polling path).
+- **Source:** T-B00 research session, 2026-04-15. See
+  `.project/BOL-CONTRACT.md` for the full event catalogue, signature
+  scheme details, and open questions.
+
 ---
 
 ## Superseded decisions
 
-*(none yet)*
+- D-097 supersedes D-030 (webhooks do not deliver new orders; RSA-SHA256 not HMAC)
 
 ---
 

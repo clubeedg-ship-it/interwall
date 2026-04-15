@@ -38,9 +38,20 @@ All 11 cited decisions verified in practice (D-017, D-019, D-020,
 D-021, D-022, D-023, D-025, D-026, D-027, D-033, D-041).
 Stream A retrospective entry landed in RETROSPECTIVES.md (b0c8e07).
 
-Next stream: B (marketplace ingestion). Starts with T-B00 — Bol.com
-Retailer API v10 subscription catalogue audit. Research-only session
-(no code). Produces the contract doc the T-B01 primer will reference.
+T-B00 DONE (research session, 2026-04-15) — major finding: D-030 was
+materially wrong. Bol.com webhooks carry only PROCESS_STATUS + SHIPMENT;
+new orders require API polling. Signature is RSA-SHA256, not HMAC.
+D-097 supersedes D-030. Stream B rewritten as polling-first.
+
+BOL-CONTRACT.md from T-B00 is pending commit on the server — agent
+reported SHA as "pending". Needs manual commit + push before T-B01.
+
+Blocking T-B01: close Q2-Q7 in BOL-CONTRACT.md §6 (offer.reference
+null-handling, RSA key format, 299s token mid-run refresh, dedupe
+key shape, change-interval overlap window).
+
+Next session after blockers close: T-B01 — Bol.com order poller
+(APScheduler + OAuth2 + ingestion_events INSERT + call process_bom_sale).
 
 ---
 
@@ -200,43 +211,69 @@ Retailer API v10 subscription catalogue audit. Research-only session
 
 ## Stream B — Marketplace ingestion
 
-### `T-B00` — Bol.com Subscription API catalog audit (TODO)
-- Subagent fetches current Bol.com Retailer API v10 Subscription docs
-- Confirm event types: new order, shipment, cancellation, payment
-- Confirm HMAC signature scheme
-- Output: contract doc for the webhook receiver
-- deps: none (parallel with A)
+### `T-B00` — Bol.com Retailer API v10 catalogue audit → DONE 2026-04-15
+- Research session produced `.project/BOL-CONTRACT.md` (pending commit
+  on server — agent reported SHA as "pending", protocol deviation)
+- Key finding: D-030 was materially wrong. Webhooks carry only
+  PROCESS_STATUS + SHIPMENT. New orders require API polling.
+  Signature is RSA-SHA256, not HMAC. Logged as D-097 superseding D-030.
+- Open questions Q2-Q7 in BOL-CONTRACT.md §6 need closure before
+  T-B01 primer is written.
+- P-13 parked for optional shipment-webhook receiver.
 
-### `T-B01` — Webhook receiver endpoint (TODO)
-- FastAPI `/api/webhooks/bolcom` POST
-- HMAC signature verification
-- Persist raw payload to unified ingestion table with `source='webhook'` (D-032)
-- Return 200 quickly; process asynchronously
-- deps: `T-B00`, `T-A07`
+### `T-B01` — Bol.com order poller (TODO)
+- APScheduler job in the api process (D-091): every 10 minutes call
+  `GET /retailer/orders?change-interval-minute=15` (small overlap
+  window for safety).
+- OAuth2 client-credentials flow; 299s token TTL — refresh on 401.
+- For each new order, INSERT into `ingestion_events` with
+  `source='bolcom_api'`, raw payload, and the order-id as dedupe key.
+- Use `ON CONFLICT DO NOTHING` on (source, external_id) for
+  at-least-once safety.
+- Resolve (marketplace='bol', external_sku=offer.reference) →
+  `external_item_xref.build_code` (D-033 semantics apply) → call
+  `process_bom_sale`.
+- Log each polled batch at INFO with counts (new, duplicate, failed).
+- deps: `T-B00` open questions closed; `T-A07` (external_item_xref
+  endpoints exist); `T-A08` (BOM-first routing already live).
 
 ### `T-B02` — Unified ingestion pipeline (TODO)
-- Single worker consumes rows from the unified ingest table regardless of source (D-032)
-- Parser selection by `source` + `marketplace`
-- Status states: `pending` / `processed` / `failed` / `dead_letter` (D-034)
+- Single worker consumes rows from `ingestion_events` regardless of
+  source (email / bolcom_api / future webhook) per D-032.
+- Status states: `pending` / `processed` / `failed` / `dead_letter`
+  per D-034.
 - deps: `T-B01`
 
-### `T-B03` — Parallel-run Bol.com email vs webhook (TODO)
-- Run both for one week overlap
-- Log discrepancies (count, missing events, timing differences)
-- Output: reliability report
+### `T-B03` — Parallel-run Bol.com email vs API polling (TODO)
+- Run both for one week (or a volume-based threshold of ~50 orders,
+  whichever first — calendar duration is not the gate per
+  development-milestone principle).
+- Log discrepancies: orders seen by one path and not the other,
+  timing differences, field mismatches.
+- Output: reliability report as `.project/B03-RELIABILITY.md`.
 - deps: `T-B02`
 
 ### `T-B04` — Retire Bol.com email path (TODO)
-- After parallel-run shows webhook is reliable
-- Email poller stops picking Bol.com senders
-- Keep code path available as emergency fallback (feature-flag disabled by default)
+- After T-B03 shows API polling is reliable (zero missed orders over
+  the comparison window).
+- Email poller stops matching Bol.com senders; IMAP remains for
+  MediaMarktSaturn and Boulanger (D-031).
+- Keep the code path for emergency fallback behind a feature flag
+  (disabled by default).
 - deps: `T-B03`
 
 ### `T-B05` — Dead-letter handling (TODO)
-- Webhook / email events that fail repeatedly move to `dead_letter`
-- Health page surfaces count + reasons
-- Manual retry / resolve action from the Health UI (part of Stream C)
+- Events that fail repeatedly move to `dead_letter` state (D-034).
+- Health page surfaces count + reasons via the existing v_health_*
+  views (extend if needed).
+- Manual retry / resolve action wired in Stream C at T-C10.
 - deps: `T-B02`
+
+### `T-B06` — Bol.com shipment webhook receiver (optional, lower priority)
+- After T-B04 ships, evaluate whether shipment-tracking webhooks add
+  operator value (customer comms, SLA tracking).
+- Out of Stream B critical path. Can be deferred to a later milestone.
+- deps: `T-B04`; see P-13.
 
 ---
 
@@ -381,6 +418,13 @@ Retailer API v10 subscription catalogue audit. Research-only session
 ### `P-11` — Builds page search by composition fingerprint
 - Users should filter builds by item_groups they contain, to attach new marketplace codes to existing builds quickly
 - Address in Stream C
+
+### `P-13` — Bol.com shipment-tracking webhook receiver
+- Optional feature for customer comms / SLA visibility
+- Only PROCESS_STATUS + SHIPMENT events are webhook-eligible in
+  Retailer API v10 (per T-B00 research, D-097)
+- Deferred until T-B04 ships; not in Stream B critical path
+- Tracked as T-B06
 
 ### `P-12` — pytest combined-run APScheduler conflict
 - T-A09 health router tests ERROR when run in same pytest process
