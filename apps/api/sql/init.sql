@@ -245,11 +245,13 @@ INSERT INTO zones (id, warehouse_id, name, columns, levels, layout_row, layout_c
     ('b0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'B', 4, 7, 0, 1);
 
 INSERT INTO shelves (zone_id, col, level, label)
-SELECT 'a0000000-0000-0000-0000-000000000001', c, l, 'A-' || c || '-' || l
+SELECT 'a0000000-0000-0000-0000-000000000001', c, l,
+       'A-' || LPAD(c::TEXT, 2, '0') || '-' || l
 FROM generate_series(1,4) AS c, generate_series(1,7) AS l;
 
 INSERT INTO shelves (zone_id, col, level, label)
-SELECT 'b0000000-0000-0000-0000-000000000001', c, l, 'B-' || c || '-' || l
+SELECT 'b0000000-0000-0000-0000-000000000001', c, l,
+       'B-' || LPAD(c::TEXT, 2, '0') || '-' || l
 FROM generate_series(1,4) AS c, generate_series(1,7) AS l;
 
 -- Default fixed costs (commission + overhead — VAT is per-marketplace in vat_rates)

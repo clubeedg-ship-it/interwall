@@ -1,6 +1,6 @@
 """
 Database-backed email deduplication and logging.
-Uses the emails table to track processed message_ids and store parsed data.
+Uses the ingestion_events table to track processed message_ids and store parsed data.
 """
 
 import json
@@ -16,7 +16,7 @@ def is_already_processed(message_id: str) -> bool:
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT status FROM emails WHERE message_id = %s",
+                "SELECT status FROM ingestion_events WHERE message_id = %s",
                 (message_id,)
             )
             row = cur.fetchone()
@@ -30,7 +30,7 @@ def get_existing_email_id(message_id: str) -> str | None:
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id FROM emails WHERE message_id = %s AND status IN ('pending', 'failed')",
+                "SELECT id FROM ingestion_events WHERE message_id = %s AND status IN ('pending', 'failed')",
                 (message_id,)
             )
             row = cur.fetchone()
@@ -44,7 +44,7 @@ def log_email(message_id: str, sender: str, subject: str,
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """INSERT INTO emails
+                """INSERT INTO ingestion_events
                    (message_id, sender, subject, marketplace, parsed_type,
                     raw_body, parsed_data, confidence, status, processed_at)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
@@ -60,6 +60,6 @@ def update_email_status(email_id: str, status: str) -> None:
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE emails SET status=%s WHERE id=%s",
+                "UPDATE ingestion_events SET status=%s WHERE id=%s",
                 (status, email_id)
             )

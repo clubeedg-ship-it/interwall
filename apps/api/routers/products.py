@@ -15,7 +15,7 @@ class ProductCreate(BaseModel):
     sku: str | None = None
     category_id: str | None = None
     description: str | None = None
-    default_reorder_point: int = 0
+    minimum_stock: int = 0
     is_composite: bool = False
 
 
@@ -24,7 +24,7 @@ class ProductUpdate(BaseModel):
     sku: str | None = None
     category_id: str | None = None
     description: str | None = None
-    default_reorder_point: int | None = None
+    minimum_stock: int | None = None
     is_composite: bool | None = None
 
 
@@ -44,7 +44,7 @@ def list_products(q: str = "", composite: str | None = None, session=Depends(req
         with conn.cursor() as cur:
             cur.execute(
                 f"""SELECT p.id, p.ean, p.name, p.sku, p.is_composite,
-                           p.default_reorder_point, p.category_id, p.description,
+                           p.minimum_stock, p.category_id, p.description,
                            c.name AS category_name
                     FROM products p
                     LEFT JOIN categories c ON c.id = p.category_id
@@ -62,7 +62,7 @@ def get_product(ean: str, session=Depends(require_session)):
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT p.id, p.ean, p.name, p.sku, p.is_composite,
-                          p.default_reorder_point, p.category_id, p.description,
+                          p.minimum_stock, p.category_id, p.description,
                           c.name AS category_name
                    FROM products p
                    LEFT JOIN categories c ON c.id = p.category_id
@@ -83,11 +83,11 @@ def create_product(product: ProductCreate, session=Depends(require_session)):
             try:
                 cur.execute(
                     """INSERT INTO products (ean, name, sku, category_id, description,
-                                            default_reorder_point, is_composite)
+                                            minimum_stock, is_composite)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                        RETURNING id, ean, name""",
                     (product.ean, product.name, product.sku, product.category_id,
-                     product.description, product.default_reorder_point, product.is_composite),
+                     product.description, product.minimum_stock, product.is_composite),
                 )
                 row = cur.fetchone()
             except Exception as e:

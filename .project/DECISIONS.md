@@ -104,6 +104,20 @@
 - **Rationale:** Already standard in the project; avoids sequence-leak across environments.
 - **Reversibility:** Low.
 
+### D-018 — Every sellable product gets a trivial build (single code path)
+- **Date:** 2026-04-15
+- **Decision:** Direct-sale products (monitors, mini-PCs, anything without an `ean_compositions` entry) each get an auto-generated build with one component line pointing at a singleton item_group containing just that product. `process_bom_sale` becomes the only sale code path — no branching between "build sale" and "direct sale". Auto-generated builds carry `is_auto_generated = TRUE` so the Builds UI can collapse them. `T-A03` (backfill) covers all sellable products, not just those with existing compositions.
+- **Rationale:** Eliminates the silent bug where `process_sale` records zero COGS and no stock deduction for non-composite products. One code path is easier to audit, test, and maintain.
+- **Rejected alternative:** Explicit direct-sale branch in `sale_writer.py` — adds a second code path that would need its own COGS/ledger logic, doubling the correctness surface.
+- **Reversibility:** High (auto-generated builds can be deleted if the approach changes).
+
+### D-019 — `sku_aliases` retires; `external_item_xref` is the single SKU resolution table
+- **Date:** 2026-04-15
+- **Decision:** `external_item_xref` (marketplace, external_sku → build_code) replaces `sku_aliases` (marketplace_sku → product_ean) for all new writes. `sku_aliases` is kept readable during migration (not dropped per D-010) but receives no new inserts. The backfill (T-A03) migrates existing `sku_aliases` rows by creating trivial builds for their target EANs (via D-018) and inserting corresponding `external_item_xref` rows.
+- **Rationale:** Two SKU-resolution tables with different semantics (EAN vs build_code) is a class of bugs waiting to happen. Single table, single lookup path.
+- **Rejected alternative:** Keep both tables active with a fallback chain (check xref first, then sku_aliases) — adds maintenance burden and hides misconfiguration.
+- **Reversibility:** Medium (reactivating sku_aliases is possible but requires re-syncing).
+
 ### D-017 — Stock ledger is mandatory for every sale
 - **Date:** 2026-04-15
 - **Decision:** Every row in `transactions` where type='sale' must have ≥1 corresponding row in `stock_ledger_entries`. Enforced as an invariant checked on the Health page; a violation is treated as a bug, not a data condition.
@@ -145,6 +159,20 @@
 - **Rationale:** Non-destructive migration (D-010). Also handles direct-sale products (monitors, mini-PCs) with no special-casing — they simply have no build, so the fallback path fires.
 - **Reversibility:** Decided per D-010 retirement window.
 
+### D-026 — `transactions.type` stays `'sale'` for all sales; `build_code` distinguishes routing
+- **Date:** 2026-04-15
+- **Decision:** All sales use `type = 'sale'` regardless of processing path. A nullable `build_code` column on `transactions` records which build was used. Once D-018 is fully live and all sales are BOM-routed, every sale will have a `build_code`. No new type value is introduced.
+- **Rationale:** A sale is a sale from the operator's perspective. The processing path is an implementation detail, not a domain concept.
+- **Rejected alternative:** Introduce `'bom_sale'` type — splits queries, reports, and UI logic for no domain benefit.
+- **Reversibility:** High.
+
+### D-027 — `process_bom_sale` RAISE on missing `vat_rates` row (no silent default)
+- **Date:** 2026-04-15
+- **Decision:** When `process_bom_sale` cannot find a `vat_rates` row for the sale's marketplace, it raises an exception and rolls back. No fallback to 21%. A seed check in `init.sql` asserts every active marketplace has a `vat_rates` row.
+- **Rationale:** The legacy `process_sale` silently defaults to 21% VAT — this hides misconfiguration (e.g. a new marketplace added without a VAT row). Failing loudly is correct for money calculations.
+- **Rejected alternative:** Default to 21% (legacy behavior) — silent misconfiguration in profit calculations.
+- **Reversibility:** High.
+
 ### D-025 — Profit and COGS are stored, not recomputed
 - **Date:** 2026-04-15
 - **Decision:** `transactions.cogs` and `transactions.profit` are written by `process_bom_sale` at sale time, from the actual lots consumed and the fixed costs in effect at that moment, and are never recomputed.
@@ -179,6 +207,13 @@
 - **Decision:** If a row in `external_item_xref` exists for (marketplace, external_sku) but its `build_code` no longer resolves to an active build, the sale writer raises — does not silently fall back to legacy `process_sale`.
 - **Rationale:** Silent fallback hides misconfiguration. A mapped SKU with a broken target is a bug to surface, not to route around.
 - **Reversibility:** High.
+
+### D-035 — Rename `emails` table to `ingestion_events`
+- **Date:** 2026-04-15
+- **Decision:** The `emails` table is renamed to `ingestion_events` in T-A01 as its own commit. All code references updated in the same commit. The table already has the right shape for unified ingestion (D-032); the name is the only thing wrong.
+- **Rationale:** Webhooks are not emails. The table name should reflect its actual role as the unified ingestion surface. Renaming now (before new code is written against it) is cheaper than aliasing with a view and renaming later.
+- **Rejected alternative:** Add a view `v_ingestion_events` over `emails` during migration — adds an abstraction layer; the rename still happens eventually; net more work.
+- **Reversibility:** Medium (rename touches all references).
 
 ### D-034 — Dead-letter state for unprocessable ingestion
 - **Date:** 2026-04-15
@@ -232,6 +267,20 @@
 - **Rationale:** XSS prevention. Client data includes marketplace SKUs and product names from untrusted sources.
 - **Reversibility:** Low (removing would reintroduce XSS class).
 
+### D-048 — Product setup status is a view, not a stored boolean
+- **Date:** 2026-04-15
+- **Decision:** `setup_complete` is NOT a column on `products`. Instead, a view `v_product_setup_status(product_id, setup_complete BOOLEAN, missing_fields TEXT[])` computes completeness from underlying state: reorder point configured (`minimum_stock > 0` OR JIT inputs set), category assigned, and at least one shelf-assigned stock_lot. The "needs setup" badge renders from this view.
+- **Rationale:** Stored booleans drift from reality. A view always reflects the actual state — if a product's last shelf-assigned lot is consumed, setup_complete automatically becomes false. No sync bugs possible.
+- **Rejected alternative:** `products.setup_complete BOOLEAN` column — requires triggers or application code to keep in sync with stock_lots, categories, and reorder config; guaranteed to drift.
+- **Reversibility:** High.
+
+### D-049 — JIT bands stored in dedicated `jit_bands` table, not generic app_config
+- **Date:** 2026-04-15
+- **Decision:** JIT colour bands (D-089) are stored in a dedicated `jit_bands` table with columns: `(id, name, min_pct NUMERIC, max_pct NUMERIC, hex_colour TEXT, sort_order INT)`. Not in a generic key-value `app_config` table.
+- **Rationale:** JIT bands have relational shape (ordered rows with typed columns). `fixed_costs` and `vat_rates` already establish the "config per domain" pattern. A generic `app_config` would contradict that pattern and age badly — typed columns catch errors that key-value strings cannot.
+- **Rejected alternative:** Generic `app_config(key TEXT, value TEXT)` table — loses type safety, invites stringly-typed bugs, contradicts established config-per-domain pattern.
+- **Reversibility:** High.
+
 ### D-047 — Health page as first-class observability surface
 - **Date:** 2026-04-15
 - **Decision:** A dedicated page surfaces: ingestion status per marketplace, parts without shelf, parts without reorder point, batches without receipts, builds missing marketplace mappings, invariant check (every sale has ≥1 ledger row).
@@ -247,6 +296,20 @@
 - **Decision:** Shelf addressing standardizes to Zone (area, e.g. A) / Column (e.g. 02) / Level (e.g. 3) / Bin (optional A/B split). Applies to UI labels AND database column names where the existing schema doesn't already match.
 - **Rationale:** Industry-standard WMS vocabulary (Warehouse > Zone > Aisle/Column > Level > Bin). Future maintainers recognize it.
 - **Reversibility:** Medium (column renames).
+
+### D-052 — Shelf bin column is nullable; NULL means unsplit
+- **Date:** 2026-04-15
+- **Decision:** `shelves.bin` is added as a nullable TEXT column. NULL means the shelf is not split. Display logic renders `A-02-3` when bin is NULL, `A-02-3-A` / `A-02-3-B` when populated.
+- **Rationale:** Most shelves are not split; forcing a bin value on every shelf adds noise. Nullable cleanly expresses "this shelf has no sub-divisions".
+- **Rejected alternative:** Default bin to 'A' for all shelves (treat every shelf as split with one bin) — misrepresents physical reality and confuses the operator.
+- **Reversibility:** High.
+
+### D-053 — `shelves.split_fifo` and `shelves.single_bin` deprecated
+- **Date:** 2026-04-15
+- **Decision:** `split_fifo` and `single_bin` columns on `shelves` are deprecated. No new code reads or writes them. Columns are kept (not dropped) per D-010; drop in a dedicated cleanup commit after the new shelf/bin model (D-052) is proven in production.
+- **Rationale:** `split_fifo` is superseded by the explicit `bin` column (D-052). `single_bin` was a UI hint that the new Wall rendering doesn't need. Keeping the columns avoids a breaking migration; ignoring them avoids confusion.
+- **Rejected alternative:** Drop columns now — risks breaking any legacy code path still referencing them during migration.
+- **Reversibility:** High (can re-wire if needed).
 
 ### D-051 — Shelf display format `A-02-3-B`
 - **Date:** 2026-04-15
@@ -365,6 +428,46 @@
 - **Decision:** SessionMiddleware with bcrypt-hashed password; one user.
 - **Rationale:** No multi-tenant; no need for roles.
 - **Reversibility:** High.
+
+### D-088 — Shelf assignment at Part creation is optional (pending-setup badge)
+- **Date:** 2026-04-15
+- **Decision:** When creating a new Part, the user may skip shelf assignment. The Part is saved with a visible "needs setup" badge that appears on every view mentioning the part. Shelf can be assigned later via the Wall mini-wizard.
+- **Rationale:** Mandatory shelf assignment at creation time adds friction that slows real onboarding. The operator often receives parts before deciding where they go.
+- **Rejected alternative:** Mandatory shelf at creation (blocks save until shelf is picked) — too much friction; operator may not know the shelf yet.
+- **Reversibility:** High.
+
+### D-089 — JIT colour gradient: 5 bands, seeded in config table, user-editable hex
+- **Date:** 2026-04-15
+- **Decision:** JIT health uses 5 bands as fraction of reorder point: critical (<25%, red `#DC2626`), low (25–75%, orange `#F97316`), at (75–125%, yellow `#EAB308`), healthy (125–200%, green `#16A34A`), over (>200%, blue `#2563EB`). Band thresholds and hex colours are stored in a config table (not hardcoded), user-editable via Settings.
+- **Rationale:** Continuous gradient is harder to read at a glance than discrete bands. 5 bands cover the meaningful operational states. Config table satisfies D-045.
+- **Rejected alternative:** 3-band traffic light (red/yellow/green) — too coarse; can't distinguish "healthy buffer" from "overstocked".
+- **Reversibility:** High.
+
+### D-094 — Reorder point: user-input columns + computed view; `minimum_stock` as override floor
+- **Date:** 2026-04-15
+- **Decision:** `products` stores three columns: `avg_delivery_days NUMERIC(5,1)`, `avg_sold_per_day NUMERIC(8,2)`, and `minimum_stock INTEGER DEFAULT 0` (renamed from `default_reorder_point`). The computed reorder point `CEIL(avg_delivery_days * avg_sold_per_day)` lives in a view `v_product_reorder(product_id, computed_reorder_point, minimum_stock, effective_reorder_point)` where `effective_reorder_point = GREATEST(computed, minimum_stock)`. The product setup wizard (D-044) shows computed and override side-by-side.
+- **Rationale:** The computed value is derived — storing it would create a sync obligation. The override floor is a user decision — storing it is correct. The view always reflects reality. Aligns with D-048 (setup_complete as view) philosophy.
+- **Rejected alternative:** Store only a single `reorder_point` column (either computed or manual) — loses the ability to show both values and explain the effective result to the operator.
+- **Reversibility:** High.
+
+### D-095 — `products.is_composite` kept during migration, flagged for deprecation
+- **Date:** 2026-04-15
+- **Decision:** The `is_composite` column on `products` is kept and not modified during migration. After D-018 is fully live (every sellable product has a build), `is_composite` becomes redundant — a product is "composite" if its build has >1 component line. Flag for removal in a post-migration cleanup, not during this rebuild.
+- **Rationale:** Removing now risks breaking legacy code paths. After migration, the concept is expressible via the builds table. Additive-only principle (D-010).
+- **Reversibility:** High (column can be dropped when no code references it).
+
+### D-096 — T-A01 schema migration is one atomic commit
+- **Date:** 2026-04-15
+- **Decision:** The `03_avl_build_schema.sql` migration (table rename, column renames, new tables, views, seeds) lands as a single git commit. The SQL `BEGIN/COMMIT` wrapper provides database-level atomicity. Code reference updates (Python, JS) land in the same commit.
+- **Rationale:** D-035 originally said "own commit" for the emails→ingestion_events rename, but splitting the migration into multiple commits creates an intermediate state where the table is renamed but code still references the old name — a guaranteed breakage window. One commit, one transaction, no broken intermediate state.
+- **Rejected alternative:** Multiple commits per rename — creates breakage windows between commits where table/column names and code references are out of sync.
+- **Reversibility:** High.
+
+### D-093 — InvenTree FIFO-to-COGS not re-verified; stay custom
+- **Date:** 2026-04-15
+- **Decision:** Skip the InvenTree v1.2 smoke test (T-Q05). The stay-custom decision (D-001) stands without re-verification.
+- **Rationale:** Even if InvenTree added lot-level COGS, it still lacks AVL-across-group FIFO (our core differentiator). Re-checking would not change the decision.
+- **Reversibility:** High (can re-evaluate anytime).
 
 ---
 

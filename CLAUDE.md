@@ -1,95 +1,206 @@
-<!-- GSD:project-start source:PROJECT.md -->
+# Interwall — Agent Context
+
 ## Project
 
-**Interwall Inventory OS — Minimal MVP**
+Interwall is the operational backbone of a single-tenant PC-assembly business.
+Solo engineer. Production runs one client's daily operations.
 
-A cleanup and rewiring of the existing Interwall inventory management system for a small PC assembly business. The legacy vanilla JS frontend stays as-is; the backend moves from InvenTree API + localStorage to a direct PostgreSQL database. Email-driven stock management and FIFO profit calculation are the core value loop.
+Core value: marketplace sale → automatic FIFO-across-item-group component
+deduction → real-cost profit recorded in the DB with an audit trail.
 
-**Core Value:** When a sale email arrives, the system auto-deducts component stock via EAN compositions, computes FIFO-based profit including fixed costs, and records everything durably in the database — no manual intervention, no browser cache dependency.
+## Stack & paths
 
-### Constraints
+- `apps/api/` — FastAPI + psycopg2 + APScheduler (single process)
+- `apps/api/sql/init.sql` — PostgreSQL schema + PL/pgSQL functions
+- `apps/api/email_poller/` — IMAP poller + marketplace parsers
+- `inventory-interwall/frontend/` — vanilla JS SPA (no build step)
+- `nginx/` — reverse proxy, static host
+- `docker-compose.yml` — 3 containers: postgres, api, nginx
 
-- **Frontend**: Keep existing vanilla JS SPA — only touch localStorage→DB wiring, XSS fixes, and code organization
-- **Database**: PostgreSQL (Supabase or self-hosted) — single source of truth for all business data
-- **Email service**: Keep existing Python IMAP service — rewire output to new database
-- **No InvenTree**: System must run without InvenTree containers (no Django, Celery, Redis dependency)
-- **Single tenant**: No multi-tenant complexity — one business, one database
-- **Spec**: SPECS-MVP.md is the authoritative scope document
-<!-- GSD:project-end -->
+Not used (do not revive without asking): `apps/web/` (deprecated Next.js scaffold),
+`supabase/` (speculative multi-tenant schema).
 
-<!-- GSD:stack-start source:research/STACK.md -->
-## Technology Stack
+## Dev commands
 
-## Context
-## Recommendation: Supabase (Hosted or Self-Hosted)
-### Why Supabase
-### Specific Stack
-| Layer | Choice | Version | Rationale |
-|-------|--------|---------|-----------|
-| **Database** | PostgreSQL (via Supabase) | 15+ | Supabase manages this; FIFO queries, JSONB, transactions |
-| **API Layer** | PostgREST (via Supabase) | Built-in | Auto-REST from schema — zero custom API code for CRUD |
-| **Frontend DB Client** | @supabase/supabase-js | 2.x | CDN-loadable, works in vanilla JS, handles auth + queries |
-| **Python DB Client** | supabase-py | 2.x | Same query interface as JS client |
-| **Python DB Alternative** | psycopg2 / asyncpg | 3.x / 0.29+ | Direct PostgreSQL for complex transactions (FIFO deduction) |
-| **Server Functions** | Supabase Edge Functions (Deno) | — | Atomic FIFO deduction, composition resolution |
-| **Auth** | Supabase Auth | Built-in | Simple email/password, session cookies |
-| **Frontend** | Vanilla ES6+ JS | — | **No change** — existing SPA stays |
-| **Email Service** | Python 3.11 | 3.11 | **No change** — existing IMAP poller stays |
-| **Container** | Docker Compose | v2 | Simplified — just Supabase + email service |
-### What NOT to Use
-| Avoided | Why |
-|---------|-----|
-| **Express/Fastify custom API** | PostgREST covers CRUD; custom API is unnecessary code to maintain |
-| **Django/Flask for API** | Adding another Python web framework when PostgREST exists is overengineering |
-| **React/Next.js** | Frontend works, rewrite is out of scope |
-| **Prisma/Drizzle ORM** | These are Node.js ORMs — we don't have a Node.js backend |
-| **Firebase/MongoDB** | Relational data (compositions, FIFO lots) needs PostgreSQL |
-| **Redis** | No caching layer needed for single-tenant with batch queries |
-### Alternative: Self-Hosted PostgreSQL + Express API
-- PostgreSQL 15 (self-hosted via Docker)
-- Express.js thin REST API (or Deno/Hono)
-- pg npm package for Node.js DB access
-- psycopg2 for Python DB access
-- Custom auth middleware (session cookies)
-## Frontend Integration Pattern
-## Python Integration Pattern
-# Replace: InvenTreeClient.get_part_by_sku(sku)
-# With:
-# For atomic FIFO deduction — use RPC (database function):
-## Database Functions for Business Logic
-## Migration Path from InvenTree
-<!-- GSD:stack-end -->
+- `docker compose up -d` — start the stack
+- `docker compose logs -f api` — tail backend logs
+- `docker compose exec postgres psql -U postgres -d interwall` — DB shell
+- `docker compose exec -T postgres psql -U postgres -d interwall -f /path/to.sql` — run SQL
+- `./reset-data.sh` — reset DB and reload stock checkpoint (destructive)
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-## Conventions
+There is no test suite yet. Verify changes by exercising the UI and tailing
+logs; do not claim "tests pass" without a suite.
 
-Conventions not yet established. Will populate as patterns emerge during development.
-<!-- GSD:conventions-end -->
+## Domain vocabulary (locked)
 
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-## Architecture
+Do not invent synonyms. Full table and rationale in `@.project/DECISIONS.md` D-060.
 
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
+| Code | UI label | Meaning |
+|---|---|---|
+| `products` | Parts | Catalog of real physical things with EANs |
+| `stock_lots` | Batches | Physical received lots (unit cost, date, shelf) |
+| `item_groups` | Models | Substitute pool ("any RTX 3050") |
+| `builds` + `build_components` | Builds | Finished-product recipes, keyed by `build_code` |
+| `external_item_xref` | SKU mapping | Marketplace SKU → `build_code` |
+| `stock_ledger_entries` | (Batch history) | Per-movement audit rows |
+| `shelves` / `zones` / `warehouses` | Wall | Physical location hierarchy |
 
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
+Shelf addressing is always `Zone-Column-Level-Bin` (e.g. `A-02-3-B`). Never
+"aisle", "row", "stack", or "area" in new code.
 
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+## Design principles
 
-Use these entry points:
-- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd:debug` for investigation and bug fixing
-- `/gsd:execute-phase` for planned phase work
+These are the positive "always" rules. Violations compound silently until they
+cause bugs. Rationale for each is in `@.project/DECISIONS.md` — referenced by ID.
 
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
+- **No hardcoded business values.** Thresholds, gradient breakpoints, category
+  lists, marketplace senders, VAT / commission / overhead rates, colour codes —
+  all live in the database or a named config table. If you find yourself writing
+  a magic number, stop and seed it. (D-045)
+- **Database is the single source of truth.** The frontend renders stored
+  values; it never recomputes business numbers. `localStorage` is allowed only
+  for pure UI preferences (dark mode, last-viewed tab). (D-040, D-041)
+- **Immutable transactions.** `transactions.cogs` and `transactions.profit` are
+  written once by `process_bom_sale` at sale time, from real lot costs. Never
+  recompute on read or re-save. (D-025)
+- **Every sale has at least one `stock_ledger_entries` row.** The ledger is
+  the audit trail; a sale without ledger rows is a bug. Add an invariant check
+  to the Health page. (D-017)
+- **AVL-FIFO pools across item groups.** `deduct_fifo_for_group` picks the
+  oldest lot from any product in the group; it never pins to a specific EAN.
+  (D-020)
+- **Strict serialization.** Use `SELECT FOR UPDATE`, never `SKIP LOCKED`,
+  for FIFO deduction. Correctness over throughput at current volume. (D-021)
+- **Atomic sale processing.** `process_bom_sale` is one transaction. A failed
+  deduction rolls back everything including the transaction shell row. Partial
+  fulfilment is not a valid state. (D-022)
+- **Additive migrations only.** Legacy structures (`ean_compositions`,
+  `process_sale()`) stay until the new path is proven. Do not drop them in
+  this rebuild. (D-010, D-024)
+- **Forward-compatibility columns ship unwired.** `priority`, `valid_from`,
+  `valid_to`, `serial_number` exist in the schema but do not drive logic
+  today. Do not wire them without an explicit decision entry. (D-015)
+- **Sanitize all user-data rendering.** Every frontend `innerHTML` with
+  dynamic content routes through `sanitize()` (createTextNode pattern). (D-046)
 
+## Reference before writing
 
+Design leverage we've agreed to use. Before writing code in these areas, pull
+the reference first — do NOT reason from first principles:
 
-<!-- GSD:profile-start -->
-## Developer Profile
+- **Database schema shapes** — read ERPNext's DocType JSONs before drafting
+  any new table:
+  https://github.com/frappe/erpnext/tree/version-15/erpnext/stock/doctype
+  Specifically `item`, `bom`, `bom_item`, `item_alternative`, `stock_ledger_entry`.
+  Translate shapes to our Postgres DDL; do not adopt their stack.
+- **FIFO edge cases** — read Tryton's `product_cost_fifo` module (on PyPI as
+  `trytond-product-cost-fifo`) before editing `deduct_fifo_for_group` or
+  writing new cancellation / return / reversal logic. Catches partial-depletion
+  and rollback edge cases.
+- **Bol.com webhook ingestion** — read the official Retailer API v10 OpenAPI
+  spec before implementing the webhook receiver. HMAC signature format and
+  event catalog must come from the spec, not from examples.
+- **GS1 EPCIS event model** — consult when designing new stock movement
+  event types. Four canonical events: Object / Aggregation / Transaction /
+  Transformation. If our event shape matches EPCIS, we stay compatible.
 
-> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+Rule: lift shapes and algorithms, never adopt the runtime. We will not run
+ERPNext, Frappe, MariaDB, Tryton, or anything similar. (D-001, D-002)
+
+## Tool usage
+
+- **Search code**: Grep (NEVER `bash grep` / `rg`). Glob for filename patterns.
+- **Read files**: Read with absolute paths; NEVER `cat`, `head`, `tail`.
+- **Edit**: Edit for targeted changes; Write only for new files or full rewrites.
+- **Shell**: Bash only for commands with no dedicated tool (git, docker, migrations).
+- **Library docs**: query the docs MCP BEFORE writing code against FastAPI,
+  psycopg, Bol.com Retailer API, Postgres FIFO patterns, IMAP libs. Training
+  data lags real APIs.
+- **Web research**: WebSearch only for non-library questions (IMAP quirks,
+  "how do others solve X"). Prefer docs MCP for any library or SDK question.
+- **GitHub**: use `gh` CLI for read operations; GitHub MCP for writes.
+
+Never WebFetch a URL you invented. Only fetch URLs the user provided or that
+came from a search result.
+
+## Subagents
+
+Spawn a subagent when the task requires reading >10 files, running >2
+independent subtasks, or doing research you don't want in main context.
+
+- **Explore subagent** — before planning any non-trivial change touching code
+  you haven't read. Brief with a concrete question, not "look around".
+- **General-purpose subagent** — external research (docs, benchmarks, OSS
+  audits) or multi-file investigations.
+- **Do NOT spawn for 1–3 file reads** — overhead isn't worth it.
+
+Every subagent brief must contain: (a) the concrete question, (b) files or
+paths to start from, (c) what a good answer looks like, (d) critical
+constraints from this file (subagents don't see CLAUDE.md the same way).
+
+## Research vs act
+
+- **Research first** when touching an external API, a library you haven't
+  used this session, or a Postgres/FIFO pattern with correctness implications.
+- **Skip research** when the diff is describable in one sentence, or mirrors
+  an existing pattern in the same file.
+- Correctness beats speed on stock movement, COGS, and ledger writes.
+
+## Plan / execute workflow
+
+Work is tracked in three files under `.project/`, imported at the bottom.
+
+- `@.project/PLAN.md` — direction, scope, success criteria
+- `@.project/DECISIONS.md` — append-only log of every locked decision (D-###)
+- `@.project/TODO.md` — sequenced next actions across work streams (T-###)
+
+Rules:
+
+- Before non-trivial work (>1 file or >30 lines), confirm the target is in
+  `TODO.md`. If it isn't, add it and tell the user.
+- For any architectural choice (schema shape, algorithm variant, new dependency,
+  new library), append a new `D-NNN` entry to `DECISIONS.md` with one-line
+  rationale. Never silently change direction.
+- `DECISIONS.md` is append-only. To reverse, add a new entry that supersedes
+  the old one by ID — do not edit past entries.
+
+## Critical invariants
+
+Expensive mistakes. Breaking any of these misleads the operator or corrupts data.
+
+- **NEVER** modify `transactions.cogs` or `transactions.profit` after initial write.
+- **NEVER** drop `ean_compositions` or the `process_sale()` function during the
+  migration window.
+- **NEVER** use `SKIP LOCKED` in FIFO deduction.
+- **NEVER** render business numbers recomputed in the frontend.
+
+## Commit & branch discipline
+
+- Commit messages: present tense, imperative mood. Stream prefix:
+  `feat(backend): …`, `fix(frontend): …`, `chore(repo): …`.
+- One logical change per commit. Cleanup and feature work never in the same commit.
+- **Do not push to `main` without an explicit user request.** Feature branches
+  OK without asking.
+- Never push with `--force`. Never `--no-verify`.
+- Never open a PR unless the user asks.
+
+## Safety & reversibility
+
+- For destructive operations (`rm -rf`, `DROP`, `git reset --hard`, file
+  deletion), show the plan and wait for confirmation unless pre-authorised
+  this session.
+- If you encounter files you don't recognise, investigate before deleting —
+  they may be in-progress work.
+- When a hook or lint step fails, fix the underlying cause. Never bypass with
+  `--no-verify`.
+
+## Self-modification
+
+Propose diffs to this file when conventions change. Do NOT silently edit it.
+Silent drift is worse than staleness.
+
+## Imports
+
+@.project/PLAN.md
+@.project/DECISIONS.md
+@.project/TODO.md

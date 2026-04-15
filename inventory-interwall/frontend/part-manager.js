@@ -72,7 +72,7 @@ const partManager = {
         if (descEl) descEl.value = part.description || '';
         const catEl = document.getElementById('partCategory');
         if (catEl) catEl.value = part.category_id || '';
-        document.getElementById('partMinStock').value = part.minimum_stock || part.default_reorder_point || 0;
+        document.getElementById('partMinStock').value = part.minimum_stock || 0;
 
         const jitConfig = this.getJitConfig(part.pk);
         document.getElementById('partDeliveryDays').value = jitConfig.delivery_days || 3;
@@ -144,7 +144,7 @@ const partManager = {
             shelves.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
-                opt.textContent = s.label || `${s.zone_name}-${s.col}-${s.level}`;
+                opt.textContent = s.label || `${s.zone_name}-${String(s.col).padStart(2,'0')}-${s.level}${s.bin ? '-'+s.bin : ''}`;
                 select.appendChild(opt);
             });
             console.log(`Loaded ${shelves.length} shelves into location dropdown`);
@@ -211,7 +211,7 @@ const partManager = {
                         sku,
                         category_id: categoryId || undefined,
                         description: description || undefined,
-                        default_reorder_point: minStock,
+                        minimum_stock: minStock,
                     })
                 });
                 productId = result.id;
@@ -246,7 +246,7 @@ const partManager = {
                         sku: sku || undefined,
                         category_id: categoryId || undefined,
                         description: description || undefined,
-                        default_reorder_point: minStock,
+                        minimum_stock: minStock,
                     })
                 });
                 productId = this.currentPart.pk;
