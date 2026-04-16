@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import type { HealthTier, ShelfOccupancy, Zone } from "../lib/types";
 import { ZoneGrid } from "../components/wall/ZoneGrid";
 import { BinDrawer } from "../components/wall/BinDrawer";
 import { ManageZonesPanel } from "../components/wall/ManageZonesPanel";
+import { ZoneWizard } from "../components/wall/ZoneWizard";
 import { PageHeader } from "../components/PageHeader";
+import { TabButton } from "../components/TabButton";
 import { useHealth } from "../hooks/useHealth";
 
 const POLL_MS = 30_000;
@@ -15,6 +17,9 @@ export default function WallPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeShelfId, setActiveShelfId] = useState<string | null>(null);
+  const [activeZoneId, setActiveZoneId] = useState<string | null>(null);
+  const [addingZone, setAddingZone] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
 
   // Shared health source — identical Map the Catalog reads from. Do NOT recompute.
   const health = useHealth({ pollMs: POLL_MS });
@@ -36,8 +41,6 @@ export default function WallPage() {
   }, []);
 
   // Adapt the shared ProductHealthRow Map into the shape BinCell already expects.
-  // Defaults to "healthy" when no health row exists (e.g. a bin whose product
-  // was just assigned — the next poll will overwrite).
   const healthByEan = useMemo<Map<string, HealthTier>>(() => {
     const m = new Map<string, HealthTier>();
     for (const [ean, row] of health.byEan) m.set(ean, row.health);
@@ -52,6 +55,25 @@ export default function WallPage() {
     const id = setInterval(() => void load(), POLL_MS);
     return () => clearInterval(id);
   }, [load]);
+
+  const realZones = useMemo(
+    () => zones.filter((z) => z.cols > 0 && z.levels > 0),
+    [zones]
+  );
+
+  // Keep activeZoneId valid: default to first zone, reselect if the current
+  // one disappeared (archived/deleted), otherwise preserve the pick.
+  useEffect(() => {
+    if (realZones.length === 0) {
+      if (activeZoneId !== null) setActiveZoneId(null);
+      return;
+    }
+    if (activeZoneId === null || !realZones.some((z) => z.id === activeZoneId)) {
+      setActiveZoneId(realZones[0].id);
+    }
+  }, [realZones, activeZoneId]);
+
+  const activeZone = realZones.find((z) => z.id === activeZoneId) ?? null;
 
   const activeShelf =
     activeShelfId != null
@@ -70,6 +92,25 @@ export default function WallPage() {
         description="Live zone / bin occupancy. Click any bin for details. Updates every 30s."
         actions={
           <>
+            <button
+              ref={addBtnRef}
+              type="button"
+              onClick={() => setAddingZone((v) => !v)}
+              aria-label="Add new zone"
+              aria-expanded={addingZone}
+              title="Add new zone"
+              className={[
+                "inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
+                addingZone
+                  ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_22%,transparent)] text-[var(--color-accent)]"
+                  : "border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-text-dim)] hover:border-[var(--color-accent-border)] hover:text-[var(--color-accent)]",
+              ].join(" ")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} width={14} height={14} strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
             <ManageZonesPanel zones={zones} onRefresh={refreshAll} />
             <button
               type="button"
@@ -83,6 +124,18 @@ export default function WallPage() {
         }
       />
 
+      {addingZone && (
+        <ZoneWizard
+          anchorRef={addBtnRef}
+          onClose={() => setAddingZone(false)}
+          onCreated={(newId) => {
+            setAddingZone(false);
+            setActiveZoneId(newId);
+            refreshAll();
+          }}
+        />
+      )}
+
       {error && (
         <div className="row-card mb-4 border-[color-mix(in_oklab,var(--color-crit)_35%,transparent)] bg-[color-mix(in_oklab,var(--color-crit)_10%,transparent)] text-[13px] text-[var(--color-crit-ink)]">
           Failed to load wall: {error}
@@ -91,23 +144,33 @@ export default function WallPage() {
 
       {loading && zones.length === 0 ? (
         <div className="row-card h-40 animate-pulse" />
-      ) : zones.length === 0 ? (
+      ) : realZones.length === 0 ? (
         <div className="row-card justify-center py-10 text-[var(--color-text-muted)]">
-          No zones yet. Add one via <span className="font-mono">Manage zones</span> above.
+          No zones yet. Use the <span className="font-mono">+</span> button above to create one.
         </div>
       ) : (
-        zones
-          .filter((z) => z.cols > 0 && z.levels > 0)
-          .map((z) => (
+        <>
+          <div className="mb-4 flex items-center gap-1 overflow-x-auto border-b border-[var(--color-line)]">
+            {realZones.map((z) => (
+              <TabButton
+                key={z.id}
+                label={z.name}
+                active={z.id === activeZoneId}
+                onClick={() => setActiveZoneId(z.id)}
+                title={`${z.cols} × ${z.levels} · ${z.shelves_count} zones`}
+              />
+            ))}
+          </div>
+          {activeZone && (
             <ZoneGrid
-              key={z.id}
-              zone={z}
-              occupancy={occupancy.filter((o) => o.zone_name === z.name)}
+              zone={activeZone}
+              occupancy={occupancy.filter((o) => o.zone_name === activeZone.name)}
               activeShelfId={activeShelfId}
               onPick={(shelf) => setActiveShelfId(shelf.shelf_id)}
               healthByEan={healthByEan}
             />
-          ))
+          )}
+        </>
       )}
 
       <BinDrawer

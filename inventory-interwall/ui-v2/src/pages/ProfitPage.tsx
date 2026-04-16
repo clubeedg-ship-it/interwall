@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import type {
+  BackorderRow,
   ProfitTransaction,
   ProfitValuationRow,
 } from "../lib/types";
@@ -15,7 +16,11 @@ import { KpiStrip } from "../components/profit/KpiStrip";
 import { TrendChart } from "../components/profit/TrendChart";
 import { TransactionList } from "../components/profit/TransactionList";
 import { CostConfigPanel } from "../components/profit/CostConfigPanel";
+import { BackorderList } from "../components/profit/BackorderList";
 import { PageHeader } from "../components/PageHeader";
+import { TabButton } from "../components/TabButton";
+
+type ProfitTab = "active" | "backorder";
 
 function num(v: string | number | null | undefined): number {
   if (v == null) return 0;
@@ -36,6 +41,9 @@ export default function ProfitPage() {
   const [cashFlowScope, setCashFlowScope] = useState<CashFlowScope>("today");
   const [configOpen, setConfigOpen] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [tab, setTab] = useState<ProfitTab>("active");
+  const [backorders, setBackorders] = useState<BackorderRow[]>([]);
+  const [backordersLoading, setBackordersLoading] = useState(false);
 
   const loadTransactions = useCallback(async () => {
     setLoading(true);
@@ -63,10 +71,23 @@ export default function ProfitPage() {
     }
   }, []);
 
+  const loadBackorders = useCallback(async () => {
+    setBackordersLoading(true);
+    try {
+      const rows = await api.ingestion.backorders();
+      setBackorders(rows);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBackordersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadTransactions();
     void loadValuation();
-  }, [loadTransactions, loadValuation]);
+    void loadBackorders();
+  }, [loadTransactions, loadValuation, loadBackorders]);
 
   const chartTx = useMemo(
     () =>
@@ -140,6 +161,7 @@ export default function ProfitPage() {
               onClick={() => {
                 void loadTransactions();
                 void loadValuation();
+                void loadBackorders();
               }}
               className="btn-secondary"
               disabled={loading}
@@ -227,18 +249,38 @@ export default function ProfitPage() {
       </section>
 
       <section className="mt-6">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-[13px] font-medium uppercase tracking-[0.12em] text-[var(--color-text-dim)]">
-            Transaction ledger
-          </h2>
-          <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
-            {transactions.length} recorded · newest first
+        <div className="mb-3 flex items-center gap-1 border-b border-[var(--color-line)]">
+          <TabButton
+            label="Active"
+            active={tab === "active"}
+            onClick={() => setTab("active")}
+            badge={transactions.length}
+          />
+          <TabButton
+            label="Backorder"
+            active={tab === "backorder"}
+            onClick={() => setTab("backorder")}
+            badge={backorders.length}
+            attention={backorders.length > 0}
+            title="Sales waiting on stock — will book once replenished"
+          />
+          <span className="ml-auto font-mono text-[11px] text-[var(--color-text-muted)]">
+            {tab === "active"
+              ? `${transactions.length} recorded · newest first`
+              : `${backorders.length} blocked on stock · newest first`}
           </span>
         </div>
-        <TransactionList
-          transactions={transactions}
-          loading={loading && transactions.length === 0}
-        />
+        {tab === "active" ? (
+          <TransactionList
+            transactions={transactions}
+            loading={loading && transactions.length === 0}
+          />
+        ) : (
+          <BackorderList
+            rows={backorders}
+            loading={backordersLoading && backorders.length === 0}
+          />
+        )}
       </section>
 
       <CostConfigPanel

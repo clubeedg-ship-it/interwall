@@ -6,6 +6,7 @@ import { BuildWorkspace } from "../components/BuildWorkspace";
 import { DraftList } from "../components/DraftList";
 import { Toggle } from "../components/Toggle";
 import { PageHeader } from "../components/PageHeader";
+import { TabButton } from "../components/TabButton";
 import { useDraftCount } from "../hooks/useDraftCount";
 import type { BuildListItem, XrefItem } from "../lib/types";
 
@@ -211,43 +212,3 @@ export default function BuildsPage() {
   );
 }
 
-function TabButton({
-  label,
-  active,
-  onClick,
-  badge,
-  attention,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  badge?: number;
-  attention?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "relative -mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[12.5px] font-medium uppercase tracking-[0.12em] transition-colors",
-        active
-          ? "border-[var(--color-accent)] text-[var(--color-text)]"
-          : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
-      ].join(" ")}
-    >
-      <span>{label}</span>
-      {typeof badge === "number" && badge > 0 && (
-        <span
-          className={[
-            "inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 font-mono text-[10.5px] font-semibold tabular-nums",
-            attention
-              ? "bg-[var(--color-pulse-warning)] text-[#0a0d13] shadow-[0_0_8px_var(--color-pulse-warning-glow)]"
-              : "bg-[var(--color-glass-strong)] text-[var(--color-text-dim)]",
-          ].join(" ")}
-        >
-          {badge}
-        </span>
-      )}
-    </button>
-  );
-}

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, ApiError } from "../../lib/api";
 import { ZONE_TEMPLATES } from "../../config/wall";
 
@@ -19,6 +20,7 @@ export function ZoneWizard({
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     nameRef.current?.focus();
@@ -39,6 +41,35 @@ export function ZoneWizard({
       window.removeEventListener("keydown", onKey);
     };
   }, [anchorRef, onClose]);
+
+  // Portaled fixed positioning: anchor under the trigger, flip above if the
+  // viewport doesn't have room, nudge back if overflowing horizontally.
+  useLayoutEffect(() => {
+    const recompute = () => {
+      const rect = anchorRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const POP_W = 360;
+      const ESTIMATED_H = 460;
+      const GAP = 10;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let top = rect.bottom + GAP;
+      let left = rect.right - POP_W;
+      if (top + ESTIMATED_H > vh - 8) {
+        top = Math.max(8, rect.top - ESTIMATED_H - GAP);
+      }
+      if (left + POP_W > vw - 8) left = Math.max(8, vw - POP_W - 8);
+      if (left < 8) left = 8;
+      setPos({ top, left });
+    };
+    recompute();
+    window.addEventListener("scroll", recompute, true);
+    window.addEventListener("resize", recompute);
+    return () => {
+      window.removeEventListener("scroll", recompute, true);
+      window.removeEventListener("resize", recompute);
+    };
+  }, [anchorRef]);
 
   function applyTemplate(id: string) {
     setTemplateId(id);
@@ -80,13 +111,18 @@ export function ZoneWizard({
     }
   }
 
-  return (
+  return createPortal(
     <div
       ref={rootRef}
       role="dialog"
       aria-label="Add new zone"
-      className="anim-popover-in absolute right-0 top-[calc(100%+10px)] z-50 w-[360px] rounded-[var(--radius-md)] border border-[var(--color-line-strong)] bg-[var(--color-bg-elevated)] p-5 shadow-[0_32px_80px_rgba(0,0,0,0.6),0_0_0_1px_rgba(0,0,0,0.3)] backdrop-blur-none"
-      style={{ backgroundColor: "var(--color-bg-elevated)" }}
+      className="anim-popover-in fixed z-[60] w-[360px] rounded-[var(--radius-md)] border border-[var(--color-line-strong)] bg-[var(--color-bg-elevated)] p-5 shadow-[0_32px_80px_rgba(0,0,0,0.6),0_0_0_1px_rgba(0,0,0,0.3)]"
+      style={{
+        backgroundColor: "var(--color-bg-elevated)",
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        visibility: pos ? "visible" : "hidden",
+      }}
     >
       <div className="mb-3 flex items-baseline justify-between">
         <h3 className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-dim)]">
@@ -188,7 +224,8 @@ export function ZoneWizard({
           {pending ? "Creating…" : "Create zone"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

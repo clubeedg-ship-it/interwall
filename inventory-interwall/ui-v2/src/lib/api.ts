@@ -1,4 +1,5 @@
 import type {
+  BackorderRow,
   BuildCreateBody,
   BuildDetail,
   BuildListResponse,
@@ -271,6 +272,10 @@ export const api = {
       request<{ ok: true }>(`/api/external-xref/${encodeURIComponent(id)}`, {
         method: "DELETE",
       }),
+  },
+  ingestion: {
+    backorders: () =>
+      request<BackorderRow[]>(`/api/health/ingestion/backorders`),
   },
   profit: {
     transactions: (params: { limit?: number; offset?: number } = {}) => {

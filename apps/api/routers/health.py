@@ -175,3 +175,62 @@ def ingestion_dead_letter(session=Depends(require_session)):
                     ORDER BY created_at DESC"""
             )
             return [dict(r) for r in cur.fetchall()]
+
+
+@router.get("/ingestion/backorders")
+def ingestion_backorders(session=Depends(require_session)):
+    """Sales blocked on insufficient stock — the minimal backorder stream.
+
+    Source: ingestion_events rows the worker routed to status='review' with an
+    error_message mentioning 'insufficient stock' (see ingestion/worker.py
+    `_is_stock_blocker_message`). The Profit page surfaces these in a
+    Backorder tab so the operator can see orders that will book the moment
+    replenishment lands.
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, source, marketplace, external_id,
+                          parsed_data, error_message, retry_count, created_at
+                     FROM ingestion_events
+                    WHERE status = 'review'
+                      AND error_message ILIKE %s
+                    ORDER BY created_at DESC""",
+                (f"%insufficient stock%",),
+            )
+            rows = cur.fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["id"] = str(d["id"])
+        pd = d.get("parsed_data") or {}
+        product = pd.get("product") if isinstance(pd.get("product"), dict) else {}
+        offer = pd.get("offer") if isinstance(pd.get("offer"), dict) else {}
+        d["product_ean"] = product.get("ean") or pd.get("ean")
+        d["product_description"] = (
+            pd.get("product_description") or pd.get("description")
+        )
+        qty = pd.get("quantity")
+        try:
+            d["quantity"] = int(qty) if qty is not None else None
+        except (TypeError, ValueError):
+            d["quantity"] = None
+        total = pd.get("totalPrice") or pd.get("total_price")
+        if total is None:
+            unit = pd.get("price") or pd.get("unit_price")
+            if unit is not None and qty is not None:
+                try:
+                    total = float(unit) * int(qty)
+                except (TypeError, ValueError):
+                    total = None
+        try:
+            d["total_price"] = float(total) if total is not None else None
+        except (TypeError, ValueError):
+            d["total_price"] = None
+        d["sku"] = (
+            offer.get("reference")
+            or pd.get("sku")
+            or pd.get("generated_sku")
+        )
+        out.append(d)
+    return out

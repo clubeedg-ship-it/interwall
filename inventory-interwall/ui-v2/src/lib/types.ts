@@ -318,6 +318,24 @@ export interface ProfitValuationRow {
   total_value: string | number;
 }
 
+// -- Backorders (stock-blocked ingestion events) -----------------------------
+
+export interface BackorderRow {
+  id: string;
+  source: string;
+  marketplace: string | null;
+  external_id: string | null;
+  parsed_data: Record<string, unknown> | null;
+  error_message: string | null;
+  retry_count: number;
+  created_at: string;
+  product_ean: string | null;
+  product_description: string | null;
+  quantity: number | null;
+  total_price: number | null;
+  sku: string | null;
+}
+
 export interface StockLotForProduct {
   id: string;
   quantity: number;
