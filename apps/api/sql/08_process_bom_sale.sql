@@ -15,18 +15,21 @@
 -- deduct_fifo_for_product (D-021).
 -- =============================================================================
 
--- Drop the old 6-param overload if it exists (T-B01 added p_commission_override).
--- Without this, PostgreSQL creates a second function instead of replacing.
+-- Drop prior overloads so PostgreSQL replaces rather than adds another signature.
+-- 6-param: pre-T-B01 (no commission).
+-- 7-param: pre-sold_at (no p_sold_at — added for profit-graph accuracy).
 DROP FUNCTION IF EXISTS process_bom_sale(TEXT, INTEGER, NUMERIC, TEXT, TEXT, UUID);
+DROP FUNCTION IF EXISTS process_bom_sale(TEXT, INTEGER, NUMERIC, TEXT, TEXT, UUID, NUMERIC);
 
 CREATE OR REPLACE FUNCTION process_bom_sale(
     p_build_code            TEXT,
     p_quantity              INTEGER,
     p_sale_price            NUMERIC,
     p_marketplace           TEXT,
-    p_order_ref             TEXT     DEFAULT NULL,
-    p_source_id             UUID     DEFAULT NULL,
-    p_commission_override   NUMERIC  DEFAULT NULL
+    p_order_ref             TEXT         DEFAULT NULL,
+    p_source_id             UUID         DEFAULT NULL,
+    p_commission_override   NUMERIC      DEFAULT NULL,
+    p_sold_at               TIMESTAMPTZ  DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -164,14 +167,16 @@ BEGIN
     v_profit := v_total_price - v_cogs - v_fixed_cost;
 
     -- Insert transaction once with final financials already computed.
+    -- sold_at = event date (when the customer bought it). Falls back to NOW()
+    -- when the caller cannot supply it so legacy paths keep working.
     INSERT INTO transactions (
         id, type, product_ean, quantity, unit_price, total_price,
         marketplace, order_reference, build_code,
-        source_email_id, cogs, profit
+        source_email_id, cogs, profit, sold_at
     ) VALUES (
         v_txn_id, 'sale', p_build_code, p_quantity, p_sale_price, v_total_price,
         p_marketplace, p_order_ref, p_build_code,
-        p_source_id, v_cogs, v_profit
+        p_source_id, v_cogs, v_profit, COALESCE(p_sold_at, NOW())
     );
 
     -- Write ledger rows after the parent transaction row exists.

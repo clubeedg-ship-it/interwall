@@ -99,14 +99,24 @@ def _resolve_build_code(marketplace: str, offer_reference: str | None, ean: str)
     )
 
 
-def _process_order_item(item: dict, order_id: str) -> str:
+def _process_order_item(item: dict, order_id: str, order_placed_dt: str | None = None) -> str:
     """
     Process a single Bol.com order item.
+
+    order_placed_dt is Bol's orderPlacedDateTime (ISO 8601) — threaded through
+    so sold_at on the transaction reflects when the customer bought, not when
+    the poller fetched. Persisted into parsed_data so worker replays (and any
+    re-ingestion) keep the same sold_at.
 
     Returns: 'new', 'duplicate', or 'failed'.
     """
     order_item_id = item["orderItemId"]
     external_id = f"bol-{order_id}-{order_item_id}"
+
+    # Stamp the item payload with the order's placed timestamp so the worker
+    # reprocess path can read it out of parsed_data.
+    if order_placed_dt and "orderPlacedDateTime" not in item:
+        item = {**item, "orderPlacedDateTime": order_placed_dt}
 
     # Phase 1: Record the event (committed independently for durability).
     # ON CONFLICT skips if already inserted by a prior poll cycle.
@@ -146,7 +156,7 @@ def _process_order_item(item: dict, order_id: str) -> str:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s) AS txn_id",
+                    "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s, %s) AS txn_id",
                     (
                         build_code,
                         quantity,
@@ -155,6 +165,7 @@ def _process_order_item(item: dict, order_id: str) -> str:
                         external_id,
                         event_id,
                         commission,
+                        order_placed_dt,
                     ),
                 )
                 cur.fetchone()
@@ -209,6 +220,13 @@ def poll_bol_once(client: "BolClient | None" = None):
                 stats["failed"] += 1
                 continue
 
+            # Order-level placed timestamp: authoritative "sold_at" for every
+            # item in this order. Prefer detail payload, fall back to summary.
+            order_placed_dt = (
+                order_detail.get("orderPlacedDateTime")
+                or order_summary.get("orderPlacedDateTime")
+            )
+
             for item in order_detail.get("orderItems", []):
                 # Skip cancelled items
                 if item.get("cancellationRequest", False):
@@ -219,7 +237,7 @@ def poll_bol_once(client: "BolClient | None" = None):
                 if fulfilment.get("method") != "FBR":
                     continue
 
-                result = _process_order_item(item, order_id)
+                result = _process_order_item(item, order_id, order_placed_dt)
                 stats[result] += 1
 
         logger.info(

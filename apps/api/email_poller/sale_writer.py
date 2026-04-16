@@ -456,11 +456,21 @@ def resolve_ean(conn, identifier: str, marketplace: str = None) -> str | None:
         return row["ean"] if row else None
 
 
-def _call_bom_sale(conn, build_code: str, order: OrderData, email_id: str) -> str:
-    """Execute process_bom_sale and return transaction UUID string."""
+def _call_bom_sale(
+    conn,
+    build_code: str,
+    order: OrderData,
+    email_id: str,
+    sold_at=None,
+) -> str:
+    """Execute process_bom_sale and return transaction UUID string.
+
+    sold_at (TIMESTAMPTZ): when the sale actually happened. When None,
+    process_bom_sale falls back to NOW() so legacy callers keep working.
+    """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s) AS txn_id",
+            "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s, %s) AS txn_id",
             (
                 build_code,
                 order.quantity,
@@ -468,12 +478,14 @@ def _call_bom_sale(conn, build_code: str, order: OrderData, email_id: str) -> st
                 order.marketplace,
                 order.order_number,
                 email_id,
+                None,  # p_commission_override — unused on email path
+                sold_at,
             ),
         )
         return str(cur.fetchone()["txn_id"])
 
 
-def write_sale(order: OrderData, email_id: str, conn=None) -> str:
+def write_sale(order: OrderData, email_id: str, conn=None, sold_at=None) -> str:
     """
     Build-only sale processing for current ingestion (D-019, D-033, D-105).
 
@@ -505,7 +517,7 @@ def write_sale(order: OrderData, email_id: str, conn=None) -> str:
                     s,
                     build_code,
                 )
-                return _call_bom_sale(active_conn, build_code, order, email_id)
+                return _call_bom_sale(active_conn, build_code, order, email_id, sold_at=sold_at)
 
         # Step 2: Resolve EAN via sku_aliases / direct match
         ean = None
@@ -523,7 +535,7 @@ def write_sale(order: OrderData, email_id: str, conn=None) -> str:
                         sku,
                         build_code,
                     )
-                    return _call_bom_sale(active_conn, build_code, order, email_id)
+                    return _call_bom_sale(active_conn, build_code, order, email_id, sold_at=sold_at)
             if getattr(order, "product_description", ""):
                 build_code = _resolve_build_from_description(active_conn, order.product_description)
                 if build_code:
@@ -534,7 +546,7 @@ def write_sale(order: OrderData, email_id: str, conn=None) -> str:
                         sku,
                         build_code,
                     )
-                    return _call_bom_sale(active_conn, build_code, order, email_id)
+                    return _call_bom_sale(active_conn, build_code, order, email_id, sold_at=sold_at)
             if sku:
                 draft_build_code = _ensure_draft_build_for_unresolved_sku(order, sku)
                 raise DraftBuildPendingError(order.marketplace, sku, draft_build_code)
@@ -551,7 +563,7 @@ def write_sale(order: OrderData, email_id: str, conn=None) -> str:
                 ean,
                 build_code,
             )
-            return _call_bom_sale(active_conn, build_code, order, email_id)
+            return _call_bom_sale(active_conn, build_code, order, email_id, sold_at=sold_at)
 
         if getattr(order, "product_description", ""):
             build_code = _resolve_build_from_description(active_conn, order.product_description)
@@ -563,7 +575,7 @@ def write_sale(order: OrderData, email_id: str, conn=None) -> str:
                     sku,
                     build_code,
                 )
-                return _call_bom_sale(active_conn, build_code, order, email_id)
+                return _call_bom_sale(active_conn, build_code, order, email_id, sold_at=sold_at)
 
         raise RuntimeError(
             f"D-033: no active build reachable for marketplace={order.marketplace}, "

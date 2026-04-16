@@ -88,9 +88,14 @@ def _reprocess_bolcom(event_row: dict, conn) -> str:
     event_id_str = str(event_row["id"])
     order_ref = event_row.get("external_id")  # matches poller convention
 
+    # sold_at: Bol's orderPlacedDateTime when the poller stamped it into
+    # parsed_data; otherwise the event's ingestion time (best available proxy).
+    # process_bom_sale falls back to NOW() if we pass NULL.
+    sold_at = item.get("orderPlacedDateTime") or event_row.get("created_at")
+
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s) AS txn_id",
+            "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s, %s) AS txn_id",
             (
                 build_code,
                 quantity,
@@ -99,6 +104,7 @@ def _reprocess_bolcom(event_row: dict, conn) -> str:
                 order_ref,
                 event_id_str,
                 commission,
+                sold_at,
             ),
         )
         return str(cur.fetchone()["txn_id"])
@@ -164,7 +170,13 @@ def _reprocess_email(event_row: dict, conn) -> str:
             order.price = float(pd.get("price") or reparsed.price or 0)
             order.quantity = int(pd.get("quantity") or reparsed.quantity or 1)
 
-    return write_sale(order, event_id_str, conn=conn)
+    # sold_at: parsed email date when the parser extracted one, otherwise the
+    # event's ingestion timestamp. Ingestion timestamp is close to the email's
+    # arrival for live polling; for replay it is far off — so prefer a parser
+    # field when future parsers supply one.
+    sold_at = pd.get("order_placed_at") or event_row.get("created_at")
+
+    return write_sale(order, event_id_str, conn=conn, sold_at=sold_at)
 
 
 # Dispatch table — maps source → reprocess callable.
@@ -256,7 +268,8 @@ def _process_one_event(event_id: str) -> None:
             with conn_outer.cursor() as cur:
                 cur.execute(
                     """SELECT id, source, marketplace, external_id,
-                              sender, subject, raw_body, parsed_data, retry_count
+                              sender, subject, raw_body, parsed_data, retry_count,
+                              created_at
                          FROM ingestion_events
                         WHERE id = %s
                           AND status IN ('pending', 'failed')

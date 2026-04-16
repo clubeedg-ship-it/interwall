@@ -23,10 +23,13 @@ def profit_summary(period: str = "day", session=Depends(require_session)):
             status_code=400,
             detail=f"Invalid period '{period}'. Must be one of: {', '.join(sorted(ALLOWED_PERIODS))}",
         )
+    # Bucket by sold_at (event date) not created_at (row-insert time) so
+    # late ingestion, email replay, and future backorder resolves don't
+    # smear revenue onto the day they were posted.
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT DATE_TRUNC(%s, created_at) AS period, "
+                "SELECT DATE_TRUNC(%s, sold_at) AS period, "
                 "       marketplace, "
                 "       SUM(profit) AS total_profit, "
                 "       SUM(total_price) AS total_revenue, "
@@ -72,11 +75,12 @@ def list_transactions(
             cur.execute(
                 "SELECT t.id, t.type, t.product_ean, p.name AS product_name, "
                 "       t.quantity, t.unit_price, t.total_price, "
-                "       t.marketplace, t.order_reference, t.cogs, t.profit, t.created_at "
+                "       t.marketplace, t.order_reference, t.cogs, t.profit, "
+                "       t.sold_at, t.created_at "
                 "FROM transactions t "
                 "LEFT JOIN products p ON p.ean = t.product_ean "
                 "WHERE t.type = 'sale' "
-                "ORDER BY t.created_at DESC "
+                "ORDER BY t.sold_at DESC, t.created_at DESC "
                 "LIMIT %s OFFSET %s",
                 (limit, offset),
             )

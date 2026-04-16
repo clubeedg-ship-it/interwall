@@ -51,6 +51,7 @@ RUNTIME_SQL_FILES = [
     "12_ingestion_events_retry_count.sql",
     "13_v_health_ingestion.sql",
     "14_v_shelf_occupancy.sql",
+    "16_transactions_sold_at.sql",
 ]
 
 
