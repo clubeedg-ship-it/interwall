@@ -1,0 +1,8 @@
+node_modules
+dist
+.playwright-mcp
+*.tsbuildinfo
+*.png
+.env
+.env.*
+.DS_Store

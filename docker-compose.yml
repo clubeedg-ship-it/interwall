@@ -62,14 +62,14 @@ services:
       - interwall_network
 
   nginx:
-    image: nginx:alpine
+    build: ./inventory-interwall/ui-v2
+    image: interwall-ui-v2:latest
     container_name: interwall-nginx
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-1441}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./inventory-interwall/frontend:/usr/share/nginx/html:ro
     depends_on:
       api:
         condition: service_healthy
