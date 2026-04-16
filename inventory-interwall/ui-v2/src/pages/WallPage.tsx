@@ -73,6 +73,42 @@ export default function WallPage() {
     }
   }, [realZones, activeZoneId]);
 
+  // Keyboard zone navigation — ArrowLeft/ArrowRight cycles tabs unless the
+  // user is typing into an input, textarea, or contenteditable surface. The
+  // BinDrawer listens for its own Escape handler; our arrows only act when
+  // the drawer is closed so we don't fight it for focus.
+  useEffect(() => {
+    if (realZones.length <= 1) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (activeShelfId !== null) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      e.preventDefault();
+      setActiveZoneId((cur) => {
+        const idx = realZones.findIndex((z) => z.id === cur);
+        if (idx === -1) return realZones[0].id;
+        const next =
+          e.key === "ArrowRight"
+            ? (idx + 1) % realZones.length
+            : (idx - 1 + realZones.length) % realZones.length;
+        return realZones[next].id;
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [realZones, activeShelfId]);
+
   const activeZone = realZones.find((z) => z.id === activeZoneId) ?? null;
 
   const activeShelf =

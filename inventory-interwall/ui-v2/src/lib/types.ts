@@ -320,6 +320,19 @@ export interface ProfitValuationRow {
 
 // -- Backorders (stock-blocked ingestion events) -----------------------------
 
+export interface BackorderComponent {
+  source_type: "item_group" | "product";
+  id: string | null;
+  name: string | null;
+  code: string | null;
+  /** Per-build quantity (how many of this component a single sale consumes).
+   *  null when the row is a parsed-from-error fallback. */
+  component_qty: number | null;
+  needed_qty: number;
+  on_hand_qty: number;
+  shortage: number;
+}
+
 export interface BackorderRow {
   id: string;
   source: string;
@@ -334,6 +347,8 @@ export interface BackorderRow {
   quantity: number | null;
   total_price: number | null;
   sku: string | null;
+  build_code: string | null;
+  components: BackorderComponent[];
 }
 
 export interface StockLotForProduct {
