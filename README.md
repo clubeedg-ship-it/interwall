@@ -1,26 +1,24 @@
-# interwall
+# Interwall
 
-Direct local run path:
+This repo’s active runtime is the Docker Compose backend stack:
 
-1. Start Docker Desktop.
-2. Run `npm run local:up`
-3. Open `http://localhost:3000`
-4. Sign in with `demo@interwall.local` / `Demo123!`
+- `postgres`
+- `api`
+- `nginx`
 
-What `npm run local:up` does:
+Start it with:
 
-- starts local Supabase with `npx supabase start`
-- writes `apps/web/.env.local` and `apps/web/.env.docker.local`
-- seeds a demo user, tenant, warehouse, product, stock lot, and sample orders
-- starts the Next app in Docker Compose
+1. `cp .env.example .env`
+2. Fill in real values in `.env`
+3. `docker compose up -d --build`
+4. Open `http://localhost:1441`
 
-Useful commands:
+Backend health check:
 
-- `npm run local:up:host` runs the Next app on your host instead of in Docker
-- `npm run local:prepare` only starts Supabase, writes env files, and seeds demo data
-- `npm run local:down` stops the web container and local Supabase
+- `curl -fsS http://localhost:1441/api/health/ping`
 
-After sign-in:
+Operational backend docs:
 
-- `/workspace` shows the seeded wall shell
-- `/orders` shows a seeded sales order with an intentional stock shortfall and a purchase order for receive/ship flow testing
+- runbook: [.project/BACKEND-DEPLOY-RUNBOOK.md](.project/BACKEND-DEPLOY-RUNBOOK.md)
+- active state: [.project/COACH-HANDOFF.md](.project/COACH-HANDOFF.md)
+- roadmap / tasks: [.project/TODO.md](.project/TODO.md)

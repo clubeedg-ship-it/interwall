@@ -14,7 +14,8 @@ import re
 from dataclasses import dataclass
 
 from db import get_conn
-from email_poller.sale_writer import write_sale
+from email_poller.parsers import get_parser_for_marketplace
+from email_poller.sale_writer import DraftBuildPendingError, write_sale
 
 logger = logging.getLogger("ingestion_worker")
 
@@ -31,9 +32,21 @@ class EmailOrder:
     raw_email_body: str
     sku: str = ""
     generated_sku: str = ""
+    product_description: str = ""
 
     def get_sku(self) -> str:
         return self.sku or self.generated_sku
+
+
+def _is_stock_blocker_message(message: str) -> bool:
+    message = (message or "").lower()
+    return (
+        "insufficient stock" in message
+        and (
+            "deduct_fifo_for_group" in message
+            or "deduct_fifo_for_product" in message
+        )
+    )
 
 
 def _resolve_bol_build_code(marketplace: str, offer_reference: str | None, ean: str) -> str:
@@ -102,16 +115,44 @@ def _extract_original_email_sku(raw_body: str) -> str:
 def _build_email_order(event: dict) -> EmailOrder:
     parsed = event.get("parsed_data") or {}
     raw_body = event.get("raw_body") or ""
-    generated_sku = parsed.get("sku", "") or ""
-    return EmailOrder(
+    order = EmailOrder(
         marketplace=event.get("marketplace") or "",
         order_number=parsed.get("order_number", "") or "",
         price=float(parsed.get("price", 0) or 0),
         quantity=int(parsed.get("quantity", 1) or 1),
         raw_email_body=raw_body,
-        sku=_extract_original_email_sku(raw_body),
-        generated_sku=generated_sku,
+        sku=parsed.get("sku", "") or _extract_original_email_sku(raw_body),
+        generated_sku=parsed.get("generated_sku", "") or parsed.get("sku", "") or "",
+        product_description=parsed.get("product_description", "") or "",
     )
+    parser = get_parser_for_marketplace(order.marketplace)
+    should_reparse = (
+        raw_body
+        and parser is not None
+        and (
+            not order.product_description
+            or not order.generated_sku
+            or not order.sku
+            or order.sku.startswith("OMX-")
+        )
+    )
+    if should_reparse:
+        reparsed = parser.parse(
+            {
+                "from": event.get("sender", ""),
+                "subject": event.get("subject", ""),
+                "body": raw_body,
+            }
+        )
+        if reparsed is not None:
+            order.sku = reparsed.sku or order.sku
+            order.generated_sku = reparsed.generated_sku or order.generated_sku
+            order.product_description = (
+                reparsed.product_description or order.product_description
+            )
+            order.price = float(parsed.get("price", 0) or reparsed.price or 0)
+            order.quantity = int(parsed.get("quantity", 1) or reparsed.quantity or 1)
+    return order
 
 
 def _process_bol_event(event: dict) -> None:
@@ -156,7 +197,7 @@ def _load_event(event_id: str) -> dict | None:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT id, source, status, marketplace, parsed_type, parsed_data,
-                          raw_body, external_id, message_id, attempt_count
+                          raw_body, sender, subject, external_id, message_id, attempt_count
                    FROM ingestion_events
                    WHERE id = %s""",
                 (event_id,),
@@ -174,7 +215,7 @@ def _start_attempt(event_id: str) -> dict | None:
                     WHERE id = %s
                       AND status IN ('pending', 'failed')
                 RETURNING id, source, status, marketplace, parsed_type, parsed_data,
-                          raw_body, external_id, message_id, attempt_count""",
+                          raw_body, sender, subject, external_id, message_id, attempt_count""",
                 (event_id,),
             )
             return cur.fetchone()
@@ -215,6 +256,20 @@ def _mark_failure(event_id: str, attempt_count: int, error_message: str) -> str:
     return status
 
 
+def _mark_review(event_id: str, detail: str) -> str:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE ingestion_events
+                      SET status = 'review',
+                          error_message = %s,
+                          dead_letter_reason = NULL
+                    WHERE id = %s""",
+                (detail[:1000], event_id),
+            )
+    return "review"
+
+
 def process_ingestion_event(event_id: str) -> str:
     """
     Process one ingestion_events row.
@@ -244,7 +299,19 @@ def process_ingestion_event(event_id: str) -> str:
 
         _mark_processed(event_id)
         return "processed"
+    except DraftBuildPendingError as exc:
+        status = _mark_review(event_id, str(exc))
+        logger.warning("Ingestion processing moved %s to review: %s", event_id, exc)
+        return status
     except Exception as exc:
+        if source == "email" and _is_stock_blocker_message(str(exc)):
+            status = _mark_review(event_id, str(exc))
+            logger.warning(
+                "Ingestion processing moved %s to review for stock blocker: %s",
+                event_id,
+                exc,
+            )
+            return status
         status = _mark_failure(event_id, int(event["attempt_count"]), str(exc))
         logger.error("Ingestion processing failed for %s: %s", event_id, exc)
         return status

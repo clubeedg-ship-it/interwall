@@ -1,10 +1,10 @@
 """
-T-A08 — Email poller BOM-first routing tests.
+T-A08 — Email poller BOM-only routing tests.
 5 cases testing the routing logic in sale_writer.py.
 
 Real DB for resolution queries (xref, sku_aliases, builds).
-Mocked _call_bom_sale / _call_legacy_sale to isolate routing from
-stock-level concerns (those are tested in T-A04 / T-A05).
+Mocked _call_bom_sale to isolate routing from stock-level concerns
+(those are tested in T-A04 / T-A05).
 
 Runner:
   docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -v --tb=short
@@ -48,12 +48,13 @@ def clean_test_data():
             )
             cur.execute(
                 """DELETE FROM build_components WHERE build_id IN (
-                    SELECT id FROM builds WHERE build_code LIKE %s
+                    SELECT id FROM builds WHERE build_code LIKE %s OR build_code LIKE %s
                 )""",
-                (f"TEST-{TAG}%",),
+                (f"TEST-{TAG}%", f"REAL-{TAG}%"),
             )
             cur.execute(
-                "DELETE FROM builds WHERE build_code LIKE %s", (f"TEST-{TAG}%",)
+                "DELETE FROM builds WHERE build_code LIKE %s OR build_code LIKE %s",
+                (f"TEST-{TAG}%", f"REAL-{TAG}%"),
             )
             cur.execute(
                 """DELETE FROM item_group_members WHERE item_group_id IN (
@@ -65,18 +66,27 @@ def clean_test_data():
                 "DELETE FROM item_groups WHERE code LIKE %s", (f"test_{TAG}%",)
             )
             cur.execute(
-                "DELETE FROM products WHERE ean LIKE %s", (f"TEST-{TAG}%",)
+                "DELETE FROM products WHERE ean LIKE %s OR ean LIKE %s",
+                (f"TEST-{TAG}%", f"REAL-{TAG}%"),
             )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
-def _make_order(marketplace, sku, quantity=1, price=100.0, generated_sku=""):
+def _make_order(
+    marketplace,
+    sku,
+    quantity=1,
+    price=100.0,
+    generated_sku="",
+    product_description="",
+):
     o = OrderData()
     o.marketplace = marketplace
     o.sku = sku
     o.generated_sku = generated_sku
+    o.product_description = product_description
     o.quantity = quantity
     o.price = price
     o.order_number = f"ORD-{uuid.uuid4().hex[:8]}"
@@ -131,8 +141,7 @@ class TestCase1_XrefHitBomSale:
     """Case 1 — xref hit → process_bom_sale called."""
 
     @patch("email_poller.sale_writer._call_bom_sale", return_value="fake-txn-c1")
-    @patch("email_poller.sale_writer._call_legacy_sale")
-    def test_xref_hit(self, mock_legacy, mock_bom):
+    def test_xref_hit(self, mock_bom):
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 pid, ean = _seed_product(cur, "C1")
@@ -148,8 +157,7 @@ class TestCase1_XrefHitBomSale:
 
         assert result == "fake-txn-c1"
         mock_bom.assert_called_once()
-        assert mock_bom.call_args[0][0] == build_code
-        mock_legacy.assert_not_called()
+        assert mock_bom.call_args[0][1] == build_code
 
 
 class TestCase2_XrefInactiveBuild:
@@ -175,8 +183,7 @@ class TestCase3_NoXrefEanBuildBomPath:
     """Case 3 — no xref, EAN maps to trivial build (D-018) → BOM path."""
 
     @patch("email_poller.sale_writer._call_bom_sale", return_value="fake-txn-c3")
-    @patch("email_poller.sale_writer._call_legacy_sale")
-    def test_ean_build_bom_path(self, mock_legacy, mock_bom):
+    def test_ean_build_bom_path(self, mock_bom):
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 pid, ean = _seed_product(cur, "C3")
@@ -193,19 +200,17 @@ class TestCase3_NoXrefEanBuildBomPath:
 
         assert result == "fake-txn-c3"
         mock_bom.assert_called_once()
-        assert mock_bom.call_args[0][0] == build_code
-        mock_legacy.assert_not_called()
+        assert mock_bom.call_args[0][1] == build_code
 
 
-class TestCase4_LegacyFallback:
-    """Case 4 — no xref, no build reachable → legacy process_sale fallback."""
+class TestCase4_NoBuildRaises:
+    """Case 4 — no xref, no build reachable → RuntimeError (BOM-only)."""
 
     @patch("email_poller.sale_writer._call_bom_sale")
-    @patch("email_poller.sale_writer._call_legacy_sale", return_value="fake-txn-c4")
-    def test_legacy_fallback(self, mock_legacy, mock_bom):
+    def test_no_build_raises(self, mock_bom):
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                pid, ean = _seed_product(cur, "C4")
+                _, ean = _seed_product(cur, "C4")
                 # NO build, NO item_group — just sku_aliases
                 cur.execute(
                     """INSERT INTO sku_aliases (marketplace_sku, product_ean, marketplace)
@@ -214,21 +219,16 @@ class TestCase4_LegacyFallback:
                 )
 
         order = _make_order(f"test_{TAG}_mp_c4", "TST-SKU-C4")
-        result = write_sale(order, str(uuid.uuid4()))
-
-        assert result == "fake-txn-c4"
-        mock_legacy.assert_called_once()
-        assert mock_legacy.call_args[0][0] == ean  # first arg = EAN
+        with pytest.raises(RuntimeError, match="no active build reachable"):
+            write_sale(order, str(uuid.uuid4()))
         mock_bom.assert_not_called()
 
 
 class TestCase5_RegressionGuard:
-    """Case 5 — xref exists and build healthy → legacy does NOT trigger
-    (regression guard for D-033 misinterpretation)."""
+    """Case 5 — xref exists and build healthy → non-BOM paths never trigger."""
 
     @patch("email_poller.sale_writer._call_bom_sale", return_value="fake-txn-c5")
-    @patch("email_poller.sale_writer._call_legacy_sale")
-    def test_no_legacy_when_xref_healthy(self, mock_legacy, mock_bom):
+    def test_no_non_bom_fallback_when_xref_healthy(self, mock_bom):
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 pid, ean = _seed_product(cur, "C5")
@@ -244,7 +244,110 @@ class TestCase5_RegressionGuard:
 
         assert result == "fake-txn-c5"
         mock_bom.assert_called_once()
-        mock_legacy.assert_not_called()
+
+
+class TestCase6_BolDescriptionFallback:
+    """Case 6 — Bol email can route via exact product/build description."""
+
+    @patch("email_poller.sale_writer._call_bom_sale", return_value="fake-txn-c6")
+    def test_bol_description_exact_match(self, mock_bom):
+        description = f"QA-{TAG} Gaming PC Ryzen 7-5700X RTX 9090 24GB/3TB Windows 11 Pro"
+
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                ean = f"REAL-{TAG}-C6"
+                cur.execute(
+                    "INSERT INTO products (ean, name) VALUES (%s, %s) RETURNING id",
+                    (ean, description),
+                )
+                pid = str(cur.fetchone()["id"])
+                cur.execute(
+                    """INSERT INTO builds (build_code, name, is_auto_generated, is_active)
+                       VALUES (%s, %s, TRUE, TRUE) RETURNING id""",
+                    (ean, description),
+                )
+                build_id = str(cur.fetchone()["id"])
+                cur.execute(
+                    "INSERT INTO item_groups (code, name) VALUES (%s, %s) RETURNING id",
+                    (f"test_{TAG}_c6_group", f"C6 Group {TAG}"),
+                )
+                group_id = str(cur.fetchone()["id"])
+                cur.execute(
+                    "INSERT INTO item_group_members (item_group_id, product_id) VALUES (%s, %s)",
+                    (group_id, pid),
+                )
+                cur.execute(
+                    "INSERT INTO build_components (build_id, item_group_id, quantity) VALUES (%s, %s, 1)",
+                    (build_id, group_id),
+                )
+                build_code = ean
+
+        order = _make_order(
+            "BolCom",
+            f"OMX-BOL-TEST-{TAG}-9090",
+            generated_sku=f"OMX-BOL-TEST-{TAG}-9090",
+            product_description=description,
+        )
+        result = write_sale(order, str(uuid.uuid4()))
+
+        assert result == "fake-txn-c6"
+        mock_bom.assert_called_once()
+        assert mock_bom.call_args[0][1] == build_code
+
+
+class TestCase7_GenericDescriptionFallback:
+    """Case 7 — generic email routes via relaxed signature when components match."""
+
+    @patch("email_poller.sale_writer._call_bom_sale", return_value="fake-txn-c7")
+    def test_relaxed_signature_same_components(self, mock_bom):
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                component_id, _ = _seed_product(cur, "C7-COMP")
+                cur.execute(
+                    "INSERT INTO item_groups (code, name) VALUES (%s, %s) RETURNING id",
+                    (f"test_{TAG}_c7_shared", f"Shared C7 {TAG}"),
+                )
+                group_id = str(cur.fetchone()["id"])
+                cur.execute(
+                    "INSERT INTO item_group_members (item_group_id, product_id) VALUES (%s, %s)",
+                    (group_id, component_id),
+                )
+
+                ean_a = f"REAL-{TAG}-C7A"
+                ean_b = f"REAL-{TAG}-C7B"
+                cur.execute(
+                    "INSERT INTO products (ean, name) VALUES (%s, %s)",
+                    (ean_a, f"C7 Catalog {TAG} A"),
+                )
+                cur.execute(
+                    "INSERT INTO products (ean, name) VALUES (%s, %s)",
+                    (ean_b, f"C7 Catalog {TAG} B"),
+                )
+                for build_code, name in (
+                    (ean_a, "AMD Ryzen 9 9900 - 24 GB RAM - 512 GB SSD - GeForce RTX™ 5090"),
+                    (ean_b, "AMD Ryzen 9 9900 - 24 GB RAM - 512 GB SSD - GeForce RTX™ 5090 (Setup)"),
+                ):
+                    cur.execute(
+                        """INSERT INTO builds (build_code, name, is_auto_generated, is_active)
+                           VALUES (%s, %s, TRUE, TRUE) RETURNING id""",
+                        (build_code, name),
+                    )
+                    build_id = str(cur.fetchone()["id"])
+                    cur.execute(
+                        "INSERT INTO build_components (build_id, item_group_id, quantity) VALUES (%s, %s, 1)",
+                        (build_id, group_id),
+                )
+
+        order = _make_order(
+            f"test_{TAG}_mp_c7",
+            "MMS-C7-SKU",
+            product_description="OMIXIMO Typhoon Z9900 - AMD Ryzen 9 - 24 GB - 500 GB - GeForce RTX 5090",
+        )
+        result = write_sale(order, str(uuid.uuid4()))
+
+        assert result == "fake-txn-c7"
+        mock_bom.assert_called_once()
+        assert mock_bom.call_args[0][1] == ean_a
 
 
 # ── Final pass/fail line ─────────────────────────────────────────────

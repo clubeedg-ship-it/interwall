@@ -1,5 +1,9 @@
 # Interwall — Rebuild Plan
 
+> Reference document. Do not read this first in a cold start.
+> Start with `.project/SESSION.md`, `.project/WORKSTREAMS.md`, and `.project/RETRIEVAL.md`.
+> Use this file only when you need deeper program-level direction or scope rationale.
+
 **Owner:** solo engineer
 **Client:** single-tenant PC-assembly business
 **Last updated:** 2026-04-15

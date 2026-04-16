@@ -154,8 +154,9 @@ async function init() {
     // Catalog
     catalog.init();
 
-    // Compositions
-    if (typeof compositions !== 'undefined') compositions.init();
+    // Builds (T-C08)
+    if (typeof builds !== 'undefined') builds.init();
+
 
     // Check for existing session (session cookie auth — no token in localStorage)
     const isValid = await auth.validateToken();

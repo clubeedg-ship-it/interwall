@@ -127,31 +127,19 @@
                 </svg>
             </button>
 
-            <!-- Batches -->
-            <button class="nav-item" data-view="batches" title="Batches">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                    <line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
-            </button>
-
             <button class="nav-item" data-view="health" title="Health">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 12h4l2-5 4 10 2-5h6" />
                 </svg>
             </button>
 
-            <!-- EAN Compositions -->
-            <button class="nav-item" data-view="compositions" title="EAN Compositions">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="9" cy="6" r="2"/>
-                    <circle cx="15" cy="12" r="2"/>
-                    <circle cx="9" cy="18" r="2"/>
-                    <line x1="11" y1="6" x2="13" y2="11"/>
-                    <line x1="11" y1="18" x2="13" y2="13"/>
+            <!-- Builds -->
+            <button class="nav-item" data-view="builds" title="Builds">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
                 </svg>
             </button>
+
         </nav>
     </aside>
 
@@ -451,31 +439,6 @@
             </section>
 
             <!-- BATCHES VIEW -->
-            <section class="view" id="view-batches">
-                <div class="view-header">
-                    <h1>Batches</h1>
-                    <div class="batches-controls">
-                        <label class="batches-history-toggle">
-                            <input type="checkbox" id="batchesHistoryToggle">
-                            <span>Full history (include depleted)</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="batches-grid" id="batchesGrid">
-                    <div class="batches-loading">
-                        <div class="spinner"></div>
-                        <p>Loading batches...</p>
-                    </div>
-                </div>
-                <aside class="batches-panel" id="batchesPanel">
-                    <div class="batches-panel-header">
-                        <h3 id="batchesPanelTitle">Ledger Movements</h3>
-                        <button class="modal-close" id="batchesPanelClose">&times;</button>
-                    </div>
-                    <div class="batches-panel-body" id="batchesPanelBody"></div>
-                </aside>
-            </section>
-
             <section class="view" id="view-health">
                 <div class="health-page">
                     <div class="health-toolbar">
@@ -535,82 +498,140 @@
                 </div>
             </section>
 
-            <section class="view" id="view-compositions">
-                <div class="page-header">
-                    <h2 class="page-title">EAN Compositions</h2>
-                    <p class="page-subtitle">Map your assembled products to the components inside them. When a product sells, stock is auto-deducted from each component.</p>
+            <!-- BUILDS VIEW (T-C08) -->
+            <section class="view" id="view-builds">
+                <div id="builds-page-base">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Builds</h2>
+                            <p class="page-subtitle">Create, review, and complete Build setup using Models, pricing controls, and marketplace SKU mapping.</p>
+                        </div>
+                        <button class="builds-action-btn" id="builds-new-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            New Build
+                        </button>
+                    </div>
+                    <div class="builds-toolbar">
+                        <input type="text" class="input-field" id="builds-search" placeholder="Search builds / build_code...">
+                        <label class="builds-filter-toggle">
+                            <input type="checkbox" id="builds-attention-toggle">
+                            <span>Attention only</span>
+                        </label>
+                    </div>
+                    <div class="builds-list" id="builds-list">
+                        <div class="builds-empty">Loading builds...</div>
+                    </div>
                 </div>
 
-                <!-- STEP 1: Product EAN -->
-                <div class="comp-step comp-step-1" id="comp-step-1">
-                    <div class="comp-step-header">
-                        <span class="comp-step-number">1</span>
-                        <div class="comp-step-label">
-                            <h3>Product EAN</h3>
-                            <p>The barcode of the product you assemble and sell</p>
-                        </div>
+                <!-- Floating workspace overlay -->
+                <div class="builds-ws-overlay" id="builds-workspace-overlay"></div>
+                <div class="builds-workspace" id="builds-workspace">
+                    <div class="builds-ws-header">
+                        <span class="builds-ws-title">Builds workspace</span>
+                        <button class="modal-close" onclick="builds.closeWorkspace()">&times;</button>
                     </div>
-                    <div class="comp-step-body">
-                        <div id="comp-parent-input-row" class="comp-parent-input-row">
-                            <input id="comp-parent-ean" class="input-field input-mono" type="text" placeholder="e.g. 8712345678901" autocomplete="off" />
-                            <input id="comp-parent-name" class="input-field" type="text" placeholder="Name / SKU (optional)" autocomplete="off" />
-                            <button id="comp-parent-confirm" class="btn btn-primary btn-sm">Next</button>
-                        </div>
-                        <div id="comp-parent-card" class="comp-parent-card hidden">
-                            <div class="comp-parent-info">
-                                <span class="comp-parent-ean" id="comp-parent-ean-display"></span>
-                                <span class="comp-parent-name" id="comp-parent-name-display"></span>
+
+                    <!-- Mobile tabs -->
+                    <div class="ws-mobile-tabs">
+                        <button class="ws-mobile-tab active" data-tab="build" onclick="builds.switchMobileTab('build')">Build</button>
+                        <button class="ws-mobile-tab" data-tab="composition" onclick="builds.switchMobileTab('composition')">Composition</button>
+                        <button class="ws-mobile-tab" data-tab="models" onclick="builds.switchMobileTab('models')">Models</button>
+                        <button class="ws-mobile-tab" data-tab="pricing" onclick="builds.switchMobileTab('pricing')">Pricing</button>
+                        <button class="ws-mobile-tab" data-tab="sku" onclick="builds.switchMobileTab('sku')">SKU mapping</button>
+                    </div>
+
+                    <div class="builds-ws-body">
+                        <!-- LEFT CONTEXT RAIL -->
+                        <div class="ws-rail ws-rail-left ws-panel active" data-panel="build">
+                            <h4 class="ws-rail-title">Build</h4>
+                            <div class="ws-field-group">
+                                <label class="ws-label">Build code</label>
+                                <input type="text" class="input-field input-mono" id="ws-build-code" placeholder="Leave blank for auto-assign">
                             </div>
-                            <button class="btn-icon comp-parent-clear" id="comp-parent-clear" title="Change product">&#x2715;</button>
+                            <div class="ws-field-group">
+                                <label class="ws-label">Name / note</label>
+                                <input type="text" class="input-field" id="ws-build-note" placeholder="Internal note...">
+                            </div>
+
+                            <h4 class="ws-rail-title ws-mt">Mapping readiness</h4>
+                            <div id="ws-mapping-readiness"></div>
+
+                            <h4 class="ws-rail-title ws-mt">Saved Builds</h4>
+                            <div class="ws-saved-list" id="ws-saved-builds"></div>
+                        </div>
+
+                        <!-- CENTER SELECTED-BUILD BOX -->
+                        <div class="ws-center ws-panel active" data-panel="composition">
+                            <h4 class="ws-center-title" id="ws-center-title">Active composition</h4>
+                            <div class="ws-composition" id="ws-composition">
+                                <div class="ws-comp-empty"><p>Select a Model from the right rail to start this Build.</p></div>
+                            </div>
+
+                            <div class="ws-sku-strip-section">
+                                <h5 class="ws-strip-label">SKU mapping strip</h5>
+                                <div class="ws-sku-strip" id="ws-sku-strip"></div>
+                            </div>
+
+                            <div class="ws-sku-detail-section ws-panel" data-panel="sku">
+                                <h4 class="ws-rail-title">SKU mapping detail</h4>
+                                <div id="ws-sku-detail"></div>
+                            </div>
+
+                            <div id="ws-save-error" class="ws-save-error" style="display:none;"></div>
+                            <div class="ws-footer-actions">
+                                <button class="btn-secondary" onclick="builds.closeWorkspace()">Cancel</button>
+                                <button class="builds-action-btn" id="ws-save-btn" onclick="builds.saveBuild()">Save Build</button>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT UTILITY RAIL -->
+                        <div class="ws-rail ws-rail-right">
+                            <!-- Pricing controls (UI-only scaffolding) -->
+                            <div class="ws-pricing ws-panel" data-panel="pricing">
+                                <h4 class="ws-rail-title">Pricing controls</h4>
+                                <div class="ws-field-group">
+                                    <label class="ws-label">Fixed overhead</label>
+                                    <div class="ws-input-addon">
+                                        <span class="ws-addon-prefix">&euro;</span>
+                                        <input type="number" class="input-field" id="ws-pricing-overhead" placeholder="0.00" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="ws-field-group">
+                                    <label class="ws-label">Commission</label>
+                                    <div class="ws-input-addon">
+                                        <input type="number" class="input-field" id="ws-pricing-commission" placeholder="0.0" step="0.1">
+                                        <span class="ws-addon-suffix">%</span>
+                                    </div>
+                                </div>
+                                <div class="ws-formula-builder">
+                                    <label class="ws-label">Formula builder</label>
+                                    <div class="ws-token-chips">
+                                        <span class="ws-token">+ subtotal</span>
+                                        <span class="ws-token">+ VAT</span>
+                                        <span class="ws-token">+ fee</span>
+                                        <span class="ws-token">+ overhead</span>
+                                        <span class="ws-token">Multiply</span>
+                                        <span class="ws-token">Percent</span>
+                                    </div>
+                                    <div class="ws-formula-preview" id="ws-pricing-preview">((subtotal + overhead) * commission%) + VAT</div>
+                                </div>
+                                <p class="ws-pricing-note">Pricing controls are scaffolding only. No data is persisted.</p>
+                            </div>
+
+                            <!-- Models library -->
+                            <div class="ws-models ws-panel active" data-panel="models">
+                                <h4 class="ws-rail-title">Models library</h4>
+                                <input type="text" class="input-field" id="ws-models-search" placeholder="Search Models...">
+                                <div class="ws-models-list" id="ws-models-list"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- STEP 2: Components -->
-                <div class="comp-step comp-step-2 comp-step-locked" id="comp-step-2">
-                    <div class="comp-step-header">
-                        <span class="comp-step-number">2</span>
-                        <div class="comp-step-label">
-                            <h3>Components Inside</h3>
-                            <p>Add each part that goes into this product</p>
-                        </div>
-                    </div>
-                    <div class="comp-step-body">
-                        <table class="comp-table">
-                            <thead>
-                                <tr>
-                                    <th>Component EAN</th>
-                                    <th style="width:90px">Qty</th>
-                                    <th>Name</th>
-                                    <th style="width:36px"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="comp-rows">
-                                <tr><td colspan="4" class="comp-empty">Select a product above first</td></tr>
-                            </tbody>
-                        </table>
-                        <button id="comp-add-row-btn" class="btn btn-secondary btn-sm comp-add-btn">+ Add Component</button>
-                    </div>
-                </div>
-
-                <!-- STEP 3: Save -->
-                <div class="comp-step comp-step-3 comp-step-locked" id="comp-step-3">
-                    <div class="comp-step-header">
-                        <span class="comp-step-number">3</span>
-                        <div class="comp-step-label">
-                            <h3>Save Composition</h3>
-                            <p>Store this mapping so sales auto-deduct components</p>
-                        </div>
-                        <button id="comp-save-btn" class="btn btn-primary btn-sm">Save</button>
-                    </div>
-                </div>
-
-                <!-- Saved compositions list -->
-                <div class="comp-list-section" id="comp-list-section">
-                    <h3 class="comp-list-title">Saved Compositions</h3>
-                    <div id="comp-list" class="comp-list"></div>
                 </div>
             </section>
+
         </div>
     </main>
 
@@ -1475,11 +1496,10 @@
     <script src="part-manager.js?v=3"></script>
     <script src="bin-modal.js?v=1"></script>
     <script src="ui.js?v=1"></script>
-    <script src="batches.js?v=1"></script>
     <script src="history.js?v=1"></script>
     <script src="health.js?v=1"></script>
     <script src="auth.js?v=2"></script>
-    <script src="compositions.js?v=9"></script>
+    <script src="builds.js?v=1"></script>
     <script src="labels.js?v=6"></script>
     <script src="profit.js"></script>
     <script src="tenant.js"></script>

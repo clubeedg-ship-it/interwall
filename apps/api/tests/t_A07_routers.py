@@ -20,6 +20,12 @@ from auth import require_session
 # Override auth: always return a fake session
 app.dependency_overrides[require_session] = lambda: {"user_id": "test-user"}
 
+TAG = uuid.uuid4().hex[:8]
+
+
+def _name(name: str) -> str:
+    return f"TEST-A07-{TAG}-{name}"
+
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 
@@ -41,34 +47,73 @@ def client(init_pool):
 
 @pytest.fixture(autouse=True)
 def clean_db():
-    """Delete test-created rows after each test."""
-    yield
+    """Delete only rows created by this module after each test."""
+    created = {
+        "build_codes": set(),
+        "item_group_ids": set(),
+        "product_ids": set(),
+        "product_eans": set(),
+    }
+    yield created
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            # Order matters: FK dependencies
-            cur.execute(
-                "DELETE FROM external_item_xref WHERE build_code LIKE 'TEST-%'"
-            )
-            cur.execute(
-                """DELETE FROM build_components WHERE build_id IN (
-                       SELECT id FROM builds
-                       WHERE build_code LIKE 'TEST-%'
-                          OR (build_code LIKE 'BLD-%%' AND is_auto_generated = FALSE)
-                   )"""
-            )
-            cur.execute(
-                "DELETE FROM builds WHERE build_code LIKE 'TEST-%'"
-            )
-            cur.execute(
-                "DELETE FROM builds WHERE build_code LIKE 'BLD-%%' AND is_auto_generated = FALSE"
-            )
-            cur.execute(
-                """DELETE FROM item_group_members WHERE item_group_id IN (
-                       SELECT id FROM item_groups WHERE code LIKE 'test_%%'
-                   )"""
-            )
-            cur.execute("DELETE FROM item_groups WHERE code LIKE 'test_%%'")
-            cur.execute("DELETE FROM products WHERE ean LIKE 'TEST-%%'")
+            build_codes = sorted(created["build_codes"])
+            item_group_ids = sorted(created["item_group_ids"])
+            product_ids = sorted(created["product_ids"])
+            product_eans = sorted(created["product_eans"])
+
+            if build_codes:
+                cur.execute(
+                    """DELETE FROM stock_ledger_entries
+                       WHERE transaction_id IN (
+                           SELECT id FROM transactions WHERE build_code = ANY(%s)
+                       )""",
+                    (build_codes,),
+                )
+                cur.execute(
+                    "DELETE FROM transactions WHERE build_code = ANY(%s)",
+                    (build_codes,),
+                )
+                cur.execute(
+                    "DELETE FROM external_item_xref WHERE build_code = ANY(%s)",
+                    (build_codes,),
+                )
+                cur.execute(
+                    """DELETE FROM build_components
+                       WHERE build_id IN (
+                           SELECT id FROM builds WHERE build_code = ANY(%s)
+                       )""",
+                    (build_codes,),
+                )
+                cur.execute(
+                    "DELETE FROM builds WHERE build_code = ANY(%s)",
+                    (build_codes,),
+                )
+
+            if item_group_ids:
+                cur.execute(
+                    "DELETE FROM item_group_members WHERE item_group_id = ANY(%s::uuid[])",
+                    (item_group_ids,),
+                )
+                cur.execute(
+                    "DELETE FROM item_groups WHERE id = ANY(%s::uuid[])",
+                    (item_group_ids,),
+                )
+
+            if product_ids:
+                cur.execute(
+                    "DELETE FROM stock_lots WHERE product_id = ANY(%s::uuid[])",
+                    (product_ids,),
+                )
+                cur.execute(
+                    "DELETE FROM products WHERE id = ANY(%s::uuid[])",
+                    (product_ids,),
+                )
+            elif product_eans:
+                cur.execute(
+                    "DELETE FROM products WHERE ean = ANY(%s)",
+                    (product_eans,),
+                )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -93,12 +138,22 @@ def _create_test_group(cur, code: str, name: str) -> str:
     return str(cur.fetchone()["id"])
 
 
-def _seed_group_with_product(suffix: str = "") -> tuple[str, str]:
+def _seed_group_with_product(created: dict, suffix: str = "") -> tuple[str, str]:
     tag = uuid.uuid4().hex[:8]
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            pid = _create_test_product(cur, f"TEST-EAN-{tag}", f"Test Product {tag}")
-            gid = _create_test_group(cur, f"test_grp_{tag}{suffix}", f"Test Group {tag}")
+            ean = _name(f"EAN-{tag}")
+            pid = _create_test_product(cur, ean, f"Test Product {tag}")
+            gid = _create_test_group(cur, f"test_a07_grp_{TAG}_{tag}{suffix}", f"Test Group {tag}")
+            cur.execute(
+                """INSERT INTO item_group_members (item_group_id, product_id)
+                   VALUES (%s, %s)
+                   ON CONFLICT DO NOTHING""",
+                (gid, pid),
+            )
+    created["product_ids"].add(pid)
+    created["product_eans"].add(ean)
+    created["item_group_ids"].add(gid)
     return gid, pid
 
 
@@ -107,14 +162,16 @@ def _seed_group_with_product(suffix: str = "") -> tuple[str, str]:
 class TestCase1_ItemGroupsCRUD:
     """Case 1 — item_groups CRUD round-trip."""
 
-    def test_crud_round_trip(self, client):
+    def test_crud_round_trip(self, client, clean_db):
+        group_name = f"Test GPU Pool {TAG}"
         # CREATE
-        r = client.post("/api/item-groups", json={"name": "Test GPU Pool", "description": "RTX pool"})
+        r = client.post("/api/item-groups", json={"name": group_name, "description": "RTX pool"})
         assert r.status_code == 201, r.text
         data = r.json()
         gid = data["id"]
-        assert data["name"] == "Test GPU Pool"
-        assert data["code"] == "test_gpu_pool"
+        clean_db["item_group_ids"].add(gid)
+        assert data["name"] == group_name
+        assert data["code"] == f"test_gpu_pool_{TAG}"
 
         # LIST — group exists (may not be on page 1 due to alpha sort)
         r = client.get("/api/item-groups", params={"per_page": 200})
@@ -127,7 +184,7 @@ class TestCase1_ItemGroupsCRUD:
         # GET detail
         r = client.get(f"/api/item-groups/{gid}")
         assert r.status_code == 200
-        assert r.json()["name"] == "Test GPU Pool"
+        assert r.json()["name"] == group_name
         assert r.json()["members"] == []
 
         # PATCH
@@ -147,16 +204,18 @@ class TestCase1_ItemGroupsCRUD:
 class TestCase2_ItemGroupDeleteBlocked:
     """Case 2 — item_groups DELETE blocked by build_component reference."""
 
-    def test_delete_blocked_by_build_component(self, client):
-        gid, _ = _seed_group_with_product("_c2")
+    def test_delete_blocked_by_build_component(self, client, clean_db):
+        gid, _ = _seed_group_with_product(clean_db, "_c2")
+        build_code = _name("BLD-C2")
 
         # Create a build that references this group
         r = client.post("/api/builds", json={
-            "build_code": "TEST-BLD-C2",
+            "build_code": build_code,
             "description": "test build",
             "components": [{"item_group_id": gid, "quantity": 1}],
         })
         assert r.status_code == 201, r.text
+        clean_db["build_codes"].add(build_code)
 
         # DELETE should be blocked
         r = client.delete(f"/api/item-groups/{gid}")
@@ -167,14 +226,16 @@ class TestCase2_ItemGroupDeleteBlocked:
 class TestCase3_MembersAttachDetach:
     """Case 3 — item_group_members attach/detach with priority."""
 
-    def test_attach_detach_with_priority(self, client):
+    def test_attach_detach_with_priority(self, client, clean_db):
         tag = uuid.uuid4().hex[:6]
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                gid = _create_test_group(cur, f"test_mbr_{tag}", f"Member Group {tag}")
-                p1 = _create_test_product(cur, f"TEST-M1-{tag}", f"Prod M1 {tag}")
-                p2 = _create_test_product(cur, f"TEST-M2-{tag}", f"Prod M2 {tag}")
-                p3 = _create_test_product(cur, f"TEST-M3-{tag}", f"Prod M3 {tag}")
+                gid = _create_test_group(cur, f"test_a07_mbr_{TAG}_{tag}", f"Member Group {tag}")
+                p1 = _create_test_product(cur, _name(f"M1-{tag}"), f"Prod M1 {tag}")
+                p2 = _create_test_product(cur, _name(f"M2-{tag}"), f"Prod M2 {tag}")
+                p3 = _create_test_product(cur, _name(f"M3-{tag}"), f"Prod M3 {tag}")
+        clean_db["item_group_ids"].add(gid)
+        clean_db["product_ids"].update([p1, p2, p3])
 
         # Attach 3 products with priorities
         for pid, prio in [(p1, 10), (p2, 20), (p3, 30)]:
@@ -201,16 +262,18 @@ class TestCase3_MembersAttachDetach:
 class TestCase4_BuildsAutoAssign:
     """Case 4 — builds auto-assign BLD-NNN."""
 
-    def test_auto_assign_build_code(self, client):
+    def test_auto_assign_build_code(self, client, clean_db):
         import re
-        r1 = client.post("/api/builds", json={"description": "auto test 1"})
+        r1 = client.post("/api/builds", json={"description": _name("auto test 1")})
         assert r1.status_code == 201, r1.text
         code1 = r1.json()["build_code"]
+        clean_db["build_codes"].add(code1)
         assert re.match(r"^BLD-\d+$", code1), f"Expected BLD-NNN, got {code1}"
 
-        r2 = client.post("/api/builds", json={"description": "auto test 2"})
+        r2 = client.post("/api/builds", json={"description": _name("auto test 2")})
         assert r2.status_code == 201, r2.text
         code2 = r2.json()["build_code"]
+        clean_db["build_codes"].add(code2)
         assert re.match(r"^BLD-\d+$", code2)
         # Second should have a higher number
         n1 = int(code1.split("-")[1])
@@ -221,39 +284,43 @@ class TestCase4_BuildsAutoAssign:
 class TestCase5_BuildsPutFullReplace:
     """Case 5 — builds PUT full-replace atomic."""
 
-    def test_put_full_replace(self, client):
-        gid1, _ = _seed_group_with_product("_c5a")
-        gid2, _ = _seed_group_with_product("_c5b")
-        gid3, _ = _seed_group_with_product("_c5c")
+    def test_put_full_replace(self, client, clean_db):
+        gid1, _ = _seed_group_with_product(clean_db, "_c5a")
+        gid2, _ = _seed_group_with_product(clean_db, "_c5b")
+        _, pid4 = _seed_group_with_product(clean_db, "_c5d")
+        build_code = _name("REPLACE")
 
-        # Create build with 2 components
         r = client.post("/api/builds", json={
-            "build_code": "TEST-REPLACE",
+            "build_code": build_code,
             "components": [
-                {"item_group_id": gid1, "quantity": 1},
-                {"item_group_id": gid2, "quantity": 2},
+                {"source_type": "item_group", "item_group_id": gid1, "quantity": 1},
+                {"source_type": "item_group", "item_group_id": gid2, "quantity": 2},
             ],
         })
         assert r.status_code == 201
+        clean_db["build_codes"].add(build_code)
         assert len(r.json()["components"]) == 2
 
-        # PUT replace with 3 different components
-        r = client.put("/api/builds/TEST-REPLACE", json={
+        r = client.put(f"/api/builds/{build_code}", json={
             "components": [
-                {"item_group_id": gid1, "quantity": 3},
-                {"item_group_id": gid2, "quantity": 1},
-                {"item_group_id": gid3, "quantity": 5},
+                {"source_type": "item_group", "item_group_id": gid1, "quantity": 3},
+                {"source_type": "item_group", "item_group_id": gid2, "quantity": 1},
+                {"source_type": "product", "product_id": pid4, "quantity": 5},
             ],
         })
         assert r.status_code == 200
         assert len(r.json()["components"]) == 3
 
-        # GET confirms exactly 3
-        r = client.get("/api/builds/TEST-REPLACE")
+        r = client.get(f"/api/builds/{build_code}")
         assert r.status_code == 200
-        assert len(r.json()["components"]) == 3
-        quantities = sorted([c["quantity"] for c in r.json()["components"]])
+        components = r.json()["components"]
+        assert len(components) == 3
+        quantities = sorted([c["quantity"] for c in components])
         assert quantities == [1, 3, 5]
+        product_components = [c for c in components if c["source_type"] == "product"]
+        assert len(product_components) == 1
+        assert product_components[0]["product_id"] == pid4
+        assert product_components[0]["product_name"].startswith("Test Product")
 
 
 class TestCase6_AutoGeneratedProtection:
@@ -286,23 +353,27 @@ class TestCase6_AutoGeneratedProtection:
 class TestCase7_XrefResolveHappy:
     """Case 7 — external-xref resolve happy path."""
 
-    def test_resolve_happy(self, client):
+    def test_resolve_happy(self, client, clean_db):
+        build_code = _name("XREF-H")
+        marketplace = _name("mp")
+        external_sku = _name("sku")
         # Create a build for the xref
-        r = client.post("/api/builds", json={"build_code": "TEST-XREF-H", "description": "xref test"})
+        r = client.post("/api/builds", json={"build_code": build_code, "description": "xref test"})
         assert r.status_code == 201
+        clean_db["build_codes"].add(build_code)
 
         # Create xref
         r = client.post("/api/external-xref", json={
-            "marketplace": "test_mp",
-            "external_sku": "TST-SKU-001",
-            "build_code": "TEST-XREF-H",
+            "marketplace": marketplace,
+            "external_sku": external_sku,
+            "build_code": build_code,
         })
         assert r.status_code == 201
 
         # Resolve
-        r = client.get("/api/external-xref/resolve", params={"marketplace": "test_mp", "sku": "TST-SKU-001"})
+        r = client.get("/api/external-xref/resolve", params={"marketplace": marketplace, "sku": external_sku})
         assert r.status_code == 200
-        assert r.json()["build_code"] == "TEST-XREF-H"
+        assert r.json()["build_code"] == build_code
 
 
 class TestCase8_XrefResolveMissing:
@@ -319,28 +390,32 @@ class TestCase8_XrefResolveMissing:
 class TestCase9_XrefResolveInactiveBuild:
     """Case 9 — external-xref resolve against inactive build → 404 (D-033)."""
 
-    def test_resolve_inactive_build(self, client):
+    def test_resolve_inactive_build(self, client, clean_db):
+        build_code = _name("INACTIVE")
+        marketplace = _name("inactive-mp")
+        external_sku = _name("inactive-sku")
         # Create build
-        r = client.post("/api/builds", json={"build_code": "TEST-INACTIVE", "description": "will deactivate"})
+        r = client.post("/api/builds", json={"build_code": build_code, "description": "will deactivate"})
         assert r.status_code == 201
+        clean_db["build_codes"].add(build_code)
 
         # Create xref
         r = client.post("/api/external-xref", json={
-            "marketplace": "test_inactive_mp",
-            "external_sku": "TST-INACTIVE-001",
-            "build_code": "TEST-INACTIVE",
+            "marketplace": marketplace,
+            "external_sku": external_sku,
+            "build_code": build_code,
         })
         assert r.status_code == 201
 
         # Deactivate the build directly in DB
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("UPDATE builds SET is_active = FALSE WHERE build_code = 'TEST-INACTIVE'")
+                cur.execute("UPDATE builds SET is_active = FALSE WHERE build_code = %s", (build_code,))
 
         # Resolve → 404 because build is inactive
         r = client.get("/api/external-xref/resolve", params={
-            "marketplace": "test_inactive_mp",
-            "sku": "TST-INACTIVE-001",
+            "marketplace": marketplace,
+            "sku": external_sku,
         })
         assert r.status_code == 404
         assert "inactive" in r.json()["detail"].lower()

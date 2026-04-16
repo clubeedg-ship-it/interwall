@@ -1,0 +1,731 @@
+@import "tailwindcss";
+
+/*
+  Interwall design tokens — preserved from legacy style.css.
+  Deep teal accent, near-black body, floating glass orbs, LED pill signals.
+*/
+/*
+  Accent is a single deep teal — #005066 — lifted from legacy `frontend/style.css`.
+  The legacy loader has a one-off bright cyan; do not treat it as a brand color.
+*/
+@theme {
+  --color-bg: #121216;
+  --color-bg-elevated: #1a1a1f;
+  --color-bg-card: #222228;
+  --color-bg-overlay: rgba(10, 12, 16, 0.72);
+
+  --color-text: #ffffff;
+  --color-text-dim: #a0a0a8;
+  --color-text-muted: #606068;
+
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.15);
+  --color-glass: rgba(255, 255, 255, 0.035);
+  --color-glass-strong: rgba(255, 255, 255, 0.08);
+
+  --color-accent: #005066;
+  --color-accent-glow: rgba(0, 80, 102, 0.5);
+  --color-accent-border: rgba(0, 80, 102, 0.5);
+
+  --color-ok: #1b5e20;
+  --color-ok-ink: #81c784;
+  --color-warn: #e65100;
+  --color-warn-ink: #ffb74d;
+  --color-crit: #b71c1c;
+  --color-crit-ink: #ef9a9a;
+  --color-empty: #263238;
+  --color-empty-ink: #607d8b;
+
+  /* Neon pulse — lit inventory signals, meant to GLOW.
+     Separate layer from the muted text inks above. Used for health dots,
+     bin-tile halos, trend-line emphasis, and any live metric the operator
+     must notice at a glance. */
+  --color-pulse-healthy: #22e4a9;
+  --color-pulse-warning: #ffc857;
+  --color-pulse-critical: #ff5864;
+  --color-pulse-empty: #4a5260;
+  --color-pulse-healthy-glow: color-mix(in oklab, #22e4a9 60%, transparent);
+  --color-pulse-warning-glow: color-mix(in oklab, #ffc857 60%, transparent);
+  --color-pulse-critical-glow: color-mix(in oklab, #ff5864 70%, transparent);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Tight, squarish corners by default. Pills are the only fully-rounded shape. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-pill: 50px;
+}
+
+/* Light theme — runtime override of the CSS variables the dark set above defines. */
+[data-theme="light"] {
+  --color-bg: #f5f5f5;
+  --color-bg-elevated: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-overlay: rgba(245, 245, 245, 0.72);
+
+  --color-text: #121216;
+  --color-text-dim: #5a5a62;
+  --color-text-muted: #9090a0;
+
+  --color-line: rgba(0, 0, 0, 0.08);
+  --color-line-strong: rgba(0, 0, 0, 0.15);
+  --color-glass: rgba(0, 0, 0, 0.025);
+  --color-glass-strong: rgba(0, 0, 0, 0.06);
+
+  --color-ok-ink: #1b5e20;
+  --color-warn-ink: #a34100;
+  --color-crit-ink: #9a1a1a;
+  --color-empty-ink: #607d8b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Flat background in both themes — no ambient halo (reads as a bug on short pages). */
+:root,
+[data-theme="dark"] {
+  background: var(--color-bg);
+}
+
+[data-theme="light"] body {
+  background: var(--color-bg);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* -- Overlay enter animations --------------------------------------------- */
+/* Drawer (right-side sidebars): slide in + blur-warp the backdrop. */
+@keyframes drawer-slide-in {
+  0% {
+    transform: translateX(100%);
+    opacity: 0.4;
+    filter: blur(6px);
+  }
+  60% { filter: blur(1px); }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.anim-drawer-in {
+  animation: drawer-slide-in 320ms cubic-bezier(0.22, 0.8, 0.26, 1) both;
+  will-change: transform, filter, opacity;
+}
+
+@keyframes backdrop-warp-in {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+.anim-backdrop-in {
+  animation: backdrop-warp-in 320ms cubic-bezier(0.22, 0.8, 0.26, 1) both;
+}
+
+/* Popovers (settings / zone wizard / manage zones): gentle pop. */
+@keyframes popover-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.anim-popover-in {
+  animation: popover-pop-in 220ms cubic-bezier(0.22, 0.8, 0.26, 1) both;
+  transform-origin: top right;
+  will-change: transform, opacity, filter;
+}
+
+/* Inline fade+slide — for sections that appear within a page without being
+   a full overlay (e.g. Catalog row expansion, inline error chips). */
+@keyframes fade-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-fade-slide-in {
+  animation: fade-slide-in 220ms cubic-bezier(0.22, 0.8, 0.26, 1) both;
+}
+
+/* Centered modal: soft blur-scale in, transform-origin center. */
+@keyframes modal-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(6px);
+  }
+  60% { filter: blur(1px); }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.anim-modal-in {
+  animation: modal-pop-in 260ms cubic-bezier(0.22, 0.8, 0.26, 1) both;
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+}
+
+/* -- Legacy-parity primitives --------------------------------------------- */
+
+/* Glass orb (sidebar nav) */
+.orb {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  position: relative;
+  border: none;
+  background: var(--color-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 50%;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 300ms ease,
+    color 200ms ease;
+}
+.orb:hover {
+  color: var(--color-accent);
+  transform: scale(1.12);
+  box-shadow:
+    0 0 30px var(--color-accent-glow),
+    0 0 60px rgba(0, 80, 102, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+.orb.is-active {
+  color: var(--color-accent);
+  background: rgba(0, 80, 102, 0.18);
+  box-shadow:
+    0 0 25px var(--color-accent-glow),
+    inset 0 0 15px rgba(0, 80, 102, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+.orb::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-8px);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-line);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 200ms ease;
+  pointer-events: none;
+}
+.orb:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+/* Attention-grabbing count badge anchored top-right of an orb.
+   Used today by the Builds orb to surface pending drafts. */
+.orb-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-pulse-warning);
+  color: #0a0d13;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 10px var(--color-pulse-warning-glow);
+  pointer-events: none;
+}
+
+/* Header pill module */
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--color-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 50px;
+  padding: 8px 24px;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Status pill — flat coloured badge, no glow */
+.led {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 6px 12px;
+  line-height: 1;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.led-ok {
+  background: rgba(129, 199, 132, 0.12);
+  color: var(--color-ok-ink);
+  border-color: rgba(129, 199, 132, 0.32);
+}
+.led-miss {
+  background: rgba(239, 154, 154, 0.1);
+  color: var(--color-crit-ink);
+  border-color: rgba(239, 154, 154, 0.3);
+}
+.led-auto {
+  background: rgba(96, 125, 139, 0.14);
+  color: var(--color-empty-ink);
+  border-color: rgba(96, 125, 139, 0.26);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.led-accent {
+  background: rgba(0, 80, 102, 0.2);
+  color: var(--color-accent);
+  border-color: rgba(0, 80, 102, 0.42);
+}
+
+/*
+  Row card — mirrors legacy `.part-card` exactly:
+  glass background, 1px hairline border, 3px solid accent stripe as left border,
+  lift + accent glow on hover.
+*/
+.row-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 20px;
+  background: var(--color-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+}
+.row-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 32px rgba(0, 0, 0, 0.32),
+    0 0 22px var(--color-accent-glow);
+}
+.row-card.is-active {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 26px rgba(0, 0, 0, 0.3),
+    0 0 22px var(--color-accent-glow);
+}
+
+/* Secondary button — legacy btn-secondary feel */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-dim);
+  background: var(--color-glass);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+.btn-secondary:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+  background: rgba(0, 80, 102, 0.12);
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 180ms ease;
+  box-shadow: 0 0 18px rgba(0, 80, 102, 0.35);
+}
+.btn-primary:hover {
+  background: #00637f;
+  box-shadow: 0 0 24px rgba(0, 80, 102, 0.55);
+}
+
+/* -- Wall rack --------------------------------------------------------------
+   The wall renders each zone as a rack silhouette seen head-on.
+   - Vertical side rails (metal uprights) at the zone edges.
+   - Horizontal shelf lines between levels.
+   - Each bay holds stock as a rising teal "volume" fill proportional to qty/capacity.
+   - Empty bays are nearly invisible — the shelf is there, nothing on it.
+   - Split bins (A/B) sit as twin slots inside one bay. */
+
+/* Rack frame — no overlay container. The page IS the rack; zones are
+   delineated by their header + column labels + whitespace, nothing else. */
+.rack {
+  position: relative;
+}
+
+.rack-grid {
+  display: grid;
+  column-gap: 2px;
+  row-gap: 0;
+}
+
+.rack-col-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 0 0 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+[data-theme="light"] .rack-col-label {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+/* Per-column density tick — a thin teal bar under the column label, width ∝ column fill */
+.rack-col-density {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  border-radius: 1px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+[data-theme="light"] .rack-col-density {
+  background: rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+.rack-col-density > span {
+  display: block;
+  height: 100%;
+  background-color: #005066;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.rack-level-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+  text-align: right;
+  padding-right: 10px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+[data-theme="light"] .rack-level-label {
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+.rack-level-label.is-floor { border-bottom-color: transparent; }
+
+/* A grid cell — one (col, level) bay in the rack. Holds 1 unit (solid) or 2 (A/B). */
+.rack-cell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 64px;
+  gap: 1px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+[data-theme="light"] .rack-cell {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+.rack-cell.is-floor {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+[data-theme="light"] .rack-cell.is-floor {
+  border-bottom-color: rgba(0, 0, 0, 0.14);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* One stock unit — either a full-width solid bay, or half of an A/B split bay. */
+.rack-unit {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.rack-unit:hover {
+  background: transparent;
+}
+[data-theme="light"] .rack-unit:hover {
+  background: transparent;
+}
+.rack-unit.is-half + .rack-unit.is-half {
+  border-left: 1px dashed rgba(255, 255, 255, 0.05);
+}
+[data-theme="light"] .rack-unit.is-half + .rack-unit.is-half {
+  border-left-color: rgba(0, 0, 0, 0.07);
+}
+/* No shelf at this (col, level) — render as phantom rack space */
+.rack-unit.is-phantom {
+  cursor: default;
+  opacity: 0.22;
+}
+.rack-unit.is-phantom:hover { background: transparent; }
+
+/* Frosted Slab — opaque tinted body + interior top-left light source.
+   The base is mixed into near-black (#0a0d13) so the pulse token never
+   alpha-blends into the app's blue-black bg (that was the old failure mode:
+   tint diluted by the parent). The radial glow on top uses the -glow
+   companion and is what gives the tile its "lit from within" quality.
+   Edgeless: no border stroke on the fill; separation is the 3px inset +
+   grid gutter. */
+.rack-unit .rack-fill {
+  position: absolute;
+  inset: 3px;
+  border-radius: 5px;
+  background: #0c1117;
+  border: 0;
+  pointer-events: none;
+  transition: background 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+
+.rack-unit.tone-healthy .rack-fill {
+  background:
+    radial-gradient(
+      135% 140% at 14% 8%,
+      color-mix(in oklab, var(--color-pulse-healthy-glow) 85%, transparent) 0%,
+      color-mix(in oklab, var(--color-pulse-healthy-glow) 25%, transparent) 45%,
+      transparent 72%
+    ),
+    color-mix(in oklab, var(--color-pulse-healthy) 36%, #0a0d13);
+}
+.rack-unit.tone-warning .rack-fill {
+  background:
+    radial-gradient(
+      135% 140% at 14% 8%,
+      color-mix(in oklab, var(--color-pulse-warning-glow) 90%, transparent) 0%,
+      color-mix(in oklab, var(--color-pulse-warning-glow) 28%, transparent) 45%,
+      transparent 72%
+    ),
+    color-mix(in oklab, var(--color-pulse-warning) 38%, #0a0d13);
+}
+.rack-unit.tone-critical .rack-fill {
+  background:
+    radial-gradient(
+      135% 140% at 14% 8%,
+      color-mix(in oklab, var(--color-pulse-critical-glow) 95%, transparent) 0%,
+      color-mix(in oklab, var(--color-pulse-critical-glow) 30%, transparent) 45%,
+      transparent 72%
+    ),
+    color-mix(in oklab, var(--color-pulse-critical) 40%, #0a0d13);
+}
+
+/* Per-tone hover lift + drop shadow tinted by tier.
+   Shadow sits under the fill (on the unit), so it reads as the slab lifting
+   off the rack. */
+.rack-unit.tone-healthy  { --tile-lift-shadow: color-mix(in oklab, var(--color-pulse-healthy) 45%, transparent); }
+.rack-unit.tone-warning  { --tile-lift-shadow: color-mix(in oklab, var(--color-pulse-warning) 48%, transparent); }
+.rack-unit.tone-critical { --tile-lift-shadow: color-mix(in oklab, var(--color-pulse-critical) 50%, transparent); }
+
+.rack-unit:hover .rack-fill {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 18px var(--tile-lift-shadow, rgba(0, 0, 0, 0.35));
+}
+
+[data-theme="light"] .rack-unit .rack-fill {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(248, 248, 250, 0.88) 100%
+  );
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] .rack-unit.tone-healthy .rack-fill {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 100, 130, 0.14) 0%,
+    rgba(0, 80, 102, 0.08) 100%
+  );
+  border-color: rgba(0, 80, 102, 0.28);
+  border-top-color: rgba(0, 80, 102, 0.16);
+}
+[data-theme="light"] .rack-unit.tone-warning .rack-fill {
+  background: linear-gradient(
+    180deg,
+    rgba(240, 120, 0, 0.14) 0%,
+    rgba(210, 85, 0, 0.09) 100%
+  );
+  border-color: rgba(230, 100, 0, 0.32);
+  border-top-color: rgba(230, 100, 0, 0.18);
+}
+[data-theme="light"] .rack-unit.tone-critical .rack-fill {
+  background: linear-gradient(
+    180deg,
+    rgba(200, 40, 40, 0.14) 0%,
+    rgba(170, 20, 20, 0.09) 100%
+  );
+  border-color: rgba(183, 28, 28, 0.35);
+  border-top-color: rgba(183, 28, 28, 0.2);
+}
+
+.rack-unit .rack-qty {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.02em;
+}
+[data-theme="light"] .rack-unit .rack-qty {
+  text-shadow: none;
+}
+.rack-unit.is-empty .rack-qty { display: none; }
+.rack-unit.is-empty::after {
+  /* a faint floor speck for empty bays */
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  opacity: 0.2;
+}
+
+/* A / B corner marks — tiny, low emphasis */
+.rack-unit.is-half::before {
+  content: attr(data-bin);
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.rack-unit.is-half.bin-b::before {
+  left: auto;
+  right: 4px;
+}
+
+.rack-unit.is-active {
+  z-index: 2;
+  background: transparent;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1.5px var(--color-accent),
+    0 0 24px var(--color-accent-glow);
+  animation: rack-pulse 1.3s ease-in-out;
+}
+.rack-unit.is-active .rack-fill {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 8px 22px var(--tile-lift-shadow, rgba(0, 80, 102, 0.4));
+}
+@keyframes rack-pulse {
+  0%, 100% { box-shadow: 0 0 0 1.5px var(--color-accent), 0 0 24px var(--color-accent-glow); }
+  50%      { box-shadow: 0 0 0 1.5px var(--color-accent), 0 0 38px rgba(0, 140, 180, 0.55); }
+}

@@ -34,6 +34,8 @@ Status transition table:
 import logging
 
 from db import get_conn
+from email_poller.parsers import get_parser_for_marketplace
+from email_poller.sale_writer import DraftBuildPendingError
 from poller.bol_poller import _resolve_build_code, MARKETPLACE as _BOL_MARKETPLACE
 
 logger = logging.getLogger(__name__)
@@ -48,7 +50,18 @@ WORKER_BATCH_SIZE = 25
 _TRUNC = 500  # max chars for error_message / dead_letter_reason
 
 
-def _reprocess_bolcom(event_row: dict) -> str:
+def _is_stock_blocker_message(message: str) -> bool:
+    message = (message or "").lower()
+    return (
+        "insufficient stock" in message
+        and (
+            "deduct_fifo_for_group" in message
+            or "deduct_fifo_for_product" in message
+        )
+    )
+
+
+def _reprocess_bolcom(event_row: dict, conn) -> str:
     """
     Reprocess a bolcom_api ingestion event.
 
@@ -75,24 +88,23 @@ def _reprocess_bolcom(event_row: dict) -> str:
     event_id_str = str(event_row["id"])
     order_ref = event_row.get("external_id")  # matches poller convention
 
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s) AS txn_id",
-                (
-                    build_code,
-                    quantity,
-                    sale_price,
-                    _BOL_MARKETPLACE,
-                    order_ref,
-                    event_id_str,
-                    commission,
-                ),
-            )
-            return str(cur.fetchone()["txn_id"])
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT process_bom_sale(%s, %s, %s, %s, %s, %s, %s) AS txn_id",
+            (
+                build_code,
+                quantity,
+                sale_price,
+                _BOL_MARKETPLACE,
+                order_ref,
+                event_id_str,
+                commission,
+            ),
+        )
+        return str(cur.fetchone()["txn_id"])
 
 
-def _reprocess_email(event_row: dict) -> str:
+def _reprocess_email(event_row: dict, conn) -> str:
     """
     Reprocess an email ingestion event.
 
@@ -115,15 +127,44 @@ def _reprocess_email(event_row: dict) -> str:
 
     order = _Order()
     order.sku = (pd.get("sku") or "")
-    order.generated_sku = order.sku
+    order.generated_sku = pd.get("generated_sku") or order.sku
+    order.product_description = pd.get("product_description") or ""
     order.marketplace = marketplace
     order.order_number = pd.get("order_number", "")
     order.price = float(pd.get("price") or 0)
     order.quantity = int(pd.get("quantity") or 1)
-    order.raw_email_body = ""
+    order.raw_email_body = event_row.get("raw_body") or ""
     order.get_sku = lambda: order.sku  # write_sale calls order.get_sku()
 
-    return write_sale(order, event_id_str)
+    parser = get_parser_for_marketplace(marketplace)
+    should_reparse = (
+        order.raw_email_body
+        and parser is not None
+        and (
+            not order.product_description
+            or not order.generated_sku
+            or not order.sku
+            or order.sku.startswith("OMX-")
+        )
+    )
+    if should_reparse:
+        reparsed = parser.parse(
+            {
+                "from": event_row.get("sender", ""),
+                "subject": event_row.get("subject", ""),
+                "body": order.raw_email_body,
+            }
+        )
+        if reparsed is not None:
+            order.sku = reparsed.sku or order.sku
+            order.generated_sku = reparsed.generated_sku or order.generated_sku
+            order.product_description = (
+                reparsed.product_description or order.product_description
+            )
+            order.price = float(pd.get("price") or reparsed.price or 0)
+            order.quantity = int(pd.get("quantity") or reparsed.quantity or 1)
+
+    return write_sale(order, event_id_str, conn=conn)
 
 
 # Dispatch table — maps source → reprocess callable.
@@ -181,6 +222,25 @@ def _mark_failure(event_id: str, current_retry_count: int, exc: Exception) -> No
             )
 
 
+def _mark_review(event_id: str, detail: str) -> None:
+    """Update event to review state for operator follow-up."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE ingestion_events
+                           SET status             = 'review',
+                               error_message      = %s,
+                               dead_letter_reason = NULL
+                         WHERE id = %s""",
+                    (detail[:_TRUNC], event_id),
+                )
+    except Exception as update_err:
+        logger.error(
+            "Worker: failed to mark event %s review: %s", event_id, update_err
+        )
+
+
 def _process_one_event(event_id: str) -> None:
     """
     Process one ingestion event in its own transaction.
@@ -196,7 +256,7 @@ def _process_one_event(event_id: str) -> None:
             with conn_outer.cursor() as cur:
                 cur.execute(
                     """SELECT id, source, marketplace, external_id,
-                              parsed_data, retry_count
+                              sender, subject, raw_body, parsed_data, retry_count
                          FROM ingestion_events
                         WHERE id = %s
                           AND status IN ('pending', 'failed')
@@ -226,8 +286,9 @@ def _process_one_event(event_id: str) -> None:
                     )
                     return  # conn_outer commits on context-manager exit
 
-                # Reprocessor opens its own DB connection(s) — D-022
-                SOURCE_HANDLERS[source](event_data)
+                # Reprocessor runs inside the same transaction so the event-row
+                # FK on transactions.source_email_id does not self-block.
+                SOURCE_HANDLERS[source](event_data, conn_outer)
 
                 # Success
                 cur.execute(
@@ -243,6 +304,25 @@ def _process_one_event(event_id: str) -> None:
         if event_data is None:
             # Failed before loading event (DB connectivity issue, not a retry)
             logger.error("Worker: failed to load event %s: %s", event_id, exc)
+            return
+        if isinstance(exc, DraftBuildPendingError):
+            logger.warning(
+                "Worker: event %s (%s) moved to review — %s",
+                event_id, event_data.get("source", "?"), exc,
+            )
+            _mark_review(event_id, str(exc))
+            return
+        if (
+            event_data.get("source") == "email"
+            and _is_stock_blocker_message(str(exc))
+        ):
+            logger.warning(
+                "Worker: event %s (%s) moved to review for stock blocker — %s",
+                event_id,
+                event_data.get("source", "?"),
+                exc,
+            )
+            _mark_review(event_id, str(exc))
             return
         logger.warning(
             "Worker: event %s (%s) failed — %s: %s",

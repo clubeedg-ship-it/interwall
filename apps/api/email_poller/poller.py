@@ -189,8 +189,14 @@ def _process_one(email_data: dict):
             "body": order.raw_email_body,
         },
         order.marketplace,
-        {"order_number": order.order_number, "sku": order.get_sku(),
-         "price": order.price, "quantity": order.quantity},
+        {
+            "order_number": order.order_number,
+            "sku": order.sku,
+            "generated_sku": order.generated_sku,
+            "product_description": order.product_description,
+            "price": order.price,
+            "quantity": order.quantity,
+        },
         "pending",
     )
 

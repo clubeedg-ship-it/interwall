@@ -1,9 +1,14 @@
 # Interwall — TODO
 
+> Sequencing reference. Do not read this first in a cold start.
+> Start with `.project/SESSION.md`, `.project/WORKSTREAMS.md`, and `.project/RETRIEVAL.md`.
+> Use this file only for queue status, dependency order, or deciding the next bounded task.
+
 **Conventions:**
 - `T-AXX` = Stream A (Backend rework) tasks
 - `T-BXX` = Stream B (Marketplace ingestion) tasks
 - `T-CXX` = Stream C (UI rebuild) tasks
+- `T-DXX` = Backend deployment / reliability-hardening tasks
 - `T-XXX` = Cross-cutting / prerequisite tasks
 - Status values: `TODO` → `DOING` → `BLOCKED` → `DONE` → `PARKED`
 - Refs like `(D-013)` point to entries in `DECISIONS.md`
@@ -69,6 +74,102 @@ Next: **Resolve the remaining preserved branch-truth artifact**.
 so it needs a refresh rather than an as-is landing. After that, move
 into Playwright-backed E2E/browser truthing for cross-page numeric
 coherence before any deployment-readiness signoff.
+
+## Backend deployment phases
+
+### `T-D01` — Pytest harness hardening (DONE 2026-04-16)
+- Make backend router/integration tests trustworthy as a combined
+  deployment gate.
+- Scope:
+  - disable APScheduler jobs during pytest `TestClient(app)` lifespan
+  - make the current `main`-importing endpoint tests pass in one pytest
+    process
+  - stop per-file ad hoc runtime-SQL self-healing where production
+    startup should be the canonical source
+- Acceptance:
+  - one combined pytest command for current API endpoint/integration
+    files runs without `ConflictingIdError`
+  - `t_A07_routers.py` and `t_A09_health_router.py` pass together
+  - current endpoint suite passes together:
+    - `t_A07_routers.py`
+    - `t_A09_health_router.py`
+    - `t_C01_profit_immutability.py`
+    - `t_C02c_handshake_endpoints.py`
+    - `t_C03_zones_endpoints.py`
+    - `t_C06_batches_endpoints.py`
+    - `t_shelves_occupancy.py`
+    - `t_shelves_capacity_patch.py`
+    - `t_shelves_settings_patch.py`
+- deps: none
+
+### `T-D02` — Production ops contract hardening (DONE 2026-04-16)
+- Remove unsafe secret/default behavior and make runtime fail fast when
+  production config is incomplete or unsafe.
+- Scope:
+  - remove production-secret fallbacks from Compose/runtime
+  - enforce production-safe cookie settings
+  - stop checked-in deploy/setup scripts from behaving like wipe-and-seed flows
+  - add `api` and `nginx` healthchecks tied to the real runtime
+- Acceptance:
+  - no production-looking default secrets in repo scripts or Compose
+  - production startup fails clearly on missing required env vars
+  - `api` and `nginx` have healthchecks; `api` uses `/api/health/ping`
+- deps: `T-D01`
+
+### `T-D03` — Deploy / rollback / backup runbook (DONE 2026-04-16)
+- Produce the serious-deployment operating contract for this backend.
+- Scope:
+  - exact deploy sequence
+  - exact smoke checks
+  - exact rollback decision path
+  - exact backup and restore commands
+  - isolated backup/restore rehearsal against a throwaway Postgres instance
+- Acceptance:
+  - runbook lives in repo and matches this Compose stack
+  - one full backup/restore rehearsal succeeds against the current stack
+  - after rehearsal restore, backend smoke queries match source counts for
+    core tables and restored critical runtime objects exist before API startup
+- deps: `T-D02`
+
+### `T-D04` — Live ingestion overlap proof (TODO)
+- Replace the synthetic local Bol.com reliability artifact with a real
+  production-like overlap window.
+- Scope:
+  - run Bol.com API polling alongside the retired email path for a real window
+  - measure missed orders, timing drift, and field mismatches
+  - decide whether emergency email fallback remains necessary
+- Acceptance:
+  - a live reliability report exists
+  - the report is strong enough to treat `T-B03` as production-complete
+- deps: `T-D01`, `T-D02`, `T-D03`
+
+### `T-D05` — Migration-exit sale routing audit (DONE 2026-04-16)
+- Close the remaining caveat around migration compatibility.
+- Scope:
+  - enumerate every sale-ingestion write path
+  - prove all new sales route through `process_bom_sale()`
+  - decide the exact retirement policy for legacy `process_sale()`
+- Acceptance:
+  - every production sale path is documented and tested
+  - remaining legacy fallback is either removed or explicitly time-bounded
+- Delivered:
+  - `.project/T-D05-SALE-ROUTING-AUDIT.md`
+  - `apps/api/tests/t_D05_sale_routing_audit.py`
+  - `D-105` superseding `D-024`
+- deps: `T-D04`
+
+### `T-D06` — Production soak and release signoff (TODO)
+- Final backend readiness gate before calling the deployment serious and caveat-free.
+- Scope:
+  - 7-day deploy/runbook/stability check
+  - 14-day ingestion/dead-letter/invariant review
+  - 30-day AVL-FIFO correctness soak aligned with PLAN success criteria
+- Acceptance:
+  - no unexplained ledger gaps
+  - no unresolved dead-letter growth
+  - no rollback-class incidents from deploy or config drift
+  - a real release has been executed via this runbook and rollback remains rehearsed
+- deps: `T-D03`, `T-D04`, `T-D05`
 
 ---
 

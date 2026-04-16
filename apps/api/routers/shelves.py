@@ -23,6 +23,18 @@ class ShelfPatch(BaseModel):
         return v
 
 
+def _active_stock_on_shelf(cur, shelf_id: str) -> bool:
+    cur.execute(
+        """SELECT 1
+           FROM stock_lots
+           WHERE shelf_id = %s
+             AND quantity > 0
+           LIMIT 1""",
+        (shelf_id,),
+    )
+    return cur.fetchone() is not None
+
+
 @router.get("")
 def list_shelves(session=Depends(require_session)):
     """Return all shelves with zone name, sorted naturally."""
@@ -65,7 +77,7 @@ def shelf_occupancy(session=Depends(require_session)):
 @router.patch("/{shelf_id}")
 def patch_shelf(shelf_id: UUID, body: ShelfPatch, session=Depends(require_session)):
     """Update per-shelf settings (capacity, split_fifo, single_bin)."""
-    updates = body.model_dump(exclude_none=True)
+    updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(422, "at least one field required")
 
@@ -94,3 +106,20 @@ def patch_shelf(shelf_id: UUID, body: ShelfPatch, session=Depends(require_sessio
         "split_fifo": row["split_fifo"],
         "single_bin": row["single_bin"],
     }
+
+
+@router.delete("/{shelf_id}")
+def delete_shelf(shelf_id: UUID, session=Depends(require_session)):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM shelves WHERE id = %s FOR UPDATE",
+                (str(shelf_id),),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise HTTPException(404, "shelf not found")
+            if _active_stock_on_shelf(cur, str(shelf_id)):
+                raise HTTPException(409, "shelf has stock; drain first")
+            cur.execute("DELETE FROM shelves WHERE id = %s", (str(shelf_id),))
+    return {"ok": True}

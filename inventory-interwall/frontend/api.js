@@ -428,6 +428,93 @@ const api = {
 
     async getHealthIngestionDeadLetter() {
         return this.request('/api/health/ingestion/dead-letter');
+    },
+
+    // =========================================================================
+    // Builds (T-C08)
+    // =========================================================================
+
+    async listBuilds(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.page) qs.set('page', String(params.page));
+        if (params.per_page) qs.set('per_page', String(params.per_page));
+        if (params.include_auto) qs.set('include_auto', 'true');
+        const q = qs.toString();
+        return this.request(`/api/builds${q ? `?${q}` : ''}`);
+    },
+
+    async getBuild(buildCode) {
+        return this.request(`/api/builds/${encodeURIComponent(buildCode)}`);
+    },
+
+    async createBuild(data) {
+        return this.request('/api/builds', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async replaceComponents(buildCode, data) {
+        return this.request(`/api/builds/${encodeURIComponent(buildCode)}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async patchBuild(buildCode, data) {
+        return this.request(`/api/builds/${encodeURIComponent(buildCode)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteBuild(buildCode) {
+        return this.request(`/api/builds/${encodeURIComponent(buildCode)}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // =========================================================================
+    // Item Groups / Models (T-C08)
+    // =========================================================================
+
+    async listItemGroups(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.page) qs.set('page', String(params.page));
+        if (params.per_page) qs.set('per_page', String(params.per_page));
+        const q = qs.toString();
+        return this.request(`/api/item-groups${q ? `?${q}` : ''}`);
+    },
+
+    async getItemGroup(groupId) {
+        return this.request(`/api/item-groups/${encodeURIComponent(groupId)}`);
+    },
+
+    // =========================================================================
+    // External Xref / SKU Mapping (T-C08)
+    // =========================================================================
+
+    async listExternalXrefs(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.marketplace) qs.set('marketplace', params.marketplace);
+        if (params.build_code) qs.set('build_code', params.build_code);
+        if (params.page) qs.set('page', String(params.page));
+        if (params.per_page) qs.set('per_page', String(params.per_page));
+        const q = qs.toString();
+        return this.request(`/api/external-xref${q ? `?${q}` : ''}`);
+    },
+
+    async createExternalXref(data) {
+        return this.request('/api/external-xref', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteExternalXref(xrefId) {
+        return this.request(`/api/external-xref/${encodeURIComponent(xrefId)}`, {
+            method: 'DELETE',
+        });
     }
 };
 

@@ -18,6 +18,8 @@ from db import get_conn
 
 router = APIRouter(prefix="/api/external-xref", tags=["external-xref"])
 
+DRAFT_MARKER = "[DRAFT-UNRESOLVED-SKU]"
+
 
 class XrefCreate(BaseModel):
     marketplace: str
@@ -67,30 +69,76 @@ def list_xrefs(
 
 @router.post("", status_code=201)
 def create_xref(body: XrefCreate, session=Depends(require_session)):
+    """Create a (marketplace, external_sku) → build_code mapping.
+
+    Upsert with draft cleanup: if the (marketplace, external_sku) pair already
+    points at a draft Build (inactive + draft marker + zero components),
+    that draft and its xref are atomically displaced and the mapping is
+    repointed at body.build_code. If the existing mapping points at a
+    non-draft Build, returns 409.
+    """
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Verify build exists
+            # Verify target build exists
             cur.execute(
                 "SELECT id FROM builds WHERE build_code = %s",
                 (body.build_code,),
             )
             if cur.fetchone() is None:
                 raise HTTPException(status_code=404, detail=f"Build '{body.build_code}' not found")
-            try:
-                cur.execute(
-                    """INSERT INTO external_item_xref (marketplace, external_sku, build_code)
-                       VALUES (%s, %s, %s)
-                       RETURNING id, marketplace, external_sku, build_code, created_at""",
-                    (body.marketplace, body.external_sku, body.build_code),
+
+            cur.execute(
+                """SELECT x.id AS xref_id, x.build_code AS existing_code,
+                          b.id AS existing_build_id, b.is_active, b.is_auto_generated,
+                          b.description,
+                          (SELECT COUNT(*) FROM build_components bc
+                            WHERE bc.build_id = b.id) AS component_count
+                     FROM external_item_xref x
+                     JOIN builds b ON b.build_code = x.build_code
+                    WHERE x.marketplace = %s AND x.external_sku = %s
+                    FOR UPDATE""",
+                (body.marketplace, body.external_sku),
+            )
+            existing = cur.fetchone()
+
+            if existing and existing["existing_code"] != body.build_code:
+                is_draft = (
+                    existing["is_active"] is False
+                    and existing["is_auto_generated"] is False
+                    and existing["component_count"] == 0
+                    and (existing["description"] or "").startswith(DRAFT_MARKER)
                 )
-                row = cur.fetchone()
-            except Exception as e:
-                if "unique" in str(e).lower():
+                if not is_draft:
                     raise HTTPException(
                         status_code=409,
-                        detail=f"Mapping already exists for ({body.marketplace}, {body.external_sku})",
+                        detail=(
+                            f"Mapping already exists for ({body.marketplace}, "
+                            f"{body.external_sku}) → {existing['existing_code']}"
+                        ),
                     )
-                raise
+                cur.execute(
+                    "DELETE FROM external_item_xref WHERE id = %s",
+                    (existing["xref_id"],),
+                )
+                cur.execute(
+                    "DELETE FROM builds WHERE id = %s",
+                    (existing["existing_build_id"],),
+                )
+            elif existing and existing["existing_code"] == body.build_code:
+                cur.execute(
+                    """SELECT id, marketplace, external_sku, build_code, created_at
+                         FROM external_item_xref WHERE id = %s""",
+                    (existing["xref_id"],),
+                )
+                return dict(cur.fetchone())
+
+            cur.execute(
+                """INSERT INTO external_item_xref (marketplace, external_sku, build_code)
+                   VALUES (%s, %s, %s)
+                   RETURNING id, marketplace, external_sku, build_code, created_at""",
+                (body.marketplace, body.external_sku, body.build_code),
+            )
+            row = cur.fetchone()
     return dict(row)
 
 

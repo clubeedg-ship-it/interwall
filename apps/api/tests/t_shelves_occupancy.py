@@ -42,6 +42,8 @@ def client(init_pool):
 @pytest.fixture(scope="session")
 def seed_data(init_pool):
     """Create a zone, shelf, product, and stock_lot for testing."""
+    tag = uuid.uuid4().hex[:8]
+    zone_name = f"{TEST_PREFIX}-{tag}"
     zone_id = str(uuid.uuid4())
     shelf_id = str(uuid.uuid4())
     product_id = str(uuid.uuid4())
@@ -49,16 +51,6 @@ def seed_data(init_pool):
 
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            # Apply migration if view doesn't exist yet
-            cur.execute(
-                "SELECT 1 FROM pg_views WHERE viewname = 'v_shelf_occupancy'"
-            )
-            if not cur.fetchone():
-                with open("/app/sql/14_v_shelf_occupancy.sql") as f:
-                    conn.rollback()
-                    cur.execute(f.read())
-                    conn.commit()
-
             # Get existing warehouse for FK
             cur.execute("SELECT id FROM warehouses LIMIT 1")
             wh_row = cur.fetchone()
@@ -67,20 +59,19 @@ def seed_data(init_pool):
 
             cur.execute(
                 """INSERT INTO zones (id, warehouse_id, name, columns, levels, is_active)
-                   VALUES (%s, %s, %s, 2, 3, TRUE)
-                   ON CONFLICT DO NOTHING""",
-                (zone_id, wh_id, TEST_PREFIX),
+                   VALUES (%s, %s, %s, 2, 3, TRUE)""",
+                (zone_id, wh_id, zone_name),
             )
             cur.execute(
                 """INSERT INTO shelves (id, zone_id, col, level, label, bin)
                    VALUES (%s, %s, 1, 1, %s, 'A')""",
-                (shelf_id, zone_id, f"{TEST_PREFIX}-01-1-A"),
+                (shelf_id, zone_id, f"{zone_name}-01-1-A"),
             )
             cur.execute(
                 """INSERT INTO products (id, ean, name)
                    VALUES (%s, %s, %s)
                    ON CONFLICT DO NOTHING""",
-                (product_id, f"999{TEST_PREFIX}", f"Test Product {TEST_PREFIX}"),
+                (product_id, f"999{zone_name}", f"Test Product {zone_name}"),
             )
             cur.execute(
                 """INSERT INTO stock_lots (id, product_id, shelf_id, quantity, unit_cost)
@@ -89,6 +80,7 @@ def seed_data(init_pool):
             )
 
     yield {
+        "zone_name": zone_name,
         "zone_id": zone_id,
         "shelf_id": shelf_id,
         "product_id": product_id,
@@ -98,8 +90,27 @@ def seed_data(init_pool):
     # Cleanup
     with db.get_conn() as conn:
         with conn.cursor() as cur:
+            ean = f"999{zone_name}"
             cur.execute("DELETE FROM stock_lots WHERE id = %s", (lot_id,))
             cur.execute("DELETE FROM shelves WHERE id = %s", (shelf_id,))
+            cur.execute(
+                "DELETE FROM item_group_members WHERE product_id = %s",
+                (product_id,),
+            )
+            cur.execute(
+                """DELETE FROM build_components
+                   WHERE product_id = %s
+                      OR item_group_id IN (
+                          SELECT id FROM item_groups WHERE code = %s
+                      )""",
+                (product_id, ean),
+            )
+            cur.execute(
+                "DELETE FROM external_item_xref WHERE build_code = %s",
+                (ean,),
+            )
+            cur.execute("DELETE FROM builds WHERE build_code = %s", (ean,))
+            cur.execute("DELETE FROM item_groups WHERE code = %s", (ean,))
             cur.execute("DELETE FROM products WHERE id = %s", (product_id,))
             cur.execute("DELETE FROM zones WHERE id = %s", (zone_id,))
 
@@ -121,14 +132,14 @@ def test_occupancy_contains_seeded_shelf(client, seed_data):
     assert len(match) == 1, f"Expected 1 row for seeded shelf, got {len(match)}"
 
     row = match[0]
-    assert row["zone_name"] == TEST_PREFIX
+    assert row["zone_name"] == seed_data["zone_name"]
     assert row["col"] == 1
     assert row["level"] == 1
     assert row["bin"] == "A"
     assert row["total_qty"] == 7
     assert abs(row["total_value"] - 24.50) < 0.01  # 7 * 3.50
     assert row["batch_count"] == 1
-    assert row["product_name"] == f"Test Product {TEST_PREFIX}"
+    assert row["product_name"] == f"Test Product {seed_data['zone_name']}"
 
 
 def test_occupancy_row_shape(client, seed_data):

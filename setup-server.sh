@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Interwall Inventory OS — Server Setup ==="
+echo "=== Interwall Inventory OS — Safe Server Bootstrap ==="
 echo ""
 
 # Check Docker
@@ -15,41 +15,25 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
-# Create .env if it doesn't exist
+# Create .env from template if it doesn't exist
 if [ ! -f .env ]; then
-    echo "Creating .env file..."
-    cat > .env << 'EOF'
-# Email poller (IMAP)
-IMAP_SERVER=imap.hostnet.nl
-IMAP_EMAIL=info@omiximo.nl
-IMAP_PASSWORD=Parelduiker4!!!
-IMAP_FOLDER=INBOX
-
-# Database
-POSTGRES_PASSWORD=interwall_prod_2026
-
-# Session (change this to a random 32+ char string)
-SESSION_SECRET=interwall-session-secret-change-me-prod-2026
-EOF
-    echo ".env created. Edit it if needed."
+    echo "Creating .env from .env.example..."
+    cp .env.example .env
+    echo ".env created. Fill in real values before continuing."
+    exit 1
 else
-    echo ".env already exists, skipping."
+    echo ".env already exists."
 fi
 
-# Stop existing containers
-echo ""
-echo "Stopping existing containers..."
-docker compose down 2>/dev/null || true
-
-# Remove old database volume for fresh start
-echo "Removing old database volume (fresh seed)..."
-docker volume rm interwall_pgdata 2>/dev/null || true
+if grep -Eq 'change_me_before_production|change-me-in-production' .env; then
+    echo "ERROR: .env still contains placeholder secrets. Fix it before bootstrap."
+    exit 1
+fi
 
 # Build and start
 echo ""
 echo "Building and starting containers..."
-docker compose build
-docker compose up -d
+docker compose up -d --build
 
 # Wait for postgres to be healthy
 echo ""
@@ -89,7 +73,7 @@ echo "Login user: $USER / admin123"
 
 # Check API health
 sleep 3
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:1441/api/health 2>/dev/null || echo "000")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:1441/api/health/ping 2>/dev/null || echo "000")
 echo "API health: HTTP $HTTP_CODE"
 
 echo ""
@@ -98,12 +82,4 @@ echo ""
 echo "  Frontend: http://localhost:1441"
 echo "  Login:    admin / admin123"
 echo ""
-echo "  Email poller runs every 60s automatically."
-echo "  First poll will process all sale emails from inbox."
-echo "  Sales will fail until component stock is added."
-echo ""
-echo "  To add stock (example):"
-echo "    curl -c /tmp/c.txt -X POST http://localhost:1441/api/auth/login -d 'username=admin&password=admin123'"
-echo "    curl -b /tmp/c.txt -X POST http://localhost:1441/api/stock-lots -H 'Content-Type: application/json' \\"
-echo "      -d '{\"ean\":\"COMP-CPU-R5-4500\",\"quantity\":50,\"unit_cost\":89.00}'"
-echo ""
+echo "  Next: follow .project/BACKEND-DEPLOY-RUNBOOK.md for deploy, backup, and restore."

@@ -1,160 +1,46 @@
-# Interwall — Operator Packet Protocol
+# Reports ledger
 
-Use this when the coach prepares work for an external sequential
-operator session.
+## 2026-04-16
 
-This file defines the active protocol. The packet replaces ad-hoc chat
-primers.
+- scope: orchestration protocol cleanup
+- landed:
+  - `AGENTS.md` compressed into the main summarized operating file
+  - `CLAUDE.md` reduced to a tiny runtime note
+  - `.project/COACH-HANDOFF.md` reduced to pure current state
+- verified:
+  - stable rules, active state, and summaries are separated cleanly
+- open_risks:
+  - ledger-write policy is still unresolved
+  - old external operator packet artifacts still exist in `.project/operator-runs/`
+- next:
+  - handle `T-C10`, then move to `T-C08` or the ledger decision
 
----
+## 2026-04-16
 
-## 1. Purpose
+- scope: `T-D05` sale-routing audit
+- landed:
+  - `.project/T-D05-SALE-ROUTING-AUDIT.md`
+  - `apps/api/tests/t_D05_sale_routing_audit.py`
+  - `D-105` clarifying that `process_sale()` is SQL-only migration compatibility, not a live Python/runtime sale path
+- verified:
+  - `docker compose exec -T api python -m pytest /app/tests/t_D05_sale_routing_audit.py -q`
+  - `docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -q`
+  - `rg -n "process_sale\\(" apps/api` showed only SQL definition/migration commentary
+- open_risks:
+  - `T-D04` live overlap proof still needs real traffic
+  - broader ingestion suites on the live dev stack can contend with the running scheduler/background jobs
+- next:
+  - run the real `T-D04` overlap window
+  - then move to `T-D06` production soak / release signoff
 
-The coach's job is to pre-digest context so the operator can spend its
-context window on implementation, not repo archaeology.
+## 2026-04-16
 
-The packet must:
-- minimize operator reading
-- fence scope tightly
-- carry only the decisions and code facts needed for the task
-- define exact tests and exact stop conditions
-
----
-
-## 2. Sequential model
-
-- One active operator packet at a time.
-- No parallel operator runs.
-- Coach prepares the next packet only after reviewing the previous
-  packet's `REPORT.yaml` and diff.
-
----
-
-## 3. Packet directory
-
-Create one directory per task:
-
-` .project/operator-runs/T-XXX/ `
-
-Required files:
-- `PLAN.md`
-- `PROMPT.md`
-- `REPORT.yaml`
-
-Optional:
-- `REVIEW.md` — only when the coach sends the operator back for a fix
-- `ARTIFACTS.md` — only when the task produces a non-code artifact the
-  coach wants to review directly
-
----
-
-## 4. PLAN.md
-
-`PLAN.md` is coach-authored and concise.
-
-Keep it to:
-1. task objective
-2. in-scope files
-3. out-of-scope files
-4. exact symbols / seams to inspect
-5. cherry-picked decision snippets
-6. exact acceptance checks
-7. exact test commands
-
-Do not turn `PLAN.md` into a second `TODO.md` or `DECISIONS.md`.
-
----
-
-## 5. PROMPT.md
-
-`PROMPT.md` is the exact text the user pastes into the operator
-session.
-
-It should:
-- point the operator at `CLAUDE.md`
-- point the operator at this task's `PLAN.md`
-- state the report file path
-- explicitly forbid scope expansion
-- explicitly forbid commits
-- explicitly forbid reading broad planning docs unless the packet says
-  so
-
-The operator prompt should read like a command, not a conversation.
-
----
-
-## 6. REPORT.yaml
-
-The operator writes the report file defined by
-`.project/REPORT-SCHEMA.md`.
-
-Rules:
-- file-based only; do not rely on chat summary
-- one report per packet
-- if blocked, the report still gets written
-- if the task adds new tests, they belong in the source tree, not in
-  the packet directory
-
----
-
-## 7. Facts manifest rule
-
-Every packet must include a facts manifest in `PLAN.md`.
-
-Format:
-
-    - <path> → extract: <specific symbols / constraints / fields>
-
-Good:
-- `inventory-interwall/frontend/profit.js` → extract:
-  `recordSale.showEdit`, `recordSale.submit`, `profitEngine.mapApiTransaction`
-- `apps/api/routers/profit.py` → extract:
-  PATCH route semantics for sale transactions
-
-Bad:
-- "read DECISIONS.md"
-- "understand the codebase first"
-- "inspect the frontend"
-
----
-
-## 8. Scope fence rules
-
-Every packet must say:
-- files allowed to change
-- files forbidden to change
-- legacy surfaces that must stay untouched
-- whether a cold rebuild is required
-
-Scope is the main anti-error mechanism.
-
----
-
-## 9. Recovery
-
-### Operator failed a check
-
-Coach writes `REVIEW.md` with:
-- failing check
-- exact correction
-- unchanged scope
-
-Then coach updates `PROMPT.md` or creates `PROMPT-v2.md`.
-
-### Operator got blocked on a real decision
-
-The operator writes `status: deviated` in `REPORT.yaml`.
-
-Coach then:
-- decides the issue
-- updates `DECISIONS.md` if needed
-- revises the packet
-
----
-
-## 10. Practical bias for this repo
-
-- Coach should own planning, narrowing, and cross-system reasoning.
-- Operators should own narrow implementation packets.
-- UI packets must be especially distilled so the operator reads only the
-  active runtime files, not duplicate or historical JS bundles.
+- scope: execution mode / handoff refresh
+- landed:
+  - `.project/COACH-HANDOFF.md` now records the user's current preference for end-to-end bounded backend packets with proof bundles
+- verified:
+  - current handoff, reports ledger, and TODO backend phases agree that `T-D04` is the next backend gate and `T-D05` is closed
+- open_risks:
+  - `T-D04` still depends on real overlap traffic, not local synthetic evidence
+- next:
+  - keep closing backend packets end-to-end; next real target is the live `T-D04` overlap window

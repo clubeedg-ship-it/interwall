@@ -42,6 +42,7 @@ def client(init_pool):
 @pytest.fixture(scope="session")
 def seed_shelf(init_pool):
     """Create a zone + shelf for PATCH tests."""
+    zone_name = f"{TEST_PREFIX}-{uuid.uuid4().hex[:8]}"
     zone_id = str(uuid.uuid4())
     shelf_id = str(uuid.uuid4())
 
@@ -54,14 +55,13 @@ def seed_shelf(init_pool):
 
             cur.execute(
                 """INSERT INTO zones (id, warehouse_id, name, columns, levels, is_active)
-                   VALUES (%s, %s, %s, 2, 3, TRUE)
-                   ON CONFLICT DO NOTHING""",
-                (zone_id, wh_id, TEST_PREFIX),
+                   VALUES (%s, %s, %s, 2, 3, TRUE)""",
+                (zone_id, wh_id, zone_name),
             )
             cur.execute(
                 """INSERT INTO shelves (id, zone_id, col, level, label)
                    VALUES (%s, %s, 1, 1, %s)""",
-                (shelf_id, zone_id, f"{TEST_PREFIX}-01-1"),
+                (shelf_id, zone_id, f"{zone_name}-01-1"),
             )
 
     yield {"zone_id": zone_id, "shelf_id": shelf_id}

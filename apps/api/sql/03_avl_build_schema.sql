@@ -113,7 +113,9 @@ CREATE SEQUENCE IF NOT EXISTS builds_code_seq START 1;
 CREATE TABLE IF NOT EXISTS build_components (
     id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     build_id      UUID        NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-    item_group_id UUID        NOT NULL REFERENCES item_groups(id) ON DELETE RESTRICT,
+    source_type   TEXT        NOT NULL DEFAULT 'item_group',
+    item_group_id UUID        REFERENCES item_groups(id) ON DELETE RESTRICT,
+    product_id    UUID        REFERENCES products(id) ON DELETE RESTRICT,
     quantity      INTEGER     NOT NULL CHECK (quantity > 0),
     valid_from    TIMESTAMPTZ NOT NULL DEFAULT '-infinity',  -- D-087: unwired
     valid_to      TIMESTAMPTZ NOT NULL DEFAULT 'infinity',   -- D-087: unwired
@@ -154,6 +156,32 @@ CREATE TABLE IF NOT EXISTS jit_bands (
 -- =============================================================================
 -- SECTION 4: Alter existing tables — additive columns
 -- =============================================================================
+
+-- build_components mixed-source line support
+ALTER TABLE build_components
+    ADD COLUMN IF NOT EXISTS source_type TEXT,
+    ADD COLUMN IF NOT EXISTS product_id UUID REFERENCES products(id) ON DELETE RESTRICT;
+
+UPDATE build_components
+   SET source_type = 'item_group'
+ WHERE source_type IS NULL;
+
+ALTER TABLE build_components
+    ALTER COLUMN source_type SET DEFAULT 'item_group',
+    ALTER COLUMN source_type SET NOT NULL;
+
+ALTER TABLE build_components
+    ALTER COLUMN item_group_id DROP NOT NULL;
+
+ALTER TABLE build_components DROP CONSTRAINT IF EXISTS build_components_source_type_check;
+ALTER TABLE build_components ADD CONSTRAINT build_components_source_type_check
+    CHECK (source_type IN ('item_group', 'product'));
+
+ALTER TABLE build_components DROP CONSTRAINT IF EXISTS build_components_source_xor_check;
+ALTER TABLE build_components ADD CONSTRAINT build_components_source_xor_check CHECK (
+    (source_type = 'item_group' AND item_group_id IS NOT NULL AND product_id IS NULL) OR
+    (source_type = 'product' AND product_id IS NOT NULL AND item_group_id IS NULL)
+);
 
 -- shelves: nullable bin for sub-divisions (D-052)
 -- D-053: split_fifo and single_bin are deprecated but NOT dropped
@@ -224,6 +252,11 @@ CREATE INDEX IF NOT EXISTS idx_build_components_build
     ON build_components(build_id);
 CREATE INDEX IF NOT EXISTS idx_build_components_group
     ON build_components(item_group_id);
+CREATE INDEX IF NOT EXISTS idx_build_components_product
+    ON build_components(product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_build_components_product_valid_from
+    ON build_components(build_id, product_id, valid_from)
+    WHERE source_type = 'product';
 
 -- external_item_xref (lookup by build_code for "which SKUs map to this build?")
 CREATE INDEX IF NOT EXISTS idx_external_xref_build_code

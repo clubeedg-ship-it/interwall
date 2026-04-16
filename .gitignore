@@ -11,3 +11,21 @@ deno.lock
 .planning-archived-greenfield/
 apps/web/.env.local
 apps/web/.env.docker.local
+
+# Local Claude Code / MCP session state
+.claude/
+.playwright-mcp/
+
+# DB backup artifacts
+backups/
+
+# Local dev data (mutable, not source of truth)
+apps/data/
+
+# ui-v2 build output + TS incremental cache
+inventory-interwall/ui-v2/dist/
+*.tsbuildinfo
+
+# Debug screenshots captured during sessions
+/*.png
+/inventory-interwall/ui-v2/*.png

@@ -3,8 +3,9 @@ Bol.com Marketplace email parser.
 Parses sale confirmation emails from bol.com (Dutch marketplace).
 """
 
-import re
+import html
 import logging
+import re
 from typing import Optional
 
 from .base import BaseMarketplaceParser, OrderData, ShippingAddress
@@ -18,6 +19,10 @@ class BolComParser(BaseMarketplaceParser):
 
     marketplace_name = "BolCom"
     sender_pattern = re.compile(r"automail@bol\.com", re.IGNORECASE)
+    sale_subject_pattern = re.compile(r"^\s*Nieuwe bestelling:", re.IGNORECASE)
+    order_ref_pattern = re.compile(
+        r"\s*\(bestelnummer[:\s]+[A-Z0-9-]+\)\s*$", re.IGNORECASE
+    )
 
     def can_parse(self, email_data: dict) -> bool:
         """Check if email is from bol.com marketplace."""
@@ -28,12 +33,9 @@ class BolComParser(BaseMarketplaceParser):
         if not self.sender_pattern.search(from_addr):
             return False
 
-        # Check for order-related subject patterns
-        # e.g., "Nieuwe bestelling: Gaming PC... (bestelnummer: A000E71TN6)"
-        if "bestelling" in subject.lower() or "bestelnummer" in subject.lower():
-            return True
-
-        return False
+        # Only treat actual new-order mail as sale input.
+        # Return/cancellation mails must not enter sale routing.
+        return bool(self.sale_subject_pattern.search(subject))
 
     def parse(self, email_data: dict) -> Optional[OrderData]:
         """
@@ -47,8 +49,6 @@ class BolComParser(BaseMarketplaceParser):
           - Quantity
           - Expected delivery date: 29 januari 2026
         """
-        import html
-
         # Decode HTML entities in body (bol.com uses &euro;, &nbsp;, etc.)
         raw_body = email_data.get("body", "")
         body = html.unescape(raw_body)
@@ -79,13 +79,25 @@ class BolComParser(BaseMarketplaceParser):
             if order_match:
                 order.order_number = order_match.group(1)
 
-        # Extract product description from subject
-        # Format: "Nieuwe bestelling: PRODUCT NAME (bestelnummer: XXX)"
+        # Extract product description from the HTML <title> first because the
+        # visible subject is often truncated with ellipses.
+        title_match = re.search(r"<title>(.*?)</title>", raw_body, re.IGNORECASE | re.DOTALL)
+        if title_match:
+            title_text = " ".join(html.unescape(title_match.group(1)).split())
+            if self.sale_subject_pattern.search(title_text):
+                title_text = self.sale_subject_pattern.sub("", title_text, count=1)
+            title_text = self.order_ref_pattern.sub("", title_text).strip()
+            if title_text:
+                order.product_description = title_text
+
+        # Fallback to the subject line when no usable title is present.
         desc_match = re.search(
             r"bestelling[:\s]+(.+?)\s*\(bestelnummer", subject, re.IGNORECASE
         )
         if desc_match:
-            order.product_description = desc_match.group(1).strip()
+            subject_desc = desc_match.group(1).strip()
+            if subject_desc and "..." not in subject_desc and not order.product_description:
+                order.product_description = subject_desc
 
         # Also check body for product description
         if not order.product_description:
@@ -94,7 +106,7 @@ class BolComParser(BaseMarketplaceParser):
                 r"(?:product|artikel)[:\s]+(.+?)(?:\n|EUR)", body, re.IGNORECASE
             )
             if body_desc_match:
-                order.product_description = body_desc_match.group(1).strip()
+                order.product_description = " ".join(body_desc_match.group(1).split()).strip()
 
         # Price - Dutch format (EUR XXX,XX or EUR X.XXX,XX)
         # Body is already decoded from HTML entities

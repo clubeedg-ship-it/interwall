@@ -1,0 +1,70 @@
+task_id: T-C08
+status: complete
+
+summary: |
+  Builds page implemented with floating workspace, real API data surfaces,
+  pricing UI scaffolding, and marketplace SKU mapping readiness.
+
+files_changed:
+  - inventory-interwall/frontend/index.html
+  - inventory-interwall/frontend/style.css
+  - inventory-interwall/frontend/router.js
+  - inventory-interwall/frontend/app-init.js
+  - inventory-interwall/frontend/api.js
+  - inventory-interwall/frontend/builds.js
+  - inventory-interwall/frontend/t_c08_builds_verify.mjs
+  - inventory-interwall/e2e/playwright.config.ts
+  - inventory-interwall/e2e/tests/builds-truth.spec.ts
+
+tests:
+  - file: inventory-interwall/frontend/t_c08_builds_verify.mjs
+    runner: node inventory-interwall/frontend/t_c08_builds_verify.mjs
+    result: pass
+    final_line: "All T-C08 source checks passed."
+  - file: inventory-interwall/e2e/tests/builds-truth.spec.ts
+    runner: cd inventory-interwall/e2e && INTERWALL_E2E_USER=admin INTERWALL_E2E_PASS=admin123 npx playwright test tests/builds-truth.spec.ts
+    result: pass
+    final_line: "1 passed (3.9s)"
+  - file: null
+    runner: git diff --name-only -- . ':(exclude).project/operator-runs/T-C08/*'
+    result: pass
+    final_line: "only allowed files + pre-existing dirty files"
+
+decisions_cited:
+  - D-013
+  - D-014
+  - D-018
+  - D-019
+  - D-060
+
+scope_check:
+  touched_out_of_scope: false
+  touched_legacy: false
+  new_dependencies: none
+
+cold_rebuild:
+  required: false
+  command: null
+  result: null
+
+adversarial_review:
+  - Floating workspace uses centered 3-column layout with left context, center composition, right utility — not a stacked form.
+  - Models picker uses /api/item-groups (not stock). Duplicate add bumps quantity on existing line and highlights it.
+  - SKU mapping visible in 3 places: left rail readiness chips, center strip, and detail section with add/remove.
+
+acceptance:
+  builds_visible_as_route: true
+  floating_workspace: true
+  builds_from_api: true
+  models_from_api: true
+  sku_mapping_from_api: true
+  component_edits_through_api: true
+  pricing_ui_only: true
+  no_backend_changed: true
+  compositions_untouched: true
+  source_verifier_passes: true
+  playwright_truth_passes: true
+
+open_questions: []
+
+next_ready: true

@@ -26,7 +26,7 @@ export default defineConfig({
     },
     {
       name: 'authenticated',
-      testMatch: /(parts-stock-truth|wall-occupancy-truth|profit-summary-truth|batches-truth|health-truth)\.spec\.ts$/,
+      testMatch: /(parts-stock-truth|wall-occupancy-truth|profit-summary-truth|batches-truth|health-truth|builds-truth)\.spec\.ts$/,
       use: {
         browserName: 'chromium',
         storageState: STATE_PATH,

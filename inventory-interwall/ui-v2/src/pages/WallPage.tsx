@@ -1,0 +1,124 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, ApiError } from "../lib/api";
+import type { HealthTier, ShelfOccupancy, Zone } from "../lib/types";
+import { ZoneGrid } from "../components/wall/ZoneGrid";
+import { BinDrawer } from "../components/wall/BinDrawer";
+import { ManageZonesPanel } from "../components/wall/ManageZonesPanel";
+import { PageHeader } from "../components/PageHeader";
+import { useHealth } from "../hooks/useHealth";
+
+const POLL_MS = 30_000;
+
+export default function WallPage() {
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [occupancy, setOccupancy] = useState<ShelfOccupancy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeShelfId, setActiveShelfId] = useState<string | null>(null);
+
+  // Shared health source — identical Map the Catalog reads from. Do NOT recompute.
+  const health = useHealth({ pollMs: POLL_MS });
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const [z, o] = await Promise.all([
+        api.zones.list(),
+        api.shelves.occupancy(),
+      ]);
+      setZones(z);
+      setOccupancy(o);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Adapt the shared ProductHealthRow Map into the shape BinCell already expects.
+  // Defaults to "healthy" when no health row exists (e.g. a bin whose product
+  // was just assigned — the next poll will overwrite).
+  const healthByEan = useMemo<Map<string, HealthTier>>(() => {
+    const m = new Map<string, HealthTier>();
+    for (const [ean, row] of health.byEan) m.set(ean, row.health);
+    return m;
+  }, [health.byEan]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const id = setInterval(() => void load(), POLL_MS);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const activeShelf =
+    activeShelfId != null
+      ? occupancy.find((o) => o.shelf_id === activeShelfId) ?? null
+      : null;
+
+  const refreshAll = () => {
+    void load();
+    void health.reload();
+  };
+
+  return (
+    <div className="mx-auto max-w-[1200px] px-6 pb-16 pt-6">
+      <PageHeader
+        title="The Wall"
+        description="Live zone / bin occupancy. Click any bin for details. Updates every 30s."
+        actions={
+          <>
+            <ManageZonesPanel zones={zones} onRefresh={refreshAll} />
+            <button
+              type="button"
+              onClick={refreshAll}
+              className="btn-secondary"
+              disabled={loading}
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </>
+        }
+      />
+
+      {error && (
+        <div className="row-card mb-4 border-[color-mix(in_oklab,var(--color-crit)_35%,transparent)] bg-[color-mix(in_oklab,var(--color-crit)_10%,transparent)] text-[13px] text-[var(--color-crit-ink)]">
+          Failed to load wall: {error}
+        </div>
+      )}
+
+      {loading && zones.length === 0 ? (
+        <div className="row-card h-40 animate-pulse" />
+      ) : zones.length === 0 ? (
+        <div className="row-card justify-center py-10 text-[var(--color-text-muted)]">
+          No zones yet. Add one via <span className="font-mono">Manage zones</span> above.
+        </div>
+      ) : (
+        zones
+          .filter((z) => z.cols > 0 && z.levels > 0)
+          .map((z) => (
+            <ZoneGrid
+              key={z.id}
+              zone={z}
+              occupancy={occupancy.filter((o) => o.zone_name === z.name)}
+              activeShelfId={activeShelfId}
+              onPick={(shelf) => setActiveShelfId(shelf.shelf_id)}
+              healthByEan={healthByEan}
+            />
+          ))
+      )}
+
+      <BinDrawer
+        shelf={activeShelf}
+        onClose={() => setActiveShelfId(null)}
+        onPatched={refreshAll}
+        onDeleted={() => {
+          setActiveShelfId(null);
+          refreshAll();
+        }}
+      />
+    </div>
+  );
+}

@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
-T-B03 helper: compare Bol.com email vs API polling reliability.
+T-D04 helper: compare Bol.com email fallback vs API polling overlap.
 
 Reads Bol.com rows from ingestion_events, normalizes them to a shared
-order key, and reports whether the T-B03 gate is met:
+order key, and reports whether the live-overlap gate is met:
   - 7 elapsed days from first comparable order, or
   - 50 distinct orders, whichever comes first.
 
-When the gate is met, the script can write .project/B03-RELIABILITY.md.
-Before that, it prints the exact remaining runtime gate.
+Before the gate is met, it prints the exact remaining runtime gate.
+When the gate is met, use the emitted markdown as the durable T-D04
+reliability report.
+
+Synthetic `B03LOCAL` harness rows are ignored by default so a historical
+local dry-run cannot be mistaken for live overlap proof. Pass
+`--include-synthetic` only when intentionally validating the helper.
 """
 
 from __future__ import annotations
@@ -80,10 +85,15 @@ def parse_args() -> argparse.Namespace:
         default=ORDER_THRESHOLD,
         help="Distinct-order gate; defaults to 50 orders.",
     )
+    parser.add_argument(
+        "--include-synthetic",
+        action="store_true",
+        help="Include historical B03LOCAL harness rows. Disabled by default for T-D04 live proofing.",
+    )
     return parser.parse_args()
 
 
-def fetch_rows() -> list[EventRow]:
+def fetch_rows(include_synthetic: bool = False) -> list[EventRow]:
     sql = """
         SELECT
             source,
@@ -146,13 +156,20 @@ def fetch_rows() -> list[EventRow]:
         WHERE marketplace = %s
           AND parsed_type = 'sale'
           AND source IN ('email', 'bolcom_api')
+          AND (
+                %s
+                OR (
+                    COALESCE(message_id, '') NOT LIKE 'B03LOCAL%%'
+                    AND COALESCE(external_id, '') NOT LIKE 'bol-B03LOCAL%%'
+                )
+          )
         ORDER BY created_at, id
     """
 
     db.init_pool()
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (MARKETPLACE,))
+            cur.execute(sql, (MARKETPLACE, include_synthetic))
             raw_rows = cur.fetchall()
 
     rows: list[EventRow] = []
@@ -261,9 +278,10 @@ def render_report(
     threshold_orders: int,
 ) -> str:
     lines: list[str] = []
-    lines.append("# T-B03 Bol.com Reliability Comparison")
+    lines.append("# T-D04 Bol.com Ingestion Overlap Report")
     lines.append("")
     lines.append(f"- Generated at: {now_utc.isoformat()}")
+    lines.append("- Reliability objective: zero email-only orders, zero API-only orders, and zero quantity/value mismatches inside the comparison window.")
 
     if not orders:
         lines.append("- Comparison window analyzed: no comparable Bol.com email/API data in `ingestion_events` yet.")
@@ -273,7 +291,7 @@ def render_report(
         lines.append("- Orders seen by both: 0")
         lines.append("- Timing differences: not derivable")
         lines.append("- Field mismatches: not derivable")
-        lines.append("- Conclusion: not ready for `T-B04`.")
+        lines.append("- Exit decision: not ready to close `T-D04`.")
         lines.append(
             "- Remaining gate: start the parallel run and accumulate either "
             f"{threshold_orders} distinct Bol.com orders or {window_days} elapsed days, whichever comes first."
@@ -346,10 +364,10 @@ def render_report(
     if gate_met:
         ready = email_only == 0 and api_only == 0
         lines.append(
-            f"- Conclusion: {'ready' if ready else 'not ready'} for `T-B04`."
+            f"- Exit decision: {'ready' if ready else 'not ready'} to close `T-D04`."
         )
         if ready:
-            lines.append("- Remaining gate: none.")
+            lines.append("- Remaining gate: none; `T-B03` can be treated as production-complete and the emergency email fallback can be retired by policy.")
         else:
             lines.append(
                 "- Remaining gate: zero missed orders is not yet satisfied; "
@@ -358,7 +376,7 @@ def render_report(
     else:
         remaining_orders = max(0, threshold_orders - len(orders))
         remaining_time = (start + timedelta(days=window_days)) - now_utc
-        lines.append("- Conclusion: not ready for `T-B04`.")
+        lines.append("- Exit decision: not ready to close `T-D04`.")
         lines.append(
             "- Remaining gate: need either "
             f"{remaining_orders} more distinct Bol.com orders or "
@@ -371,7 +389,7 @@ def render_report(
 
 def main() -> int:
     args = parse_args()
-    rows = fetch_rows()
+    rows = fetch_rows(include_synthetic=args.include_synthetic)
     orders = build_orders(rows)
     now_utc = datetime.now(timezone.utc)
 

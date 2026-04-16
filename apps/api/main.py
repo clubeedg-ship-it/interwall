@@ -3,6 +3,7 @@ Interwall Inventory OS — FastAPI Application
 Single-user inventory management backend.
 """
 import os
+import sys
 import logging
 
 # Configure logging so email_poller output is visible
@@ -37,13 +38,66 @@ from email_poller.poller import poll_once
 from poller.bol_poller import poll_bol_once
 from ingestion.worker import process_pending_events
 
-scheduler = BackgroundScheduler()
+RUNTIME_SQL_FILES = [
+    "03_avl_build_schema.sql",
+    "04_shelf_addressing.sql",
+    "05_item_groups_backfill.sql",
+    "07_deduct_fifo_for_group.sql",
+    "08_process_bom_sale.sql",
+    "09_v_part_stock.sql",
+    "10_v_health.sql",
+    "11_ingestion_events_dedupe.sql",
+    "12_ingestion_event_attempts.sql",
+    "12_ingestion_events_retry_count.sql",
+    "13_v_health_ingestion.sql",
+    "14_v_shelf_occupancy.sql",
+]
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Initialize DB pool and email poller on startup; close on shutdown."""
-    db.init_pool()
+def _running_under_pytest() -> bool:
+    return "pytest" in sys.modules
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _session_secret() -> str:
+    secret = os.getenv("SESSION_SECRET", "")
+    if not secret:
+        raise RuntimeError("SESSION_SECRET is required")
+
+    app_env = os.getenv("APP_ENV", "development").lower()
+    if app_env == "production":
+        if len(secret) < 32 or "change-me" in secret.lower():
+            raise RuntimeError(
+                "SESSION_SECRET must be a real 32+ char secret in production"
+            )
+    return secret
+
+
+def _session_https_only() -> bool:
+    app_env = os.getenv("APP_ENV", "development").lower()
+    https_only = _env_flag("SESSION_HTTPS_ONLY", default=(app_env == "production"))
+    if app_env == "production" and not https_only:
+        raise RuntimeError(
+            "SESSION_HTTPS_ONLY must be true in production"
+        )
+    return https_only
+
+
+def _scheduler_enabled() -> bool:
+    env = os.getenv("INTERWALL_ENABLE_SCHEDULER")
+    if env is not None:
+        return env.lower() in {"1", "true", "yes", "on"}
+    return "pytest" not in sys.modules
+
+
+def _build_scheduler() -> BackgroundScheduler:
+    scheduler = BackgroundScheduler()
     # Run email poller twice a day: 8:00 and 20:00
     scheduler.add_job(
         poll_once, CronTrigger(hour='8,20', minute=0),
@@ -91,10 +145,27 @@ async def lifespan(app: FastAPI):
         id="ingestion_worker_startup",
         run_date=None,
     )
-    scheduler.start()
+    return scheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize DB pool and email poller on startup; close on shutdown."""
+    db.init_pool()
+    db.apply_runtime_sql_files(RUNTIME_SQL_FILES)
+    scheduler = None
+    if _scheduler_enabled():
+        scheduler = _build_scheduler()
+        scheduler.start()
+    else:
+        logging.getLogger(__name__).info(
+            "APScheduler disabled for this process"
+        )
     yield
-    scheduler.shutdown(wait=False)
-    db.close_pool()
+    if scheduler is not None:
+        scheduler.shutdown(wait=False)
+    if not _running_under_pytest():
+        db.close_pool()
 
 
 app = FastAPI(
@@ -107,9 +178,9 @@ app = FastAPI(
 # SESSION_SECRET must be at least 32 characters
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ["SESSION_SECRET"],
+    secret_key=_session_secret(),
     session_cookie="interwall_session",
-    https_only=False,  # False for local Docker dev; set True in production
+    https_only=_session_https_only(),
     same_site="lax",
 )
 

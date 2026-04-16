@@ -49,8 +49,24 @@ def _bol_email():
     return {
         "message_id": "b04-bol-message",
         "from": "automail@bol.com",
-        "subject": "Nieuwe bestelling: OMX-B04-LOCAL (bestelnummer: A000E71TN6)",
-        "body": "EUR 299,00\nAantal: 1\n15 april 2026\n",
+        "subject": "Nieuwe bestelling: Gaming PC Ryzen 7-5700X RTX 5060 16GB/1T... (bestelnummer: A000E71TN6)",
+        "body": """
+            <html>
+              <head>
+                <title>Nieuwe bestelling&#58; Gaming PC Ryzen 7-5700X RTX 5060 16GB/1TB Windows 11 Pro (bestelnummer&#58; A000E71TN6)</title>
+              </head>
+              <body>EUR 299,00<br>Aantal: 1<br>15 april 2026</body>
+            </html>
+        """,
+    }
+
+
+def _bol_return_email():
+    return {
+        "message_id": "b04-bol-return",
+        "from": "automail@bol.com",
+        "subject": "Retourmelding: Gaming PC Ryzen 7-5700X RTX 5060 16GB/1T... (bestelnummer: A000E71TN6)",
+        "body": "<html><head><title>Retourmelding&#58; Gaming PC ...</title></head><body></body></html>",
     }
 
 
@@ -122,4 +138,31 @@ def test_fallback_enabled_restores_bol_direct_processing(monkeypatch):
     assert len(inserted) == 1
     assert inserted[0][0][2] == "BolCom"
     assert inserted[0][0][3]["order_number"] == "A000E71TN6"
+    assert inserted[0][0][3]["generated_sku"].startswith("OMX-BOL-R7-16-1T-")
+    assert inserted[0][0][3]["product_description"] == (
+        "Gaming PC Ryzen 7-5700X RTX 5060 16GB/1TB Windows 11 Pro"
+    )
     assert processed == ["evt-1"]
+
+
+def test_fallback_enabled_ignores_bol_return_email(monkeypatch):
+    monkeypatch.setenv(poller.ENABLE_BOL_EMAIL_FALLBACK, "1")
+    monkeypatch.setattr(poller, "is_already_processed", lambda message_id: False)
+
+    inserted = []
+    processed = []
+    monkeypatch.setattr(
+        poller,
+        "_insert_email_event",
+        lambda *args, **kwargs: inserted.append((args, kwargs)) or "evt-1",
+    )
+    monkeypatch.setattr(
+        poller,
+        "process_ingestion_event",
+        lambda event_id: processed.append(event_id) or "processed",
+    )
+
+    poller._process_one(_bol_return_email())
+
+    assert inserted == []
+    assert processed == []

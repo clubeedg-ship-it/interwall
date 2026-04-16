@@ -28,16 +28,7 @@ def init_pool():
 
 
 @pytest.fixture(scope="session")
-def load_views(init_pool):
-    """Ensure health views exist in the DB (persistent for router tests)."""
-    with db.get_conn() as conn:
-        with conn.cursor() as cur:
-            with open("/app/sql/10_v_health.sql") as f:
-                cur.execute(f.read())
-
-
-@pytest.fixture(scope="session")
-def client(init_pool, load_views):
+def client(init_pool):
     """Starlette TestClient — session scope so lifespan runs once."""
     from starlette.testclient import TestClient
 

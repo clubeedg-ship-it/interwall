@@ -258,6 +258,25 @@
 ### D-045 — No hardcoded business values anywhere
 - **Date:** 2026-04-15
 - **Decision:** JIT gradient breakpoints, shelf sizes, VAT rates, marketplace senders, category lists — all configurable via database or settings surface. Code ships with defaults that are themselves seeded into the database.
+
+### D-046 — Build lines support mixed deduction sources
+- **Date:** 2026-04-16
+- **Decision:** `build_components` is the Build-line table, not a synonym for `item_groups`. A Build line may target either an `item_group` (Model pool, "take any matching stock") or a pinned `product`/EAN ("take this exact Part"). Sales still resolve to `build_code`, and `process_bom_sale` remains the only sale-deduction path.
+- **Rationale:** The product model is "Build as the sellable interface, with deduction sources behind it." Some sellables need pooled substitute deduction, others need exact pinned parts, and some need both in one Build. Current schema only models `item_group_id`, so the domain definition is ahead of the implementation.
+- **Rejected alternatives:**
+  - Keep Build lines group-only — cannot represent exact pinned part deductions
+  - Add a second parallel recipe table for pinned EANs — duplicates routing and deduction logic
+  - Revert to legacy `ean_compositions` semantics — wrong future model
+- **Reversibility:** Medium (requires additive schema migration and function/router updates, but does not change the top-level Build contract).
+
+### D-047 — Repo-state claims must be re-verified against the target frontend directory
+- **Date:** 2026-04-16
+- **Decision:** Handoff/docs must distinguish between product intent and verified repo state. As of this check, `inventory-interwall/frontend` still contains `batches.js`, `compositions.js`, and related references, so docs must not claim those surfaces are already deleted unless the actual target directory being discussed is `inventory-interwall/ui-v2` or another verified location.
+- **Rationale:** Recent discussion mixed desired product direction with stale assumptions about file removal. That creates bad handoffs and bad delegation prompts.
+- **Rejected alternatives:**
+  - Assume earlier cleanup already landed everywhere — contradicted by current repo search
+  - Remove historical references from append-only decisions — violates decision-log rules
+- **Reversibility:** High (pure documentation/verification discipline).
 - **Rationale:** Configurability is a client-facing need and a maintenance necessity.
 - **Reversibility:** High.
 
@@ -568,6 +587,33 @@
 
 - D-097 supersedes D-030 (webhooks do not deliver new orders; RSA-SHA256 not HMAC)
 - D-101 supersedes D-053 (split_fifo and single_bin are now actively wired, not deprecated)
+- D-105 supersedes D-024 (legacy `process_sale()` is no longer a live Python/runtime sale path)
+
+---
+
+### D-102 — Cost aggregation is one backend semantic layer, exposed through multiple UI angles
+- **Date:** 2026-04-16
+- **Decision:** Cost aggregation must be modeled once in backend/domain terms and reused by `Builds` and `Profit`; the UI may invoke or present it from different angles, but must not fork the underlying meaning.
+- **Rationale:** Cost settings that drift between `Builds` setup and `Profit` reporting create incoherent economics. One semantic layer, multiple UI entry points.
+- **Reversibility:** Medium.
+
+### D-103 — Shared UI gimmicks must map to the same underlying state semantics
+- **Date:** 2026-04-16
+- **Decision:** Reused visual gimmicks (for example low-stock neon/heat cues) must inherit the same underlying state logic across surfaces. If `Parts Catalog` uses a low-stock strip, it should be the same “blood” as the `Wall` grid, adapted in intensity rather than reinterpreted.
+- **Rationale:** Repeated visual language should mean the same thing everywhere. Cosmetic inconsistency becomes operational confusion.
+- **Reversibility:** High.
+
+### D-104 — Modal-first interaction policy for complex operator detail flows
+- **Date:** 2026-04-16
+- **Decision:** Complex operator detail and edit flows should open in floating modal/workspace containers by default rather than route the user into separate pages. Page-level destinations remain for primary surfaces; detailed inspection/editing should generally be modal.
+- **Rationale:** The operator should stay in context. Modal-first flows support fast inspection/editing without losing the parent surface.
+- **Reversibility:** Medium.
+
+### D-105 — `process_sale()` is DB-only migration compatibility, not a runtime sale path
+- **Date:** 2026-04-16
+- **Decision:** Current Python/runtime sale ingestion paths no longer call legacy `process_sale()`. New sales must route through `process_bom_sale()` only. `process_sale()` remains present in SQL solely as a migration-compatibility shim for non-Python/manual legacy callers and may be removed after `T-D06` production signoff if no such caller still matters.
+- **Rationale:** The implementation already converged on Build-routed sales; leaving the repo to imply a live fallback path would hide the actual operational contract.
+- **Reversibility:** Medium.
 
 ---
 

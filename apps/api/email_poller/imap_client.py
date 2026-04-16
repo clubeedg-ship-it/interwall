@@ -17,10 +17,11 @@ class IMAPClient:
     """IMAP client for fetching emails from Hostnet."""
 
     def __init__(self):
-        self.server = os.environ.get("IMAP_SERVER", "imap.hostnet.nl")
+        self.server = os.environ.get("IMAP_SERVER", "")
         self.port = int(os.environ.get("IMAP_PORT", "993"))
-        self.email_address = os.environ.get("IMAP_EMAIL", "info@omiximo.nl")
+        self.email_address = os.environ.get("IMAP_EMAIL", "")
         self.use_ssl = os.environ.get("IMAP_USE_SSL", "true").lower() == "true"
+        self.folder = os.environ.get("IMAP_FOLDER", "INBOX") or "INBOX"
         self.connection: Optional[imaplib.IMAP4_SSL] = None
 
     def connect(self) -> bool:
@@ -34,6 +35,10 @@ class IMAPClient:
             ConnectionError: If connection fails.
         """
         try:
+            if not self.server:
+                raise ValueError("IMAP_SERVER environment variable is required")
+            if not self.email_address:
+                raise ValueError("IMAP_EMAIL environment variable is required")
             password = os.environ.get("IMAP_PASSWORD", "")
             if not password:
                 raise ValueError(
@@ -67,20 +72,20 @@ class IMAPClient:
 
     def select_inbox(self) -> int:
         """
-        Select the INBOX folder.
+        Select the configured IMAP folder.
 
         Returns:
-            Number of messages in inbox.
+            Number of messages in the selected folder.
         """
         if not self.connection:
             raise ConnectionError("Not connected to IMAP server")
 
-        status, data = self.connection.select("INBOX")
+        status, data = self.connection.select(self.folder)
         if status != "OK":
-            raise ConnectionError(f"Failed to select INBOX: {data}")
+            raise ConnectionError(f"Failed to select IMAP folder {self.folder!r}: {data}")
 
         message_count = int(data[0])
-        logger.debug(f"INBOX selected, {message_count} messages")
+        logger.info("Selected IMAP folder %s (%s messages)", self.folder, message_count)
         return message_count
 
     def search_from_sender(

@@ -178,20 +178,37 @@ def list_stock_lot_history(
 
 @router.get("/by-product/{ean}")
 def get_stock_lots_by_product(ean: str, session=Depends(require_session)):
-    """Return stock lots for a product EAN, oldest first (FIFO order)."""
+    """Return stock lots for a product EAN, oldest first (FIFO order).
+
+    Joins shelves + zones so the Catalog batch editor can render the current
+    location and power LocationPicker-driven transfers without a second fetch.
+    """
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT sl.id, sl.quantity, sl.unit_cost, sl.marketplace,
-                          sl.received_at, sl.created_at
+                          sl.received_at, sl.created_at,
+                          sl.shelf_id,
+                          s.label AS shelf_label,
+                          z.name  AS zone_name
                    FROM stock_lots sl
                    JOIN products p ON p.id = sl.product_id
+                   LEFT JOIN shelves s ON s.id = sl.shelf_id
+                   LEFT JOIN zones   z ON z.id = s.zone_id
                    WHERE p.ean = %s AND sl.quantity > 0
                    ORDER BY sl.received_at ASC""",
                 (ean,)
             )
             rows = cur.fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["id"] = str(d["id"])
+        d["shelf_id"] = str(d["shelf_id"]) if d["shelf_id"] is not None else None
+        d["quantity"] = int(d["quantity"])
+        d["unit_cost"] = float(d["unit_cost"])
+        out.append(d)
+    return out
 
 
 @router.post("/{lot_id}/consume")

@@ -111,6 +111,18 @@ INSERT INTO build_components (build_id, item_group_id, quantity, valid_from, val
      '-infinity', '2020-01-01 00:00:00+00')
 ON CONFLICT DO NOTHING;
 
+-- Build 6: mixed-source build
+--   G1 x1 + exact product P3 x2
+INSERT INTO builds (id, build_code, name) VALUES
+    ('ee030000-0000-0000-0000-000000000006', 'T-BLD-MIX', 'Mixed Source Build')
+ON CONFLICT (build_code) DO NOTHING;
+INSERT INTO build_components (build_id, source_type, item_group_id, product_id, quantity) VALUES
+    ('ee030000-0000-0000-0000-000000000006', 'item_group',
+     'ee020000-0000-0000-0000-000000000001', NULL, 1),
+    ('ee030000-0000-0000-0000-000000000006', 'product',
+     NULL, 'ee010000-0000-0000-0000-000000000003', 2)
+ON CONFLICT DO NOTHING;
+
 -- Stock lots
 INSERT INTO stock_lots (id, product_id, quantity, unit_cost, received_at) VALUES
     ('ee040000-0000-0000-0000-000000000001', 'ee010000-0000-0000-0000-000000000001',
@@ -519,6 +531,71 @@ BEGIN
 END $$;
 
 ROLLBACK TO t7;
+
+
+-- =============================================================================
+-- TEST 8: mixed-source build — pooled group + exact product
+-- Build T-BLD-MIX: G1 x1 + product P3 x2
+-- P1: 5 @ 50 → deduct 1. P3 lot1: 3 @ 80, lot2: 5 @ 90 → deduct 2 from lot1 only.
+-- COGS: 1*50 + 2*80 = 210
+-- Fixed: 700*0.062 + 95 = 138.40. VAT: 700*0.21 = 147. Total: 285.40
+-- Profit: 700 - 210 - 285.40 = 204.60
+-- Ledger: 2 rows. Stock: P1 5→4, P3 lot1 3→1, P3 lot2 unchanged.
+-- =============================================================================
+\echo '--- TEST 8: mixed-source build ---'
+SAVEPOINT t8;
+
+DO $$
+DECLARE
+    v_txn_id       UUID;
+    v_cogs         NUMERIC(12,4);
+    v_profit       NUMERIC(12,4);
+    v_ledger_count INTEGER;
+    v_p1_qty       INTEGER;
+    v_p3_lot1_qty  INTEGER;
+    v_p3_lot2_qty  INTEGER;
+BEGIN
+    SELECT process_bom_sale('T-BLD-MIX', 1, 700.00, 'test_mp') INTO v_txn_id;
+
+    SELECT cogs, profit INTO STRICT v_cogs, v_profit
+    FROM transactions WHERE id = v_txn_id;
+
+    IF v_cogs != 210.0000 THEN
+        RAISE EXCEPTION 'TEST 8 FAILED: cogs expected 210.0000, got %', v_cogs;
+    END IF;
+    IF v_profit != 204.6000 THEN
+        RAISE EXCEPTION 'TEST 8 FAILED: profit expected 204.6000, got %', v_profit;
+    END IF;
+
+    SELECT count(*) INTO v_ledger_count
+    FROM stock_ledger_entries WHERE transaction_id = v_txn_id;
+    IF v_ledger_count != 2 THEN
+        RAISE EXCEPTION 'TEST 8 FAILED: ledger rows expected 2, got %', v_ledger_count;
+    END IF;
+
+    SELECT quantity INTO STRICT v_p1_qty
+    FROM stock_lots WHERE id = 'ee040000-0000-0000-0000-000000000001';
+    IF v_p1_qty != 4 THEN
+        RAISE EXCEPTION 'TEST 8 FAILED: P1 qty expected 4, got %', v_p1_qty;
+    END IF;
+
+    SELECT quantity INTO STRICT v_p3_lot1_qty
+    FROM stock_lots WHERE id = 'ee040000-0000-0000-0000-000000000003';
+    IF v_p3_lot1_qty != 1 THEN
+        RAISE EXCEPTION 'TEST 8 FAILED: P3 lot1 qty expected 1, got %', v_p3_lot1_qty;
+    END IF;
+
+    SELECT quantity INTO STRICT v_p3_lot2_qty
+    FROM stock_lots WHERE id = 'ee040000-0000-0000-0000-000000000004';
+    IF v_p3_lot2_qty != 5 THEN
+        RAISE EXCEPTION 'TEST 8 FAILED: P3 lot2 qty expected 5, got %', v_p3_lot2_qty;
+    END IF;
+
+    RAISE NOTICE 'TEST 8 PASSED: cogs=%, profit=%, ledger=%, P1=%, P3-lot1=%, P3-lot2=%',
+        v_cogs, v_profit, v_ledger_count, v_p1_qty, v_p3_lot1_qty, v_p3_lot2_qty;
+END $$;
+
+ROLLBACK TO t8;
 
 
 -- ── Clean up ────────────────────────────────────────────────────────────────

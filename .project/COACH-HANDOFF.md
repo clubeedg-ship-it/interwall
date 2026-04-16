@@ -1,101 +1,411 @@
-# Interwall — Coach Handoff
+# Active handoff
 
-Single carryover file for coach sessions.
+> Current-state reference. Do not use this as the first entrypoint for a cold-start agent.
+> Start with `.project/SESSION.md`, then pull only the needed lane from `.project/WORKSTREAMS.md`.
+> Read this file only when current next-step state or recent proof matters to the task.
 
----
-
-## 1. Working model
-
-- checkout: `/Users/ottogen/interwall`
-- branch: `v2`
-- coach runs in Codex
-- operators run sequentially in external Claude / Opus sessions
-- operators do not commit
-- operators write `REPORT.yaml` files under `.project/operator-runs/`
-
----
-
-## 2. Current branch truth
-
-As of 2026-04-15 on `origin/v2`:
-
-- Stream A is complete.
-- `T-B02 + T-B05` are landed.
-- `T-B03` historical local artifact is landed:
-  `.project/B03-RELIABILITY.md`
-- `T-B04` is landed and verified.
-- `T-C01` is landed and verified.
-- `T-C00` is still preserved off-branch and stale:
-  `/Users/ottogen/interwall-preserve-2026-04-15/live-tree/.project/C00-UI-STATE-AUDIT.md`
-
-Current next real task:
-- refresh `T-C00` against current `v2`
-- then move into Playwright-backed E2E/browser truthing
-
----
-
-## 3. Active planning docs
-
-Coach should care about:
-- `AGENTS.md`
-- `.project/TODO.md`
-- `.project/PLAN.md`
-- `.project/DECISIONS.md`
-- `.project/HANDOFFS.md`
-- `.project/REPORT-SCHEMA.md`
-
-Everything else is task-specific or historical.
-
----
-
-## 4. Deployment bar
-
-Do not call the system trusted or deploy-ready just because the stack
-boots.
-
-Required proof before that claim:
-- sell / edit / delete flows keep stored money values coherent
-- receive / pick / stock movement flows stay FIFO-correct
-- parts / wall / profit / valuation agree on the same numbers
-- JIT / reorder / location / builds / build_components behave
-  consistently across pages
-- browser/E2E truthing via local Playwright, not only unit / router
-  tests
-
-Login is explicitly lower priority than operational correctness.
-
----
-
-## 5. Session close ritual
-
-Before ending a coach session:
-1. confirm `pwd` and branch
-2. update `.project/TODO.md`
-3. update this file with branch-truth changes
-4. make sure the next coach can resume without chat archaeology
-
----
-
-## 6. Latest notes
-
-### 2026-04-15
-
-- Branch discipline was collapsed to one checkout / one branch.
-- Stale `.claude/worktrees/` were removed from the active repo after
-  preservation.
-- `T-B04` replay exposed a missing shared-worker dependency on cold
-  rebuild; the repo now includes:
-  - `apps/api/ingestion_worker.py`
-  - `apps/api/sql/12_ingestion_event_attempts.sql`
-  - `apps/api/tests/t_B02_B05_ingestion_worker.py`
-- `T-C01` replay is landed and verified with both backend and frontend
-  checks.
-- `T-B03` historical local artifact and helper scripts are now on
-  branch.
-- Remaining pre-E2E branch fix is to refresh `T-C00`.
-- Coach/operator workflow is now reset around file-based operator
-  packets:
-  - fresh coach entrypoint: `.project/COACH-START-PROMPT.md`
-  - operator packet root: `.project/operator-runs/`
-  - prompt cache: `.project/OPERATOR-PROMPT-CACHE.md`
-  - old primer/process markdown was removed as stale
+- current_objective: `T-D04` remains the only backend release gate still open; unresolved marketplace email SKUs now route into explicit review artifacts instead of retry churn, the live Bol backlog currently sits at `50 processed`, `73 review` (draft mapping needed), and `28 dead_letter` (real stock blockers), and the MediaMarktSaturn historical email backlog no longer has unknown-SKU failures but still needs operator review for stock shortages and draft mappings; the overlap report is still not clean, so `T-D04` remains open and `T-D05` remains complete
+- cycle_state:
+  - repo `/Users/ottogen/interwall`
+  - branch `v2`
+  - backend mixed-source Build lines implemented locally
+  - UI work in `inventory-interwall/ui-v2` can now target explicit `item_group | product` Build lines
+  - user preference: push bounded backend rebuild packets end-to-end with attached proof bundles instead of stopping at local/self-validation only
+- completed_since_last_handoff:
+  - bounded MediaMarktSaturn mapping cleanup packet:
+    - `apps/api/email_poller/sale_writer.py` now has a stricter generic description fallback for email marketplaces:
+      - exact build / product title fallback remains
+      - fuzzy signature fallback now only considers real EAN-backed catalog Builds
+      - fuzzy signature fallback only resolves when all candidate Builds collapse to the same component set
+      - empty/noisy descriptions no longer match component/test Build noise
+    - both ingestion workers now classify email stock-exhaustion failures as `review` instead of leaving them on automatic retry churn:
+      - `apps/api/ingestion_worker.py`
+      - `apps/api/ingestion/worker.py`
+    - targeted verification passed on rebuilt `interwall-api:latest`:
+      - `docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_D04_email_draft_review.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_D06_mms_email_replay.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_D07_email_stock_review.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -q`
+    - live MMS inventory / replay proof:
+      - replayed `246` historical MMS dead-letter rows through `process_ingestion_event(...)` after resetting them to retryable state
+      - live MMS post-replay status is now:
+        - `MediaMarktSaturn review=245`
+        - lowercase `mediamarktsaturn processed=2`
+      - important routing result:
+        - `Product not found for SKU:` count for MMS email rows is now `0`
+        - MMS `external_item_xref` now contains `32` rows
+      - current MMS review split:
+        - `197` stock-review rows
+        - `48` draft-review rows
+      - dominant MMS stock blockers are now real inventory shortages on:
+        - `COMP-CPU-R3-3200`
+        - `COMP-CPU-R5-3400`
+        - `COMP-CPU-R5-4500`
+        - `COMP-CPU-R7-5700`
+      - dominant MMS draft-review SKUs now include:
+        - `LPT-N95001` (`16`)
+        - `RDT-R3004` (`15`)
+        - `LPT-N95003` (`2`)
+        - `QL-R7064` (`2`)
+        - `RDT-R5041` (`2`)
+  - generic email draft-routing packet:
+    - unresolved email SKUs now create an inactive draft Build plus `external_item_xref` mapping and move the ingestion row to `review` instead of repeated `failed` / `dead_letter` churn
+    - this is implemented in the generic email sale path, not just Bol:
+      - `apps/api/email_poller/sale_writer.py`
+      - `apps/api/ingestion_worker.py`
+      - `apps/api/ingestion/worker.py`
+    - draft semantics:
+      - draft Build has zero components
+      - draft Build is inactive
+      - sale is not processed
+      - human must complete components / activate and then replay the ingestion row
+    - targeted verification passed on rebuilt `interwall-api:latest`:
+      - `docker compose exec -T api python -m pytest /app/tests/t_D04_email_draft_review.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -q`
+    - live proof:
+      - current live Bol email state is now:
+        - `processed=50`
+        - `review=73`
+        - `dead_letter=28`
+      - the `73 review` rows are the old unresolved-SKU cases now captured as operator work instead of retry noise
+      - one reprocessed live sample now has the persisted draft artifact:
+        - ingestion row `1484fb01-612f-4f9d-9efd-5cbaf09290f6` moved to `review`
+        - xref `BolCom / OMX-BOL-UNK-0-0-030 -> OMX-BOL-UNK-0-0-030`
+        - draft Build is inactive with `0` components and description marker `[DRAFT-UNRESOLVED-SKU]`
+  - email marketplace mapping brief added:
+    - `.project/EMAIL-MARKETPLACE-MAPPING-BRIEF.md` now records the shared email routing contract, draft-review semantics, and current live per-marketplace status
+    - important reality check from the live DB:
+      - `BolCom`: `processed=50`, `review=73`, `dead_letter=28`
+      - `MediaMarktSaturn`: `dead_letter=245` plus lowercase `mediamarktsaturn` `processed=1`, `dead_letter=1`
+      - `Boulanger`: `dead_letter=90`
+    - conclusion: MediaMarktSaturn and Boulanger are not currently clean; both still show dominant `Product not found for SKU:` failures and need dedicated mapping cleanup packets
+  - UI backend ask `inventory-interwall/ui-v2/docs/backend-asks/02-zone-shelf-lifecycle.md` completed:
+    - chose strict delete semantics for both zones and shelves
+    - `DELETE /api/zones/{id}` now hard-deletes the zone and cascades shelves only when no shelf in the zone has a `stock_lots.quantity > 0`
+    - zone delete returns `409` with `shelves_with_stock` when live stock remains
+    - `POST /api/zones/{id}/shelves` now creates a single shelf with derived D-051 labels and conflict validation on `(zone_id, col, level, bin)`
+    - `DELETE /api/shelves/{id}` now hard-deletes a shelf only when it has no live stock
+    - drained historical `stock_lots` rows are preserved via `stock_lots.shelf_id -> NULL` on shelf delete
+    - intentionally did not extend `PATCH /api/shelves/{id}` for move/reposition; the optional move section remains deferred
+  - bounded `T-D04` Bol email fallback packet:
+    - `apps/api/email_poller/parsers/bolcom.py` now only accepts `Nieuwe bestelling:` mail for sale routing and prefers the full HTML `<title>` over the truncated subject when extracting the Bol product description
+    - `apps/api/email_poller/poller.py` now persists richer Bol parsed fields (`sku`, `generated_sku`, `product_description`) into `ingestion_events.parsed_data`
+    - both email retry entrypoints now rehydrate richer Bol order data from saved rows:
+      - `apps/api/ingestion_worker.py` (live `process_ingestion_event(...)` path)
+      - `apps/api/ingestion/worker.py` (newer worker package path)
+    - `apps/api/email_poller/sale_writer.py` now has a strict Bol-only description fallback that resolves a Build only when an exact normalized active Build or Part title yields a unique match
+    - targeted proof on rebuilt `interwall-api:latest` passed:
+      - `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -q`
+      - `docker compose exec -T api python -m pytest /app/tests/t_D05_sale_routing_audit.py -q`
+    - live replay packet:
+      - requeued only `source='email' AND marketplace='BolCom' AND status='dead_letter'` rows back to `failed` for a one-off operator retry because no manual retry endpoint exists yet
+      - ran the existing retry path via `email_poller.poller.retry_pending()`
+      - outcome after replay:
+        - `processed=50` unchanged
+        - `failed=101`
+        - failure mix shifted to:
+          - `28` `deduct_fifo_for_group: insufficient stock ...`
+          - `73` `Product not found for SKU: OMX-BOL-*`
+      - this confirms the packet recovered some real Build routing, but not enough to close `T-D04`
+  - UI backend ask `inventory-interwall/ui-v2/docs/backend-asks/01-zone-template-create.md` completed:
+    - `POST /api/zones` now accepts an optional `template` payload and materializes shelves atomically in the same transaction as the zone insert
+    - name-only create remains backward-compatible and still returns the legacy zero-shelf response
+    - template validation now enforces:
+      - `cols` / `levels` in `[1, 26]`
+      - unique, in-range `single_bin_cols`
+      - `single_bin_cols` only when `split_bins=true`
+      - `default_capacity > 0` when provided
+    - materialization now matches the UI contract:
+      - split cells emit `A` + `B` shelves
+      - `single_bin_cols` emit one `bin = NULL` shelf with `single_bin = TRUE`
+      - unsplit templates emit one `bin = NULL` shelf with `single_bin = FALSE`
+      - labels use D-051 format `Zone-Column-Level-Bin`
+    - added targeted coverage in `apps/api/tests/t_zones_template_create.py`, including rollback on forced shelf insert failure
+  - worker/runtime deadlock fix:
+    - `apps/api/ingestion/worker.py` no longer self-deadlocks on `transactions.source_email_id -> ingestion_events.id` during worker reprocessing
+    - worker-driven `process_bom_sale(...)` calls now execute in the same DB transaction as the locked `ingestion_events` row
+    - `apps/api/email_poller/sale_writer.py` now accepts an optional live DB connection so worker reprocessing can reuse the outer transaction instead of opening a second connection
+  - isolated long-suite verification:
+    - `apps/api/tests/t_B01_bol_poller.py` hardcoded offer references were namespaced with `TAG` so the suite no longer collides with existing `external_item_xref` rows
+    - `T-B01` now passes deterministically on an isolated one-off runner:
+      - `docker compose run --rm api python -m pytest /app/tests/t_B01_bol_poller.py -q`
+    - `T-B02` shared-stack noise was confirmed to be real interference from unrelated pending ingestion rows in the shared DB
+    - created isolated verification DB `interwall_verify` from repo SQL/bootstrap/runtime files
+    - `T-B02` now passes deterministically against the isolated DB using a plain `docker run` test container on `interwall_network`:
+      - `docker run --rm --network interwall_network -e DATABASE_URL=.../interwall_verify interwall-api:latest python -m pytest /app/tests/t_B02_ingestion_worker.py -q`
+  - backend release packet:
+    - rebuilt `interwall-api:latest` with the worker/sale-writer changes
+    - restored main stack health with `docker compose up -d api nginx`
+    - release packet passed on the live stack:
+      - `curl -fsS http://localhost:1441/api/health/ping`
+      - `docker compose exec -T postgres psql -U interwall -d interwall -c "SELECT COUNT(*) FROM v_shelf_occupancy;"`
+      - `docker compose exec -T postgres psql -U interwall -d interwall -c "SELECT COUNT(*) FROM v_health_ingestion_failed;"`
+      - `docker compose exec -T api python -m pytest /app/tests/t_A07_routers.py /app/tests/t_A09_health_router.py /app/tests/t_C01_profit_immutability.py /app/tests/t_C02c_handshake_endpoints.py /app/tests/t_C03_zones_endpoints.py /app/tests/t_C06_batches_endpoints.py /app/tests/t_shelves_occupancy.py /app/tests/t_shelves_capacity_patch.py /app/tests/t_shelves_settings_patch.py /app/tests/t_D05_sale_routing_audit.py /app/tests/t_B04_email_poller_fallback.py -q`
+      - result: `59 passed`
+    - rollback/restore rehearsal re-passed after the live-mailbox backfill attempt:
+      - `scripts/rehearse-backup-restore.sh`
+      - restored/source counts matched with current live counts:
+        - `products=501`
+        - `stock_lots=20`
+        - `transactions=104`
+        - `stock_ledger_entries=104`
+        - `builds=513`
+        - `build_components=2941`
+        - `ingestion_events=541`
+  - `T-D04` live-mailbox reality check:
+    - confirmed mailbox contains real Bol sender traffic:
+      - IMAP `FROM "automail@bol.com"` count = `107`
+    - direct parser check on a live Bol email succeeded:
+      - `BolComParser.can_parse(...) == True`
+      - real order number extracted (example: `C00015757J`)
+    - executed one-off live email poll against the real DB with `ENABLE_BOL_EMAIL_FALLBACK=true` and `fetch_all=True`
+    - this inserted real non-synthetic Bol email ingestion rows, but they all failed sale routing:
+      - current non-synthetic `BolCom` email rows: `101`
+      - `processed=0`
+      - `failed=101`
+      - dominant blocker: `Product not found for SKU: OMX-BOL-*`
+      - secondary blocker: `deduct_fifo_for_group: insufficient stock ...`
+    - refreshed `.project/T-D04-BOL-OVERLAP-REPORT.md` from the live DB
+    - current report state:
+      - gate window reached `50` distinct orders, so the helper exits successfully as a completed measurement
+      - but the report is explicitly **not ready** to close `T-D04`
+      - current comparison window shows:
+        - `50` distinct orders in-window
+        - `49` email-only
+        - `1` API-only
+        - `0` both-path overlaps
+      - full non-synthetic overlap summary now stands at:
+        - `97` distinct real Bol orders
+        - `96` email-only
+        - `1` API-only
+        - `0` both-path overlaps
+  - IMAP direct-inbox wiring:
+    - `apps/api/email_poller/imap_client.py` now honors `IMAP_FOLDER` instead of hardcoding `INBOX`
+    - rebuilt `api` with `docker compose up -d --build api`
+    - direct container-side mailbox check succeeded after the rebuild:
+      - IMAP login succeeded
+      - selected folder `INBOX`
+      - current message count observed: `9630`
+    - stack health remained good after the change:
+      - `curl -fsS http://localhost:1441/api/health/ping` returned `{"status":"ok"}`
+    - fallback-gating regression check passed:
+      - `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -q`
+  - runbook execution / stack recovery:
+    - followed `.project/BACKEND-DEPLOY-RUNBOOK.md` against the local Compose stack on `2026-04-16`
+    - `docker compose up -d --build api` cleared the transient `psycopg2.pool.PoolError: connection pool exhausted` state that had left `api` and `nginx` unhealthy
+    - after the rebuild, `curl -fsS http://localhost:1441/api/health/ping` returned `{"status":"ok"}` and `docker compose ps` showed `api`, `nginx`, and `postgres` healthy
+    - reran `scripts/run-bol-overlap-report.sh`; it rewrote `.project/T-D04-BOL-OVERLAP-REPORT.md` and exited `1`
+    - current local overlap report window is `2026-04-16T05:20:58.443818+00:00` to `2026-04-16T05:35:28.724208+00:00` with:
+      - `1` distinct Bol.com order observed
+      - `0` email-only orders
+      - `1` API-only order
+      - `0` orders seen by both paths
+    - `T-D04` remains open; latest report says the gate still needs either `49` more distinct Bol.com orders or `167h 45m` more elapsed runtime, whichever comes first
+  - schema: `build_components` now supports:
+    - `source_type = item_group | product`
+    - nullable `item_group_id`
+    - nullable `product_id`
+    - XOR validation via DB check constraint
+    - additive backfill setting existing rows to `source_type = item_group`
+  - SQL engine:
+    - added `deduct_fifo_for_product(product_id, qty)`
+    - `process_bom_sale()` now branches per Build line source:
+      - `item_group` → pooled FIFO across Model members
+      - `product` → exact Part FIFO
+    - immutable `transactions.cogs` / `transactions.profit` behavior preserved
+  - API:
+    - `/api/builds` create/replace now accepts mixed lines
+    - `/api/builds/{build_code}` now returns mixed line metadata for both source types
+    - build list now exposes `item_group_component_count` and `product_component_count`
+  - tests:
+    - `t_A05_process_bom_sale.sql` now covers a mixed-source Build and passed in containerized Postgres
+    - ad-hoc API verification confirmed mixed-source create/get/put/list contract against the rebuilt `api` container
+    - `t_A07_routers.py` cleanup was narrowed to rows created by that module only:
+      - per-run `TEST-A07-*` namespacing for Build / Part / SKU-mapping fixtures
+      - tracked teardown for created Build codes, Model ids, and Part ids
+      - explicit `uuid[]` cleanup casts for Postgres array deletes
+    - targeted router verification now passes cleanly in containerized `api`
+    - `T-D01` pytest harness hardening completed:
+      - `apps/api/main.py` disables APScheduler automatically under pytest while preserving normal runtime scheduling outside tests
+      - `apps/api/main.py` stops closing the DB pool during pytest lifespan teardown
+      - `apps/api/db.py` pool init/close is now idempotent for shared pytest sessions
+      - `t_shelves_occupancy.py`, `t_shelves_capacity_patch.py`, and `t_shelves_settings_patch.py` now use per-run unique zone names instead of `ON CONFLICT DO NOTHING` against fixed names
+      - `t_shelves_occupancy.py` cleanup now removes composition/build references before deleting the seeded Part
+      - `t_A09_health_router.py` no longer self-applies `10_v_health.sql`; it relies on canonical startup/runtime SQL
+      - `PATCH /api/shelves/{shelf_id}` now honors explicit `{"capacity": null}` updates by using `exclude_unset=True`
+  - runtime provisioning:
+    - `apps/api/main.py` now applies idempotent runtime SQL files during FastAPI startup after `db.init_pool()`
+    - `apps/api/db.py` now exposes `apply_runtime_sql_files(...)` to execute repo SQL against long-lived dev volumes
+    - startup-applied files currently cover schema/backfill/functions/views needed by current repo runtime:
+      - `03`, `04`, `05`, `07`, `08`, `09`, `10`, `11`, `12_ingestion_event_attempts`, `12_ingestion_events_retry_count`, `13`, `14`
+    - this fixed missing dev objects including:
+      - `ingestion_events.retry_count`
+      - `v_health_ingestion_failed`
+      - `v_health_ingestion_dead_letter`
+      - `v_shelf_occupancy`
+    - important container note: `api` does not mount `./apps/api`; code changes require `docker compose up -d --build api`, not just restart
+  - deployment ops hardening:
+    - `docker-compose.yml` now pins `api` as `interwall-api:latest`, so rollback tags target the actual built image name used by this stack
+    - Compose/runtime now fail fast on missing required secrets and keep `api` + `nginx` healthchecked on `/api/health/ping`
+    - `.env.example`, `setup-server.sh`, and `deploy-server.sh` no longer embed production-looking secrets or wipe the live Postgres volume during normal deploy
+    - `.project/BACKEND-DEPLOY-RUNBOOK.md` now documents bootstrap, deploy, rollback, restore, and isolated restore rehearsal for the real Compose stack
+    - `scripts/rehearse-backup-restore.sh` now restores a dump into throwaway Postgres and verifies source/restored counts for:
+      - `products`
+      - `stock_lots`
+      - `transactions`
+      - `stock_ledger_entries`
+      - `builds`
+      - `build_components`
+      - `ingestion_events`
+    - the rehearsal also verifies restored critical runtime objects before API startup:
+      - `ingestion_events.retry_count`
+      - `v_health_ingestion_failed`
+      - `v_health_ingestion_dead_letter`
+      - `v_shelf_occupancy`
+  - `T-D04` overlap-proof tooling:
+    - `apps/api/scripts/bol_reliability_report.py` is now aligned to `T-D04` language and exit criteria
+    - the report now ignores historical synthetic `B03LOCAL` rows by default, so a local harness run cannot be mistaken for live overlap proof
+    - `scripts/run-bol-overlap-report.sh` now captures the report onto the host even when the gate is still open, preserving the markdown artifact while returning the script exit code
+    - `.project/BACKEND-DEPLOY-RUNBOOK.md` now documents the exact overlap-window procedure:
+      - enable `ENABLE_BOL_EMAIL_FALLBACK=true`
+      - rebuild `api`
+      - let the overlap window run
+      - capture `.project/T-D04-BOL-OVERLAP-REPORT.md`
+      - retire fallback only after a clean report
+  - `T-D05` sale-routing audit:
+    - `.project/T-D05-SALE-ROUTING-AUDIT.md` now documents every current Python sale-ingestion write path
+    - `apps/api/tests/t_D05_sale_routing_audit.py` proves:
+      - email inline/shared single-event processing writes Build-backed sales with ledger rows
+      - Bol.com poller writes Build-backed sales with ledger rows
+      - no live Python runtime call site invokes legacy `process_sale()`
+    - `apps/api/email_poller/sale_writer.py` terminology was tightened from BOM-only to Build-only routing for new sales
+    - `D-105` now supersedes `D-024`: legacy `process_sale()` remains SQL-only migration compatibility, not a live Python/runtime sale path
+  - local UI-agent guidance added in `inventory-interwall/ui-v2/{AGENTS.md,CLAUDE.md}`
+- stable_ui_contract:
+  - request line shape:
+    - `source_type`
+    - `item_group_id | product_id` with XOR semantics
+    - `quantity`
+    - `valid_from`
+    - `valid_to`
+  - request examples:
+    - item-group line: `{ "source_type": "item_group", "item_group_id": "<uuid>", "quantity": 1 }`
+    - product line: `{ "source_type": "product", "product_id": "<uuid>", "quantity": 1 }`
+  - detail response line shape:
+    - common: `id`, `source_type`, `item_group_id`, `product_id`, `quantity`, `valid_from`, `valid_to`
+    - item-group metadata: `item_group_name`, `item_group_code`
+    - product metadata: `product_name`, `product_ean`, `product_sku`
+  - list response additions:
+    - `component_count`
+    - `item_group_component_count`
+    - `product_component_count`
+- active_files_or_surfaces:
+  - `.project/BACKEND-DEPLOY-RUNBOOK.md`
+  - `docker-compose.yml`
+  - `deploy-server.sh`
+  - `setup-server.sh`
+  - `scripts/rehearse-backup-restore.sh`
+  - `apps/api/db.py`
+  - `apps/api/main.py`
+  - `apps/api/routers/zones.py`
+  - `apps/api/routers/shelves.py`
+  - `apps/api/sql/03_avl_build_schema.sql`
+  - `apps/api/sql/07_deduct_fifo_for_group.sql`
+  - `apps/api/sql/08_process_bom_sale.sql`
+  - `apps/api/routers/builds.py`
+  - `apps/api/tests/t_A05_process_bom_sale.sql`
+  - `apps/api/tests/t_A07_routers.py`
+  - `apps/api/tests/t_A09_health_router.py`
+  - `apps/api/tests/t_zone_shelf_lifecycle.py`
+  - `apps/api/tests/t_zones_template_create.py`
+  - `apps/api/tests/t_shelves_occupancy.py`
+  - `apps/api/tests/t_shelves_capacity_patch.py`
+  - `apps/api/tests/t_shelves_settings_patch.py`
+  - `inventory-interwall/ui-v2/AGENTS.md`
+  - `inventory-interwall/ui-v2/CLAUDE.md`
+- verification_status:
+  - passed: `docker compose exec -T postgres psql -U interwall -d interwall -f /app/sql/07_deduct_fifo_for_group.sql -f /app/sql/08_process_bom_sale.sql -f /app/tests/t_A05_process_bom_sale.sql`
+  - passed: ad-hoc `TestClient` verification of mixed-source `/api/builds` create/get/put/list after `docker compose up -d --build api`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_A07_routers.py -q`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_C03_zones_endpoints.py /app/tests/t_zones_template_create.py -q`
+    - result: `16 passed`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_C03_zones_endpoints.py /app/tests/t_zones_template_create.py /app/tests/t_zone_shelf_lifecycle.py /app/tests/t_shelves_capacity_patch.py /app/tests/t_shelves_settings_patch.py -q`
+    - result: `37 passed`
+  - passed: `docker compose exec -T postgres psql -U interwall -d interwall -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'ingestion_events' AND column_name = 'retry_count';"`
+  - passed: `docker compose exec -T postgres psql -U interwall -d interwall -c "SELECT viewname FROM pg_views WHERE viewname IN ('v_health_ingestion_failed','v_health_ingestion_dead_letter','v_shelf_occupancy') ORDER BY viewname;"`
+  - passed: `docker compose exec -T postgres psql -U interwall -d interwall -c "SELECT COUNT(*) AS n FROM v_shelf_occupancy;"`
+  - passed: startup log after `docker compose up -d --build api` no longer shows `retry_count`/missing-view errors; `/api/shelves/occupancy` returned `200 OK`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_A07_routers.py /app/tests/t_A09_health_router.py /app/tests/t_C01_profit_immutability.py /app/tests/t_C02c_handshake_endpoints.py /app/tests/t_C03_zones_endpoints.py /app/tests/t_C06_batches_endpoints.py /app/tests/t_shelves_occupancy.py /app/tests/t_shelves_capacity_patch.py /app/tests/t_shelves_settings_patch.py -q`
+  - passed: `bash -n scripts/rehearse-backup-restore.sh deploy-server.sh setup-server.sh`
+  - passed: `docker compose config`
+  - passed: `scripts/rehearse-backup-restore.sh`
+    - source/restored counts matched for `products=497`, `stock_lots=16`, `transactions=100`, `stock_ledger_entries=100`, `builds=509`, `build_components=2937`, `ingestion_events=100`
+    - restored DB contained `ingestion_events.retry_count`, `v_health_ingestion_failed`, `v_health_ingestion_dead_letter`, and `v_shelf_occupancy` before API startup
+  - passed: `bash -n scripts/run-bol-overlap-report.sh`
+  - passed: `python -m py_compile apps/api/scripts/bol_reliability_report.py`
+  - passed: `docker compose up -d --build api`
+  - passed: `scripts/run-bol-overlap-report.sh --include-synthetic`
+    - produced a `T-D04`-worded report from the historical local harness and exited `0`
+  - passed: `scripts/run-bol-overlap-report.sh`
+    - wrote `.project/T-D04-BOL-OVERLAP-REPORT.md`
+    - exited `1`
+    - correctly ignored historical synthetic `B03LOCAL` rows and reported that no live comparable overlap data exists yet
+  - passed: runbook recovery packet on `2026-04-16`
+    - `docker compose up -d --build api`
+    - `curl -fsS http://localhost:1441/api/health/ping`
+    - `docker compose ps`
+    - `scripts/run-bol-overlap-report.sh`
+    - result: stack healthy again; report still exits `1` because the active comparison window only contains `1` API-only Bol.com order so far
+  - passed: direct IMAP verification on `2026-04-16`
+    - `docker compose exec -T api python - <<'PY' ... IMAPClient.connect(); IMAPClient.select_inbox() ... PY`
+    - result: `IMAP_CONNECT_OK folder=INBOX count=9630`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -q`
+  - passed: `docker compose run --rm api python -m pytest /app/tests/t_B01_bol_poller.py -q`
+  - passed: isolated `T-B02` on `interwall_verify`
+    - `docker run --rm --network interwall_network -e DATABASE_URL=.../interwall_verify interwall-api:latest python -m pytest /app/tests/t_B02_ingestion_worker.py -q`
+    - result: `8 passed`
+  - passed: live release packet after worker fix
+    - `docker compose exec -T api python -m pytest /app/tests/t_A07_routers.py /app/tests/t_A09_health_router.py /app/tests/t_C01_profit_immutability.py /app/tests/t_C02c_handshake_endpoints.py /app/tests/t_C03_zones_endpoints.py /app/tests/t_C06_batches_endpoints.py /app/tests/t_shelves_occupancy.py /app/tests/t_shelves_capacity_patch.py /app/tests/t_shelves_settings_patch.py /app/tests/t_D05_sale_routing_audit.py /app/tests/t_B04_email_poller_fallback.py -q`
+    - result: `59 passed`
+  - failed / blocked: `T-D04` live overlap closure attempt
+    - live Bol mailbox backfill produced real `BolCom` email rows, but all landed in `status='failed'`
+    - refreshed report in `.project/T-D04-BOL-OVERLAP-REPORT.md` says `not ready to close T-D04`
+  - passed: `python -m py_compile apps/api/tests/t_D05_sale_routing_audit.py apps/api/email_poller/sale_writer.py`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_D05_sale_routing_audit.py -q`
+  - passed: `docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -q`
+    - result: `6 passed`
+  - passed: bounded `T-D04` fallback packet verification on rebuilt `interwall-api:latest`
+    - `docker compose exec -T api python -m pytest /app/tests/t_B04_email_poller_fallback.py -q`
+      - result: `5 passed`
+    - `docker compose exec -T api python -m pytest /app/tests/t_A08_poller_routing.py -q`
+      - result: `6 passed`
+    - `docker compose exec -T api python -m pytest /app/tests/t_D05_sale_routing_audit.py -q`
+      - result: `3 passed`
+    - one-off live Bol email replay after requeue:
+      - `UPDATE ingestion_events SET status='failed', attempt_count=0, error_message=NULL, dead_letter_reason=NULL WHERE source='email' AND marketplace='BolCom' AND status='dead_letter';`
+      - `docker compose exec -T api python - <<'PY' ... retry_pending() ... PY`
+      - outcome: `101` Bol email rows replayed; `28` now fail on stock insufficiency and `73` still fail SKU resolution
+  - passed: `rg -n "process_sale\\(" apps/api`
+    - only SQL definition/migration commentary remain; no live Python runtime callsite
+  - partial: `docker compose exec -T api python -m pytest /app/tests/t_B01_bol_poller.py -q`
+  - partial: `docker compose exec -T api python -m pytest /app/tests/t_B02_ingestion_worker.py -q`
+    - both longer suites were started against the live dev stack after `api` startup
+    - `pg_stat_activity` showed scheduler/background runtime contention on the shared dev DB rather than a clean packet-local failure
+    - focused `T-D05` proof was kept on the bounded audit surfaces above instead of treating those noisy runs as authoritative
+- runtime_truths_to_preserve:
+  - Build remains the sale-routing authority
+  - new sales must keep going through `process_bom_sale()` only
+  - no legacy inferred composition fallback was added
+  - `ean_compositions` + `process_sale()` remain present for migration compatibility only
+- next_recommended_tasks:
+  - do not move to `T-D06` yet; `T-D04` is still open and now has a concrete blocker
+  - create the next bounded `T-D04` packet around the remaining `73` real `OMX-BOL-*` misses:
+    - focus on old/compact Bol titles that still do not resolve from exact normalized description matching
+    - decide whether those rows should resolve via additional parser normalization, deterministic description→Part/EAN mapping, or explicit Bol SKU-mapping backfill
+  - handle the now-exposed `28` stock-insufficient rows as a separate bounded ops/data packet after SKU resolution is no longer the dominant blocker
+  - after fixing live Bol email routing, rerun the live fallback poll + refresh `.project/T-D04-BOL-OVERLAP-REPORT.md`
+  - only when the report shows zero email-only, zero API-only, and zero mismatches should `T-D04` be closed and `T-D06` soak/signoff begin
+- last_updated: `2026-04-16`

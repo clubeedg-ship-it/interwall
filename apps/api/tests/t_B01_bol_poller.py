@@ -249,12 +249,13 @@ def cleanup_test_data():
 
 def test_case1_happy_path_single_item():
     """Case 1 -- Happy path: single FBR order item, processed end-to-end."""
+    offer_ref = f"OFFER-B01-{TAG}-C1"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids = _seed_full_stack(cur, "C1", offer_ref="OFFER-C1")
+            ids = _seed_full_stack(cur, "C1", offer_ref=offer_ref)
 
     order_id = f"TEST-B01-{TAG}-C1"
-    item = _make_order_item("ITEM-C1", ids["ean"], offer_reference="OFFER-C1",
+    item = _make_order_item("ITEM-C1", ids["ean"], offer_reference=offer_ref,
                             quantity=1, unit_price=500.0, total_price=500.0,
                             commission=5.0)
     detail = _make_order_detail(order_id, [item])
@@ -311,12 +312,13 @@ def test_case1_happy_path_single_item():
 
 def test_case2_duplicate_poll_skipped():
     """Case 2 -- At-least-once: duplicate poll is skipped."""
+    offer_ref = f"OFFER-B01-{TAG}-C2"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids = _seed_full_stack(cur, "C2", offer_ref="OFFER-C2")
+            ids = _seed_full_stack(cur, "C2", offer_ref=offer_ref)
 
     order_id = f"TEST-B01-{TAG}-C2"
-    item = _make_order_item("ITEM-C2", ids["ean"], offer_reference="OFFER-C2",
+    item = _make_order_item("ITEM-C2", ids["ean"], offer_reference=offer_ref,
                             quantity=1, unit_price=500.0, total_price=500.0)
     detail = _make_order_detail(order_id, [item])
 
@@ -350,13 +352,14 @@ def test_case2_duplicate_poll_skipped():
 
 def test_case3_discount_absorbed():
     """Case 3 -- Discount absorbed into sale_price (D-099)."""
+    offer_ref = f"OFFER-B01-{TAG}-C3"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids = _seed_full_stack(cur, "C3", offer_ref="OFFER-C3")
+            ids = _seed_full_stack(cur, "C3", offer_ref=offer_ref)
 
     order_id = f"TEST-B01-{TAG}-C3"
     # unitPrice=100, quantity=2, totalPrice=180 (10% discount)
-    item = _make_order_item("ITEM-C3", ids["ean"], offer_reference="OFFER-C3",
+    item = _make_order_item("ITEM-C3", ids["ean"], offer_reference=offer_ref,
                             quantity=2, unit_price=100.0, total_price=180.0,
                             commission=5.0)
     detail = _make_order_detail(order_id, [item])
@@ -384,14 +387,15 @@ def test_case3_discount_absorbed():
 
 def test_case4_commission_override():
     """Case 4 -- Commission override (D-098)."""
+    offer_ref = f"OFFER-B01-{TAG}-C4"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids = _seed_full_stack(cur, "C4", offer_ref="OFFER-C4",
+            ids = _seed_full_stack(cur, "C4", offer_ref=offer_ref,
                                    unit_cost=50.0)
 
     order_id = f"TEST-B01-{TAG}-C4"
     api_commission = 12.00  # exact amount from API
-    item = _make_order_item("ITEM-C4", ids["ean"], offer_reference="OFFER-C4",
+    item = _make_order_item("ITEM-C4", ids["ean"], offer_reference=offer_ref,
                             quantity=1, unit_price=500.0, total_price=500.0,
                             commission=api_commission)
     detail = _make_order_detail(order_id, [item])
@@ -499,17 +503,19 @@ def test_case5_offer_reference_null_ean_fallback():
 
 def test_case6_fbb_filtered():
     """Case 6 -- FBB item filtered out (P-14)."""
+    offer_ref_fbr = f"OFFER-B01-{TAG}-C6F"
+    offer_ref_fbb = f"OFFER-B01-{TAG}-C6B"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids_fbr = _seed_full_stack(cur, "C6F", offer_ref="OFFER-C6F")
-            ids_fbb = _seed_full_stack(cur, "C6B", offer_ref="OFFER-C6B")
+            ids_fbr = _seed_full_stack(cur, "C6F", offer_ref=offer_ref_fbr)
+            ids_fbb = _seed_full_stack(cur, "C6B", offer_ref=offer_ref_fbb)
 
     order_id = f"TEST-B01-{TAG}-C6"
     fbr_item = _make_order_item("ITEM-C6F", ids_fbr["ean"],
-                                offer_reference="OFFER-C6F",
+                                offer_reference=offer_ref_fbr,
                                 fulfilment_method="FBR")
     fbb_item = _make_order_item("ITEM-C6B", ids_fbb["ean"],
-                                offer_reference="OFFER-C6B",
+                                offer_reference=offer_ref_fbb,
                                 fulfilment_method="FBB")
     detail = _make_order_detail(order_id, [fbr_item, fbb_item])
 
@@ -541,12 +547,13 @@ def test_case6_fbb_filtered():
 
 def test_case7_cancellation_skipped():
     """Case 7 -- cancellationRequest=true skipped."""
+    offer_ref = f"OFFER-B01-{TAG}-C7"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids = _seed_full_stack(cur, "C7", offer_ref="OFFER-C7")
+            ids = _seed_full_stack(cur, "C7", offer_ref=offer_ref)
 
     order_id = f"TEST-B01-{TAG}-C7"
-    item = _make_order_item("ITEM-C7", ids["ean"], offer_reference="OFFER-C7",
+    item = _make_order_item("ITEM-C7", ids["ean"], offer_reference=offer_ref,
                             cancellation_request=True)
     detail = _make_order_detail(order_id, [item])
 
@@ -617,12 +624,13 @@ def test_case8_xref_missing_ean_no_build():
 
 def test_case9_oauth_401_retry():
     """Case 9 -- OAuth 401 mid-run -> refresh + retry succeeds."""
+    offer_ref = f"OFFER-B01-{TAG}-C9"
     with db.get_conn() as conn:
         with conn.cursor() as cur:
-            ids = _seed_full_stack(cur, "C9", offer_ref="OFFER-C9")
+            ids = _seed_full_stack(cur, "C9", offer_ref=offer_ref)
 
     order_id = f"TEST-B01-{TAG}-C9"
-    item = _make_order_item("ITEM-C9", ids["ean"], offer_reference="OFFER-C9",
+    item = _make_order_item("ITEM-C9", ids["ean"], offer_reference=offer_ref,
                             quantity=1, unit_price=500.0, total_price=500.0)
     detail = _make_order_detail(order_id, [item])
 
