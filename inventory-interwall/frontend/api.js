@@ -388,6 +388,46 @@ const api = {
      */
     async getFixedCosts() {
         return this.request('/api/fixed-costs');
+    },
+
+    // =========================================================================
+    // Health Observability Surface (T-C10)
+    // =========================================================================
+
+    async getHealth() {
+        return this.request('/api/health');
+    },
+
+    async pingHealth() {
+        return this.request('/api/health/ping');
+    },
+
+    async getHealthOrphansPartsWithoutShelf() {
+        return this.request('/api/health/orphans/parts-without-shelf');
+    },
+
+    async getHealthOrphansPartsWithoutReorder() {
+        return this.request('/api/health/orphans/parts-without-reorder');
+    },
+
+    async getHealthOrphansBuildsWithoutXref() {
+        return this.request('/api/health/orphans/builds-without-xref');
+    },
+
+    async getHealthSalesWithoutLedger() {
+        return this.request('/api/health/invariants/sales-without-ledger');
+    },
+
+    async getHealthIngestionStatus() {
+        return this.request('/api/health/ingestion/status');
+    },
+
+    async getHealthIngestionFailed() {
+        return this.request('/api/health/ingestion/failed');
+    },
+
+    async getHealthIngestionDeadLetter() {
+        return this.request('/api/health/ingestion/dead-letter');
     }
 };
 

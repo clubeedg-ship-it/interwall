@@ -15,6 +15,80 @@
         .app-loader.hidden { display: none; }
         .loader-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #00d4aa; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .health-page { display: grid; gap: 1rem; }
+        .health-toolbar, .health-section, .health-market-card, .health-list-item, .health-error, .health-empty {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+        }
+        .health-toolbar, .health-section { padding: 1rem 1.25rem; }
+        .health-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .health-toolbar-meta, .health-section-head, .health-item-main, .health-item-meta, .health-metric-line, .health-empty, .health-error {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .health-toolbar-meta, .health-item-meta, .health-metric-line { flex-wrap: wrap; }
+        .health-section-head {
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .health-section-title { display: flex; align-items: center; gap: 0.75rem; }
+        .health-section-title h2, .health-section-title h3 { margin: 0; }
+        .health-section-subtitle, .health-muted, .health-item-detail, .health-table td, .health-table th { color: rgba(255,255,255,0.72); }
+        .health-market-grid, .health-invariant-grid, .health-orphan-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+        .health-market-card { padding: 1rem; display: grid; gap: 0.75rem; }
+        .health-market-card-head, .health-list-item-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .health-market-name, .health-item-name, .health-mono-link { font-weight: 600; }
+        .health-mono, .health-mono-link, .health-table code { font-family: var(--font-mono, monospace); }
+        .health-mono-link, .health-link {
+            color: var(--accent, #00d4aa);
+            text-decoration: none;
+        }
+        .health-mono-link:hover, .health-link:hover { text-decoration: underline; }
+        .health-metric-block { display: grid; gap: 0.35rem; }
+        .health-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.58); }
+        .health-table-wrap { overflow-x: auto; }
+        .health-table { width: 100%; border-collapse: collapse; }
+        .health-table th, .health-table td { padding: 0.75rem 0.5rem; text-align: left; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .health-table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.58); }
+        .health-empty, .health-error { padding: 1rem; justify-content: flex-start; }
+        .health-list { display: grid; gap: 0.75rem; }
+        .health-list-item { padding: 1rem; display: grid; gap: 0.75rem; }
+        .health-list-item summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+        .health-list-item summary::-webkit-details-marker { display: none; }
+        .health-list-item-body { display: grid; gap: 0.75rem; }
+        .health-detail-list { display: grid; gap: 0.5rem; }
+        .health-action-group { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+        .health-button-disabled { opacity: 0.55; cursor: not-allowed; }
+        .health-count { font-size: 1.4rem; font-weight: 700; }
+        @media (max-width: 720px) {
+            .health-toolbar, .health-section-head, .health-market-card-head, .health-list-item summary { align-items: flex-start; }
+        }
     </style>
 </head>
 
@@ -59,6 +133,12 @@
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                     <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                     <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            </button>
+
+            <button class="nav-item" data-view="health" title="Health">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h4l2-5 4 10 2-5h6" />
                 </svg>
             </button>
 
@@ -394,6 +474,65 @@
                     </div>
                     <div class="batches-panel-body" id="batchesPanelBody"></div>
                 </aside>
+            </section>
+
+            <section class="view" id="view-health">
+                <div class="health-page">
+                    <div class="health-toolbar">
+                        <div>
+                            <h1 style="margin: 0;">Operational Health</h1>
+                            <p class="health-section-subtitle" style="margin: 0.35rem 0 0;">Operational invariants, ingestion status, and housekeeping signals.</p>
+                        </div>
+                        <div class="health-action-group">
+                            <span class="health-muted" id="healthLastRefresh">Not loaded yet</span>
+                            <button class="btn-secondary" id="healthRefreshAll">Refresh all</button>
+                        </div>
+                    </div>
+
+                    <section class="health-section" id="healthIngestionSection">
+                        <div class="health-section-head">
+                            <div class="health-section-title">
+                                <h2>Ingestion Status</h2>
+                                <span class="stock-badge empty" id="healthIngestionBadge">Idle</span>
+                            </div>
+                            <button class="btn-secondary" id="healthRefreshIngestion">Refresh</button>
+                        </div>
+                        <div id="healthIngestionBody"></div>
+                    </section>
+
+                    <section class="health-section" id="healthDeadLetterSection">
+                        <div class="health-section-head">
+                            <div class="health-section-title">
+                                <h2>Dead-Letter Queue</h2>
+                                <span class="stock-badge empty" id="healthDeadLetterBadge">Idle</span>
+                            </div>
+                            <button class="btn-secondary" id="healthRefreshDeadLetter">Refresh</button>
+                        </div>
+                        <div id="healthDeadLetterBody"></div>
+                    </section>
+
+                    <section class="health-section" id="healthInvariantsSection">
+                        <div class="health-section-head">
+                            <div class="health-section-title">
+                                <h2>Invariants</h2>
+                                <span class="stock-badge empty" id="healthInvariantsBadge">Idle</span>
+                            </div>
+                            <button class="btn-secondary" id="healthRefreshInvariants">Refresh</button>
+                        </div>
+                        <div id="healthInvariantsBody"></div>
+                    </section>
+
+                    <section class="health-section" id="healthOrphansSection">
+                        <div class="health-section-head">
+                            <div class="health-section-title">
+                                <h2>Orphans</h2>
+                                <span class="stock-badge empty" id="healthOrphansBadge">Idle</span>
+                            </div>
+                            <button class="btn-secondary" id="healthRefreshOrphans">Refresh</button>
+                        </div>
+                        <div id="healthOrphansBody"></div>
+                    </section>
+                </div>
             </section>
 
             <section class="view" id="view-compositions">
@@ -1338,6 +1477,7 @@
     <script src="ui.js?v=1"></script>
     <script src="batches.js?v=1"></script>
     <script src="history.js?v=1"></script>
+    <script src="health.js?v=1"></script>
     <script src="auth.js?v=2"></script>
     <script src="compositions.js?v=9"></script>
     <script src="labels.js?v=6"></script>

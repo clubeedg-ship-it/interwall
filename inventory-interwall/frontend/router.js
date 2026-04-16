@@ -56,7 +56,9 @@ const router = {
                     catalog: 'Parts Catalog',
                     profit: 'Profitability',
                     history: 'Batch History',
-                    batches: 'Batches'
+                    batches: 'Batches',
+                    health: 'Health',
+                    compositions: 'EAN Compositions',
                 };
                 dom.viewTitle.textContent = titles[view] || view;
 
@@ -83,6 +85,10 @@ const router = {
                 // Render Batches view (T-C06) when navigating to it
                 if (view === 'batches' && typeof batches !== 'undefined') {
                     batches.render();
+                }
+
+                if (view === 'health' && typeof health !== 'undefined') {
+                    health.init();
                 }
             }, 200); // Match warp-out animation duration
         }
@@ -120,7 +126,15 @@ const router = {
                 });
 
                 // Update title
-                const titles = { wall: 'The Wall', catalog: 'Parts Catalog', profit: 'Profitability', history: 'Batch History', batches: 'Batches' };
+                const titles = {
+                    wall: 'The Wall',
+                    catalog: 'Parts Catalog',
+                    profit: 'Profitability',
+                    history: 'Batch History',
+                    batches: 'Batches',
+                    health: 'Health',
+                    compositions: 'EAN Compositions',
+                };
                 dom.viewTitle.textContent = titles[targetView] || targetView;
 
                 state.currentView = targetView;
@@ -128,6 +142,10 @@ const router = {
                 // Kick off view-specific init on cold restore (T-C06)
                 if (targetView === 'batches' && typeof batches !== 'undefined') {
                     batches.render();
+                }
+
+                if (targetView === 'health' && typeof health !== 'undefined') {
+                    health.init();
                 }
 
             } else {

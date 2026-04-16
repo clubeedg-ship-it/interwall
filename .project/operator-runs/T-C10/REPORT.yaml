@@ -1,0 +1,27 @@
+status: done
+summary: >-
+  Added a dedicated #health frontend view with ingestion status, dead-letter,
+  money-safety invariant, and orphan sections; wired the route, API helpers,
+  verifier, and authenticated Playwright truth test within the allowed files.
+tests:
+  - command: node inventory-interwall/frontend/t_c10_health_verify.mjs
+    result: pass
+  - command: >-
+      cd inventory-interwall/e2e && INTERWALL_E2E_USER=admin
+      INTERWALL_E2E_PASS=admin123 npx playwright test tests/health-truth.spec.ts
+    result: pass
+  - command: >-
+      git diff --name-only HEAD -- . ':(exclude).project/operator-runs/T-C10/*'
+    result: pass
+files_changed:
+  - inventory-interwall/frontend/health.js
+  - inventory-interwall/frontend/api.js
+  - inventory-interwall/frontend/router.js
+  - inventory-interwall/frontend/index.html
+  - inventory-interwall/frontend/config.js
+  - inventory-interwall/frontend/t_c10_health_verify.mjs
+  - inventory-interwall/e2e/playwright.config.ts
+  - inventory-interwall/e2e/tests/health-truth.spec.ts
+open_questions:
+  - No retry endpoint exists in apps/api/routers/health.py, so dead-letter retry buttons are disabled with a "Retry wiring pending" tooltip.
+  - In the current local stack, GET /api/health/ingestion/dead-letter returns HTTP 500; the UI renders the required section-level error state instead of a blank table.

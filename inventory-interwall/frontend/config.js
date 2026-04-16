@@ -31,6 +31,7 @@ const THRESHOLDS = {
     STOCK_WARNING: 15,          // qty at/below which wall cell is "warning"
     BIN_LOW_FILL_PERCENT: 20,   // fill% below which bin-info flags low
     LOW_STOCK_RATIO: 0.5,       // catalog low-stock = inStock < minStock * ratio
+    HEALTH_ORPHAN_YELLOW_MAX: 10, // orphan count above this is critical
 };
 
 const DEFAULTS = {
