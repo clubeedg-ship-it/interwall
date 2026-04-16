@@ -265,7 +265,7 @@ def _load_draft_metadata(cur, build: dict) -> dict | None:
         )
         pending_review_count = cur.fetchone()["cnt"]
         cur.execute(
-            """SELECT DISTINCT parsed_data->>'product_description' AS desc
+            """SELECT DISTINCT parsed_data->>'product_description' AS description
                  FROM ingestion_events
                 WHERE marketplace = %s
                   AND (
@@ -276,11 +276,11 @@ def _load_draft_metadata(cur, build: dict) -> dict | None:
                   )
                   AND parsed_data->>'product_description' IS NOT NULL
                   AND parsed_data->>'product_description' <> ''
-                ORDER BY desc
+                ORDER BY description
                 LIMIT 5""",
             (marketplace, external_sku, external_sku, external_sku, external_sku),
         )
-        parsed_descriptions = [row["desc"] for row in cur.fetchall() if row["desc"]]
+        parsed_descriptions = [row["description"] for row in cur.fetchall() if row["description"]]
     return {
         "marketplace": marketplace,
         "external_sku": external_sku,
