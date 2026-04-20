@@ -13,7 +13,7 @@ import os
 import logging
 from email_poller.parsers import MediaMarktSaturnParser, BolComParser, BoulangerParser
 from db import get_conn
-from email_poller.email_log import is_already_processed
+from email_poller.email_log import is_already_seen
 from ingestion_worker import process_ingestion_event
 from email_poller.imap_client import IMAPClient
 
@@ -85,15 +85,34 @@ def poll_once(fetch_all=False):
             for name, sender in _active_marketplace_senders().items():
                 try:
                     email_ids = client.search_from_sender(sender, unseen_only=unseen_only)
-                    logger.info(f"{name}: {len(email_ids)} emails to process")
-                    for eid in email_ids:
+                except Exception as e:
+                    logger.error(f"Error searching {name} emails: {e}", exc_info=True)
+                    continue
+
+                logger.info(f"{name}: {len(email_ids)} emails to process")
+                processed = 0
+                skipped = 0
+                errors = 0
+                for eid in email_ids:
+                    try:
                         email_data = client.fetch_email(eid)
                         if email_data:
-                            _process_one(email_data)
+                            outcome = _process_one(email_data)
+                            if outcome == "skipped":
+                                skipped += 1
+                            else:
+                                processed += 1
                         if unseen_only:
                             client.mark_as_read(eid)
-                except Exception as e:
-                    logger.error(f"Error processing {name} emails: {e}", exc_info=True)
+                    except Exception as e:
+                        errors += 1
+                        logger.error(
+                            f"Error processing {name} email {eid}: {e}",
+                            exc_info=True,
+                        )
+                logger.info(
+                    f"{name}: done; processed={processed} skipped={skipped} errors={errors}"
+                )
     except Exception as e:
         logger.error(f"Poll cycle error: {e}", exc_info=True)
 
@@ -160,15 +179,22 @@ def _insert_email_event(
             return str(cur.fetchone()["id"])
 
 
-def _process_one(email_data: dict):
-    """Process a single email: dedup, parse, log, and trigger sale processing."""
+def _process_one(email_data: dict) -> str:
+    """Process a single email: dedup, parse, log, and trigger sale processing.
+
+    Returns one of:
+      - "skipped"   — message_id missing, no parser matched, or row already exists
+      - "processed" — newly inserted (and downstream worker called)
+    Retry of pending/failed rows is intentionally NOT done here; that is
+    handled by `retry_pending` and the `process_pending_events` job.
+    """
     message_id = email_data.get("message_id", "")
-    if not message_id or is_already_processed(message_id):
-        return
+    if not message_id or is_already_seen(message_id):
+        return "skipped"
 
     parser = next((p for p in _active_parsers() if p.can_parse(email_data)), None)
     if not parser:
-        return
+        return "skipped"
 
     order = parser.parse(email_data)
     if not order or not order.is_valid():
@@ -180,7 +206,7 @@ def _process_one(email_data: dict):
             "failed",
             error_message="Email parser returned no valid order",
         )
-        return
+        return "processed"
 
     email_id = _insert_email_event(
         message_id,
@@ -205,3 +231,4 @@ def _process_one(email_data: dict):
         logger.info(f"Sale processed: order={order.order_number} event={email_id}")
     else:
         logger.error("Sale processing failed for %s: status=%s", order.order_number, result)
+    return "processed"

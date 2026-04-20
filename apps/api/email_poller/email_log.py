@@ -25,6 +25,20 @@ def is_already_processed(message_id: str) -> bool:
             return row['status'] == 'processed'  # Only skip if fully processed
 
 
+def is_already_seen(message_id: str) -> bool:
+    """True if any ingestion_events row exists for this message_id.
+    Use this in the IMAP-side dedup so the poller never tries to insert
+    a duplicate; retry of pending/failed rows is handled separately by
+    `retry_pending` and the `process_pending_events` scheduler job."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM ingestion_events WHERE message_id = %s LIMIT 1",
+                (message_id,)
+            )
+            return cur.fetchone() is not None
+
+
 def get_existing_email_id(message_id: str) -> str | None:
     """Get email UUID for an existing pending/failed row (for retry)."""
     with get_conn() as conn:
