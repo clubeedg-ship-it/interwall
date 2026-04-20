@@ -357,15 +357,28 @@ def _ensure_draft_build_for_unresolved_sku(order: OrderData, sku: str) -> str:
     Create or reuse an inactive draft build keyed off an unresolved email SKU.
 
     Drafts are operator work only. They never process sales until a human adds
-    components and explicitly activates/replays them.
+    components and explicitly activates/replays them. No `external_item_xref`
+    row is created at draft time — the xref is written only when the operator
+    saves/approves the build from the UI. That keeps xref semantics clean:
+    "xref exists" <=> "approved mapping".
+
+    Dedup is done by scanning the draft marker in `builds.description` for a
+    matching (marketplace, external_sku) pair instead of the xref.
     """
+    marker_mp = f"\nmarketplace={order.marketplace}\n"
+    marker_sku = f"\nexternal_sku={sku}\n"
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT x.build_code
-                     FROM external_item_xref x
-                    WHERE x.marketplace = %s AND x.external_sku = %s""",
-                (order.marketplace, sku),
+                """SELECT build_code
+                     FROM builds
+                    WHERE is_active = FALSE
+                      AND description LIKE %s
+                      AND position(%s IN description) > 0
+                      AND position(%s IN description) > 0
+                    ORDER BY created_at
+                    LIMIT 1""",
+                (f"{_DRAFT_MARKER}%", marker_mp, marker_sku),
             )
             existing = cur.fetchone()
             if existing:
@@ -388,20 +401,25 @@ def _ensure_draft_build_for_unresolved_sku(order: OrderData, sku: str) -> str:
             cur.execute(
                 """INSERT INTO builds (build_code, name, description, is_active)
                    VALUES (%s, %s, %s, FALSE)
-                   ON CONFLICT (build_code) DO NOTHING""",
+                   ON CONFLICT (build_code) DO NOTHING
+                   RETURNING build_code""",
                 (build_code, draft_name, draft_description),
             )
+            row = cur.fetchone()
+            if row:
+                return row["build_code"]
+            # Lost a race with a concurrent writer; the other session already
+            # inserted the draft. Fall through to the same lookup we did above.
             cur.execute(
-                """INSERT INTO external_item_xref (marketplace, external_sku, build_code)
-                   VALUES (%s, %s, %s)
-                   ON CONFLICT (marketplace, external_sku) DO NOTHING""",
-                (order.marketplace, sku, build_code),
-            )
-            cur.execute(
-                """SELECT x.build_code
-                     FROM external_item_xref x
-                    WHERE x.marketplace = %s AND x.external_sku = %s""",
-                (order.marketplace, sku),
+                """SELECT build_code
+                     FROM builds
+                    WHERE is_active = FALSE
+                      AND description LIKE %s
+                      AND position(%s IN description) > 0
+                      AND position(%s IN description) > 0
+                    ORDER BY created_at
+                    LIMIT 1""",
+                (f"{_DRAFT_MARKER}%", marker_mp, marker_sku),
             )
             row = cur.fetchone()
     return row["build_code"]

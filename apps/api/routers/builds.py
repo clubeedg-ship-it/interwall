@@ -236,17 +236,13 @@ def _load_draft_metadata(cur, build: dict) -> dict | None:
     description = build.get("description") or ""
     if build.get("is_active") or not description.startswith(DRAFT_MARKER):
         return None
-    cur.execute(
-        """SELECT marketplace, external_sku, created_at
-             FROM external_item_xref
-            WHERE build_code = %s
-            ORDER BY created_at
-            LIMIT 1""",
-        (build["build_code"],),
-    )
-    xref = cur.fetchone()
-    marketplace = xref["marketplace"] if xref else None
-    external_sku = xref["external_sku"] if xref else None
+    marketplace = None
+    external_sku = None
+    for line in description.splitlines():
+        if line.startswith("marketplace="):
+            marketplace = line.split("=", 1)[1].strip() or None
+        elif line.startswith("external_sku="):
+            external_sku = line.split("=", 1)[1].strip() or None
     parsed_descriptions: list[str] = []
     pending_review_count = 0
     if marketplace and external_sku:
