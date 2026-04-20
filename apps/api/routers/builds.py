@@ -505,39 +505,30 @@ def _replay_review_events_for_xrefs(xrefs: list[dict]) -> dict:
 
 @router.delete("/{build_code}", status_code=200)
 def delete_build(build_code: str, session=Depends(require_session)):
+    """Cascade-delete a build: its components, SKU mappings, and sales/ledger
+    routed through it. Parts catalog (products, item_groups, stock_lots) is
+    NOT touched."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, is_auto_generated FROM builds WHERE build_code = %s",
+                "SELECT id FROM builds WHERE build_code = %s",
                 (build_code,),
             )
             build = cur.fetchone()
             if build is None:
                 raise HTTPException(status_code=404, detail=f"Build '{build_code}' not found")
-            if build["is_auto_generated"]:
-                raise HTTPException(status_code=409, detail="Cannot delete auto-generated build")
-            # Check references from external_item_xref
             cur.execute(
-                "SELECT COUNT(*) AS cnt FROM external_item_xref WHERE build_code = %s",
+                """DELETE FROM stock_ledger_entries
+                    WHERE transaction_id IN (
+                        SELECT id FROM transactions WHERE build_code = %s
+                    )""",
                 (build_code,),
             )
-            if cur.fetchone()["cnt"] > 0:
-                raise HTTPException(
-                    status_code=409,
-                    detail="Cannot delete: build is referenced by external SKU mappings",
-                )
-            # Check references from transactions
-            cur.execute(
-                "SELECT COUNT(*) AS cnt FROM transactions WHERE build_code = %s",
-                (build_code,),
-            )
-            if cur.fetchone()["cnt"] > 0:
-                raise HTTPException(
-                    status_code=409,
-                    detail="Cannot delete: build is referenced by transactions",
-                )
-            cur.execute(
-                "DELETE FROM builds WHERE build_code = %s RETURNING id",
-                (build_code,),
-            )
-    return {"ok": True}
+            deleted_ledger = cur.rowcount
+            cur.execute("DELETE FROM transactions WHERE build_code = %s", (build_code,))
+            deleted_txns = cur.rowcount
+            cur.execute("DELETE FROM external_item_xref WHERE build_code = %s", (build_code,))
+            deleted_xrefs = cur.rowcount
+            cur.execute("DELETE FROM build_components WHERE build_id = %s", (build["id"],))
+            cur.execute("DELETE FROM builds WHERE build_code = %s", (build_code,))
+    return {"ok": True, "cascaded": {"xrefs": deleted_xrefs, "transactions": deleted_txns, "ledger_entries": deleted_ledger}}

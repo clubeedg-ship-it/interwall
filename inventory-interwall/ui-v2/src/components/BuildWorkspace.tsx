@@ -80,6 +80,7 @@ export function BuildWorkspace({
   // Save state
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -118,6 +119,9 @@ export function BuildWorkspace({
         // Prefill mappings from this build's existing xrefs so user can check / change them.
         // Save diff decides which ones to write against the new branched build_code.
         const byMp = new Map(sourceXrefs.map((x) => [x.marketplace, x.external_sku]));
+        // For drafts, seed the draft's own (marketplace, external_sku) pair from
+        // draftMeta so the user sees the incoming email's code pre-populated instead
+        // of a blank row they'd have to copy manually from the header.
         const draftSeedMp = d.draft_metadata?.marketplace;
         const draftSeedSku = d.draft_metadata?.external_sku;
         if (draftSeedMp && draftSeedSku && !byMp.has(draftSeedMp)) {
@@ -133,7 +137,12 @@ export function BuildWorkspace({
             prefilled.push({ marketplace: x.marketplace, external_sku: x.external_sku });
           }
         }
-        if (draftSeedMp && draftSeedSku && !prefilled.some((p) => p.marketplace === draftSeedMp)) {
+        // And include the draft marketplace if it's not in knownMarketplaces or xrefs
+        if (
+          draftSeedMp &&
+          draftSeedSku &&
+          !prefilled.some((p) => p.marketplace === draftSeedMp)
+        ) {
           prefilled.push({ marketplace: draftSeedMp, external_sku: draftSeedSku });
         }
         setMappings(prefilled);
@@ -168,7 +177,7 @@ export function BuildWorkspace({
   const saveDisabledReason = useMemo(() => {
     if (saving) return isDraftMode ? "Completing…" : "Saving…";
     if (components.length === 0) return "A Build needs at least one component";
-    if (!dirty && !isNew && !isDraftMode) return "No changes yet — branch needs at least one edit";
+    if (!dirty && !isNew && !isDraftMode) return "No changes yet";
     return null;
   }, [saving, components.length, dirty, isNew, isDraftMode]);
 
@@ -185,6 +194,18 @@ export function BuildWorkspace({
         });
         toast.push(...toastForReplay(buildCode, res.replay));
         void reloadDraftCount();
+        onSaved(buildCode);
+        return;
+      }
+      if (!isNew && buildCode) {
+        await api.builds.updateMeta(buildCode, {
+          name: name.trim() || null,
+          description: note.trim() || null,
+        });
+        await api.builds.replaceComponents(buildCode, {
+          components: components.map(draftToComponentInput),
+        });
+        await syncBuildMappings(buildCode, sourceXrefs, mappings);
         onSaved(buildCode);
         return;
       }
@@ -228,6 +249,27 @@ export function BuildWorkspace({
     }
   }
 
+  async function handleDelete() {
+    if (!buildCode || isNew) return;
+    const label = isDraftMode ? "draft" : "build";
+    const confirmed = window.confirm(
+      `Delete ${label} ${buildCode}? This cascades: SKU mappings, components, and any transactions for this build will be removed. Parts catalog is untouched.`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    setSaveError(null);
+    try {
+      await api.builds.remove(buildCode);
+      toast.push("success", `Deleted ${buildCode}`);
+      reloadDraftCount();
+      onSaved("");
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (!open) return null;
 
   const loadingOrError = !isNew && (loading || loadError);
@@ -255,6 +297,8 @@ export function BuildWorkspace({
           onMappingsChange={setMappings}
           onCancel={onClose}
           onSave={handleSave}
+          onDelete={isNew ? null : handleDelete}
+          deleting={deleting}
         />
       )}
     </Modal>
@@ -315,6 +359,8 @@ function EditorView({
   onMappingsChange,
   onCancel,
   onSave,
+  onDelete,
+  deleting,
 }: {
   isNew: boolean;
   isDraft: boolean;
@@ -333,6 +379,8 @@ function EditorView({
   onMappingsChange: (next: DraftMapping[]) => void;
   onCancel: () => void;
   onSave: () => void;
+  onDelete: (() => void) | null;
+  deleting: boolean;
 }) {
   const draftSku = draftMeta?.external_sku ?? sourceCode ?? "";
   const gridCols = "grid-cols-[240px_minmax(0,1fr)_320px]";
@@ -360,11 +408,10 @@ function EditorView({
                 </>
               ) : (
                 <>
-                  <span className="led led-auto">AUTO ON SAVE</span>
-                  {!isNew && sourceCode && (
-                    <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                      branched from {sourceCode}
-                    </span>
+                  {isNew ? (
+                    <span className="led led-auto">AUTO ON SAVE</span>
+                  ) : (
+                    <span className="text-[13px] text-[var(--color-text)]">{sourceCode}</span>
                   )}
                 </>
               )}
@@ -434,13 +481,22 @@ function EditorView({
           )}
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary" onClick={onCancel} disabled={saving}>
+          {onDelete && (
+            <button
+              className="btn-secondary border-[color-mix(in_oklab,var(--color-crit)_40%,transparent)] text-[var(--color-crit-ink)] hover:bg-[color-mix(in_oklab,var(--color-crit)_12%,transparent)]"
+              onClick={onDelete}
+              disabled={saving || deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          )}
+          <button className="btn-secondary" onClick={onCancel} disabled={saving || deleting}>
             Cancel
           </button>
           <button
             className="btn-primary"
             onClick={onSave}
-            disabled={saveDisabledReason !== null}
+            disabled={saveDisabledReason !== null || deleting}
             title={saveDisabledReason ?? undefined}
           >
             {isDraft
@@ -918,6 +974,42 @@ function sameMappings(a: DraftMapping[], b: DraftMapping[]): boolean {
     if (m.external_sku.trim() !== other) return false;
   }
   return true;
+}
+
+async function syncBuildMappings(
+  buildCode: string,
+  sourceXrefs: XrefItem[],
+  mappings: DraftMapping[]
+) {
+  const existingByMarketplace = new Map(
+    sourceXrefs.map((x) => [x.marketplace, x])
+  );
+  const desiredByMarketplace = new Map(
+    mappings.map((m) => [m.marketplace, m.external_sku.trim()])
+  );
+
+  for (const [marketplace, existing] of existingByMarketplace) {
+    const nextSku = desiredByMarketplace.get(marketplace) ?? "";
+    if (nextSku === existing.external_sku) continue;
+    await api.xref.remove(existing.id);
+    if (nextSku) {
+      await api.xref.create({
+        marketplace,
+        external_sku: nextSku,
+        build_code: buildCode,
+      });
+    }
+  }
+
+  for (const [marketplace, externalSku] of desiredByMarketplace) {
+    if (!externalSku) continue;
+    if (existingByMarketplace.has(marketplace)) continue;
+    await api.xref.create({
+      marketplace,
+      external_sku: externalSku,
+      build_code: buildCode,
+    });
+  }
 }
 
 // -- Draft hint panel -------------------------------------------------------

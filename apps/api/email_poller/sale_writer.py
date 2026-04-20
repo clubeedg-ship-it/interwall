@@ -384,10 +384,12 @@ def _ensure_draft_build_for_unresolved_sku(order: OrderData, sku: str) -> str:
             if existing:
                 return existing["build_code"]
 
-            build_code = sku
+            # build_code is an INTERNAL identifier; NEVER equal to the raw marketplace SKU.
+            build_code = f"DRAFT-{order.marketplace}-{sku}"
             cur.execute("SELECT build_code FROM builds WHERE build_code = %s", (build_code,))
             if cur.fetchone() is not None:
-                build_code = f"DRAFT-{order.marketplace}-{sku}"
+                import uuid as _uuid
+                build_code = f"DRAFT-{order.marketplace}-{sku}-{_uuid.uuid4().hex[:6]}"
 
             draft_name = order.product_description or f"Draft mapping for {order.marketplace} {sku}"
             draft_description = (
