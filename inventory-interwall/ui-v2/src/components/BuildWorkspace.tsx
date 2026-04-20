@@ -118,6 +118,11 @@ export function BuildWorkspace({
         // Prefill mappings from this build's existing xrefs so user can check / change them.
         // Save diff decides which ones to write against the new branched build_code.
         const byMp = new Map(sourceXrefs.map((x) => [x.marketplace, x.external_sku]));
+        const draftSeedMp = d.draft_metadata?.marketplace;
+        const draftSeedSku = d.draft_metadata?.external_sku;
+        if (draftSeedMp && draftSeedSku && !byMp.has(draftSeedMp)) {
+          byMp.set(draftSeedMp, draftSeedSku);
+        }
         const prefilled = knownMarketplaces.map((m) => ({
           marketplace: m,
           external_sku: byMp.get(m) ?? "",
@@ -127,6 +132,9 @@ export function BuildWorkspace({
           if (!prefilled.some((p) => p.marketplace === x.marketplace)) {
             prefilled.push({ marketplace: x.marketplace, external_sku: x.external_sku });
           }
+        }
+        if (draftSeedMp && draftSeedSku && !prefilled.some((p) => p.marketplace === draftSeedMp)) {
+          prefilled.push({ marketplace: draftSeedMp, external_sku: draftSeedSku });
         }
         setMappings(prefilled);
         prefillRef.current = {
@@ -327,9 +335,7 @@ function EditorView({
   onSave: () => void;
 }) {
   const draftSku = draftMeta?.external_sku ?? sourceCode ?? "";
-  const gridCols = isDraft
-    ? "grid-cols-[minmax(0,1fr)_320px]"
-    : "grid-cols-[240px_minmax(0,1fr)_320px]";
+  const gridCols = "grid-cols-[240px_minmax(0,1fr)_320px]";
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--color-line)] bg-[var(--color-bg-elevated)] px-6 py-4">
@@ -395,9 +401,7 @@ function EditorView({
       </header>
 
       <div className={`grid min-h-0 flex-1 ${gridCols} gap-0 overflow-hidden`}>
-        {!isDraft && (
-          <SkuMappingRail mappings={mappings} onChange={onMappingsChange} />
-        )}
+        <SkuMappingRail mappings={mappings} onChange={onMappingsChange} />
         <CompositionCanvas
           components={components}
           onChange={onComponentsChange}
